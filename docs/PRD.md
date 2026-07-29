@@ -1,4 +1,4 @@
-# PRD — Internal Academic Knowledge Hub
+# PRD — EduHub
 
 **Phiên bản:** 0.2
 **Trạng thái:** Draft  

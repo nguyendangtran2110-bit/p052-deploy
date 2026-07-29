@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduHub - Material 3 Academic Platform & Course Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- KaTeX for Math formulas -->
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+</head>
+
+<body>
+
+  <!-- Main Header Bar -->
+  <header class="main-header">
+    <div class="header-left">
+      <a href="#" class="logo-container">
+        <span>Edu</span><span class="logo-tag">HUB</span>
+      </a>
+      <div class="header-search">
+        <input type="text" id="global-search-input" placeholder="Tìm kiếm tài liệu, giáo trình, đề thi, tác giả...">
+        <button id="btn-global-search">🔍</button>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn-upload" id="btn-open-upload">
+        <span>➕ TẢI NỘI BỘ</span>
+      </button>
+      <div class="role-switcher">
+        <span>Vai trò:</span>
+        <select id="role-select">
+          <option value="STUDENT">🎓 Sinh viên: Nguyễn Văn A</option>
+          <option value="LECTURER">👨‍🏫 Giảng viên: TS. Trần Thị B</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main App Layout Container -->
+  <div class="app-container">
+
+    <!-- Left Navigation & Filter Sidebar -->
+    <aside class="sidebar">
+      <div class="filter-group">
+        <div class="filter-title">UNIVERSITIES / KHOA TRƯỜNG</div>
+        <ul class="filter-list" id="school-filter-list">
+          <!-- Dynamically populated -->
+        </ul>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-title">LOẠI TÀI LIỆU</div>
+        <ul class="filter-list" id="doctype-filter-list">
+          <li class="filter-item active" data-type="ALL">Tất cả loại tệp</li>
+          <li class="filter-item" data-type="Giáo trình">Giáo trình chuẩn</li>
+          <li class="filter-item" data-type="Đề thi & Đáp án">Đề thi & Đáp án</li>
+          <li class="filter-item" data-type="Slide">Slide bài giảng</li>
+          <li class="filter-item" data-type="Đề cương">Đề cương ôn tập</li>
+        </ul>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-title">MỨC HIỂN THỊ</div>
+        <ul class="filter-list" id="visibility-filter-list">
+          <li class="filter-item active" data-vis="ALL">Tất cả</li>
+          <li class="filter-item" data-vis="PUBLIC">🌐 Public (Toàn trường)</li>
+          <li class="filter-item" data-vis="PRIVATE">🔒 Private (Được mời)</li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+
+      <!-- Navigation Tabs -->
+      <nav class="nav-tabs">
+        <button class="tab-btn active" id="tab-btn-hub" data-tab="hub">📚 KNOWLEDGE HUB</button>
+        <button class="tab-btn" id="tab-btn-academic" data-tab="academic">🤖 ACADEMIC ASSISTANT (AI HỎI ĐÁP)</button>
+        <button class="tab-btn" id="tab-btn-learning" data-tab="learning">🎯 LEARNING ASSISTANT (LỘ TRÌNH HỌC)</button>
+        <button class="tab-btn hidden" id="tab-btn-management" data-tab="management">⚙️ DUYỆT & QUẢN LÝ TÀI LIỆU</button>
+      </nav>
+
+      <!-- TAB 1: KNOWLEDGE HUB VIEW -->
+      <section id="tab-content-hub" class="tab-section">
+        <div class="batch-bar">
+          <div style="font-size: 13px; font-weight: 700; color: var(--md-sys-color-on-surface-variant);">
+            <span id="selected-count" style="color: var(--md-sys-color-primary);">0</span> tài liệu được chọn
+          </div>
+          <div class="batch-actions">
+            <button class="btn-action" id="btn-batch-summary">📝 Tóm tắt các tài liệu chọn</button>
+            <button class="btn-action" id="btn-batch-compare">⚖️ So sánh tài liệu</button>
+          </div>
+        </div>
+
+        <div class="doc-grid" id="doc-cards-grid">
+          <!-- Document Cards rendered dynamically -->
+        </div>
+      </section>
+
+      <!-- TAB 2: ACADEMIC ASSISTANT CHAT VIEW -->
+      <section id="tab-content-academic" class="tab-section hidden">
+        <div class="chat-container">
+          <div class="chat-header">
+            <div>
+              <h2 style="font-size: 16px; font-weight: 800; color: var(--md-sys-color-on-surface);">🤖 Academic Assistant (AI Hỏi Đáp Có Trích Dẫn Nguồn)</h2>
+              <p style="font-size: 12px; color: var(--md-sys-color-on-surface-variant);">Chỉ trả lời dựa trên tài liệu đã duyệt được cấp quyền cho tài khoản hiện tại.</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <label style="font-size: 12px; font-weight: 800; color: var(--md-sys-color-on-surface-variant);">Môn học:</label>
+              <select id="chat-subject-select" style="font-size: 12px;">
+                <option value="ALL">Tất cả môn học</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="chat-messages" id="chat-messages">
+            <!-- Messages rendered dynamically -->
+          </div>
+
+          <div class="chat-input-bar">
+            <input type="text" id="chat-input" placeholder="Hỏi AI về kiến thức môn học (Ví dụ: Biến đổi Fourier là gì? Cách giải tích phân cuộn LTI...)...">
+            <button id="btn-send-chat">GỬI CÂU HỎI ➔</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: LEARNING ASSISTANT (MULTI-COURSE DASHBOARD VIEW) -->
+      <section id="tab-content-learning" class="tab-section hidden">
+        <div class="roadmap-container" style="display: flex; flex-direction: column; gap: 24px;">
+          <!-- Top Form: Generate New Path -->
+          <div class="roadmap-card">
+            <h3 style="font-size: 16px; font-weight: 900; margin-bottom: 16px; color: var(--md-sys-color-primary);">🎯 TẠO LỘ TRÌNH ÔN TẬP TỰ ĐỘNG TỪ TÀI LIỆU NỘI BỘ</h3>
+            <div style="display: grid; grid-template-columns: 1fr 2fr 1fr auto; gap: 12px; align-items: end;">
+              <div class="form-group">
+                <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px;">Môn học:</label>
+                <select id="path-subject-select" style="width: 100%;"></select>
+              </div>
+              <div class="form-group">
+                <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px;">Mục tiêu học tập:</label>
+                <input type="text" id="path-goal-input" placeholder="Ví dụ: Ôn thi cuối kỳ đạt điểm A, làm chủ biến đổi Laplace..." style="width: 100%;">
+              </div>
+              <div class="form-group">
+                <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px;">Thời gian (Ngày):</label>
+                <input type="number" id="path-duration-input" value="7" min="1" max="30" style="width: 100%;">
+              </div>
+              <button class="btn-action" id="btn-generate-path" style="height: 42px;">🚀 TẠO LỘ TRÌNH AI</button>
+            </div>
+          </div>
+
+          <!-- Multi-Course Dashboard Section Header -->
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="font-size: 16px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px;">
+              📚 DANH SÁCH LỘ TRÌNH CÁC MÔN HỌC ĐÃ TẠO (<span id="user-path-count">3</span> COURSES)
+            </h3>
+            <span style="font-size: 12px; color: var(--md-sys-color-on-surface-variant);">Bấm vào bất kỳ môn học nào để xem chi tiết từng buổi học & đánh dấu tiến độ</span>
+          </div>
+
+          <!-- Multi-Course Path Grid -->
+          <div class="doc-grid" id="learning-paths-grid">
+            <!-- Rendered dynamically by app.js -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: LECTURER MANAGEMENT VIEW -->
+      <section id="tab-content-management" class="tab-section hidden">
+        <div class="roadmap-card" style="margin-bottom: 24px;">
+          <h3 style="font-size: 16px; font-weight: 900; margin-bottom: 12px; color: var(--md-sys-color-warning);">⏳ DANH SÁCH TÀI LIỆU CỦA SINH VIÊN CHỜ DUYỆT</h3>
+          <p style="font-size: 13px; color: var(--md-sys-color-on-surface-variant); margin-bottom: 16px;">Tài liệu ở trạng thái PENDING chưa được hiển thị rộng rãi và chưa dùng cho AI cho đến khi Giảng viên phê duyệt.</p>
+          <div id="pending-docs-list"></div>
+        </div>
+
+        <div class="roadmap-card">
+          <h3 style="font-size: 16px; font-weight: 900; margin-bottom: 12px; color: var(--md-sys-color-tertiary);">🔒 QUẢN LÝ QUYỀN TRUY CẬP TÀI LIỆU PRIVATE</h3>
+          <div id="private-docs-management-list"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL: DETAILED LEARNING PATH SESSIONS MODAL -->
+  <div class="modal-backdrop hidden" id="modal-path-details">
+    <div class="modal-content" style="width: 850px; max-width: 92vw; max-height: 88vh; border-radius: 20px;">
+      <div class="modal-header" style="background: var(--md-sys-color-surface-container); border-bottom: 1px solid var(--md-sys-color-outline); padding: 18px 24px;">
+        <h3 id="path-modal-title" style="font-size: 16px; font-weight: 800; color: var(--md-sys-color-primary);">🎯 CHI TIẾT LỘ TRÌNH HỌC TẬP</h3>
+        <button class="btn-close" id="btn-close-path-details">✕</button>
+      </div>
+      <div class="modal-body" id="path-details-body" style="padding: 24px; overflow-y: auto;">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- REDESIGNED DOCUMENT VIEWER MODAL -->
+  <div class="modal-backdrop hidden" id="modal-doc-details">
+    <div class="modal-content modal-doc-viewer-split">
+      
+      <!-- Left Column: Single Outer Scrollbar for Info + Document Pages -->
+      <div class="viewer-left-col" id="viewer-left-scroll-col">
+        
+        <!-- Sticky Header Bar -->
+        <div class="viewer-left-sticky-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 14px; font-weight: 800; color: #fff;">📄 CHI TIẾT & ĐỌC TÀI LIỆU HỌC THUẬT</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span id="inline-page-indicator" style="font-size: 12px; font-weight: 800; color: #a5b4fc; background: var(--md-sys-color-surface-container); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--md-sys-color-outline);">
+              Trang 1 / 15
+            </span>
+            <button class="btn-close" id="btn-close-details">✕</button>
+          </div>
+        </div>
+
+        <!-- Scrollable Content Body -->
+        <div style="padding: 20px;">
+          <!-- Metadata Header -->
+          <div id="doc-meta-header" style="margin-bottom: 14px;"></div>
+          
+          <!-- Metadata Table -->
+          <div id="doc-meta-table-container" style="margin-bottom: 20px;"></div>
+
+          <!-- Stacked PDF Document Pages -->
+          <div id="inline-reader-stacked-pages">
+            <!-- Stacked pages rendered dynamically -->
+          </div>
+
+          <!-- Download Action Button -->
+          <div style="padding-top: 16px; margin-top: 20px; border-top: 1px solid var(--md-sys-color-outline);">
+            <button class="btn-action" id="btn-download-file-left" style="width: 100%; height: 46px; font-size: 14px; background: linear-gradient(135deg, var(--md-sys-color-primary), #6366f1); color: #fff;">
+              📥 TẢI TỆP XUỐNG (<span id="download-filename-span">filename.pdf</span>)
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Column: AI Support Panels -->
+      <div class="viewer-right-col">
+        <!-- Top Box: Knowledge Hub Agent AI Overview -->
+        <div class="ai-box-top" id="doc-ai-overview-box">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Bottom Box: Academic Assistant Document Q&A Chat -->
+        <div class="ai-box-bottom" id="doc-academic-chat-box">
+          <div class="doc-chat-header">
+            <h4>💬 ACADEMIC ASSISTANT (HỎI ĐÁP VỀ TÀI LIỆU NÀY)</h4>
+            <span style="font-size: 11px; color: var(--md-sys-color-on-surface-variant);">Chịu trách nhiệm bởi Academic Assistant</span>
+          </div>
+
+          <div class="doc-chat-messages" id="doc-chat-messages-container">
+            <!-- Messages rendered by JS -->
+          </div>
+
+          <div class="doc-chat-input-bar">
+            <input type="text" id="doc-chat-input" placeholder="Hỏi AI bất kỳ điều gì về tài liệu này...">
+            <button id="btn-doc-send-chat">GỬI ➔</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: Upload Document -->
+  <div class="modal-backdrop hidden" id="modal-upload">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="upload-modal-title">➕ TẢI TÀI LIỆU NỘI BỘ MỚI LÊN EDUHUB</h3>
+        <button class="btn-close" id="btn-close-upload">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 24px;">
+        <form id="form-upload">
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">Tiêu đề tài liệu (*):</label>
+            <input type="text" id="upload-title" required placeholder="Nhập tiêu đề rõ ràng..." style="width: 100%;">
+          </div>
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">Môn học (*):</label>
+            <select id="upload-subject" required style="width: 100%;"></select>
+          </div>
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">Loại tài liệu (*):</label>
+            <select id="upload-type" required style="width: 100%;">
+              <option value="Giáo trình">Giáo trình</option>
+              <option value="Đề thi & Đáp án">Đề thi & Đáp án</option>
+              <option value="Slide">Slide bài giảng</option>
+              <option value="Đề cương">Đề cương ôn tập</option>
+            </select>
+          </div>
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">Mô tả nội dung ngắn:</label>
+            <textarea id="upload-desc" rows="3" placeholder="Tóm tắt nội dung chính..." style="width: 100%;"></textarea>
+          </div>
+
+          <div class="hidden" id="lecturer-upload-options" style="background: var(--md-sys-color-surface-container); border: 1px solid var(--md-sys-color-primary); padding: 14px; border-radius: 12px; margin-bottom: 16px;">
+            <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--md-sys-color-primary);">Mức hiển thị (Quyền Giảng viên):</label>
+            <select id="upload-visibility" style="width: 100%;">
+              <option value="PUBLIC">🌐 PUBLIC (Tất cả tài khoản trong tổ chức)</option>
+              <option value="PRIVATE">🔒 PRIVATE (Chỉ những người được mời)</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">Tệp đính kèm (PDF, PPTX, DOCX):</label>
+            <input type="file" id="upload-file" style="width: 100%; border: 1px dashed var(--md-sys-color-outline); padding: 16px;">
+          </div>
+
+          <div id="upload-notice-banner" style="font-size: 12px; font-weight: 700; color: var(--md-sys-color-warning); margin-bottom: 16px;">
+            ℹ️ Tài liệu của Sinh viên sẽ được khởi tạo với trạng thái PENDING (Chờ duyệt).
+          </div>
+
+          <button type="submit" class="btn-action" style="width: 100%; height: 44px; font-size: 14px;">🚀 XÁC NHẬN TẢI LÊN</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Citation Source Modal -->
+  <div class="modal-backdrop hidden" id="modal-citation">
+    <div class="modal-content">
+      <div class="modal-header" style="background: var(--md-sys-color-surface-container);">
+        <h3 style="color: var(--md-sys-color-primary);">📌 CHI TIẾT TRÍCH DẪN NGUỒN TÀI LIỆU AI</h3>
+        <button class="btn-close" id="btn-close-citation">✕</button>
+      </div>
+      <div class="modal-body" id="citation-body" style="padding: 24px;"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: Batch Results Modal -->
+  <div class="modal-backdrop hidden" id="modal-batch-result">
+    <div class="modal-content" style="width: 800px;">
+      <div class="modal-header">
+        <h3 id="batch-result-title">📊 KẾT QUẢ AI BATCH OPERATIONS</h3>
+        <button class="btn-close" id="btn-close-batch">✕</button>
+      </div>
+      <div class="modal-body" id="batch-result-body" style="padding: 24px;"></div>
+    </div>
+  </div>
+
+  <!-- App JavaScript Dependencies -->
+  <script src="mockData.js"></script>
+  <script src="mockLLM.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
