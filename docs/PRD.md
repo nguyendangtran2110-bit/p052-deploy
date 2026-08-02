@@ -312,3 +312,16 @@ sequenceDiagram
 - Pilot with a limited resident/unit group before full rollout to validate assumptions and refine classification/routing logic.
 - Clear escalation path for cases the agent cannot handle (handoff to human staff).
 
+---
+
+## 11. Demo UI Surface (Production-Style Mock)
+
+The static demo in `docs/demo` exposes four tabbed surfaces that make the Phase 1 workflow observable without a backend:
+
+- **Landing**: Boomerang positioning and direct links into the working surfaces. Booking, purchasing, and unrelated conversion actions are intentionally excluded from the demo.
+- **Onboarding**: A resident checklist with step-by-step agent guidance, grounded answers with source references, and a resident context summary.
+- **Demo Zalo chat**: A Vietnamese mock group containing 30 messages and an `800 tin nhắn chưa đọc` signal. The rule-based demo agent detects `nước`, `điện`, `cháy`, `nứt`, `hỏng`, and `mất mạng`, summarizes important signals, and offers to create a ticket.
+- **Ticket**: A role switch between **Cư dân** and **Quản lý**. Resident fields are prefilled from the detected Zalo issue and require verification before submission. Management reviews the structured request and must approve it before the demo marks the ticket as created.
+
+The demo uses React state and mock data only. It represents the same authorization boundary required in production: agent classification may prepare a request, but ticket creation remains gated by human approval.
+

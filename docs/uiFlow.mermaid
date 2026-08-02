@@ -1,46 +1,36 @@
 graph TD
-    %% Define Nodes
-    Login["<b>Resident login</b>"]
-    ZaloMsg["<b>Zalo message</b>"]
+    Landing["<b>Landing</b><br/>Boomerang product entry"]
+    Onboarding["<b>Onboarding tab</b><br/>Step-by-step checklist + chatbot"]
+    Zalo["<b>Demo Zalo chat</b><br/>30 Vietnamese mock messages"]
+    Summary["<b>Agent summary</b><br/>Important signals + 800 unread"]
+    Detect["<b>Rule-based detection</b><br/>nước · điện · cháy · nứt · hỏng"]
+    Prompt["<b>Create ticket prompt</b><br/>Resident confirms"]
+    Ticket["<b>Ticket tab</b><br/>Resident / Management role"]
+    Verify["<b>Resident verify</b><br/>Prefilled fields + submit"]
+    Queue["<b>Management queue</b><br/>Review classification + priority"]
+    HITL["<b>HITL approval</b><br/>Approve / reject"]
+    Status["<b>Ticket status</b><br/>Submitted → Approved → In progress → Resolved"]
 
-    ResHome["<b>Resident home</b><br/>Checklist or concierge access"]
-    Onboarding["<b>Onboarding</b><br/>Checklist steps"]
-    ChecklistDone["<b>Checklist finished</b><br/>All steps done"]
-    Survey["<b>Survey shown</b><br/>After completion"]
+    Landing --> Onboarding
+    Landing --> Zalo
+    Landing --> Ticket
+    Onboarding --> Ticket
+    Zalo --> Summary
+    Zalo --> Detect
+    Detect --> Prompt
+    Prompt -->|Có| Ticket
+    Prompt -->|Để sau| Zalo
+    Ticket --> Verify
+    Ticket --> Queue
+    Verify --> Queue
+    Queue --> HITL
+    HITL --> Status
 
-    VirtualConcierge["<b>Virtual concierge</b><br/>Ask anytime, cited source"]
-
-    MatchRes["<b>Match resident</b><br/>Zalo ID to unit"]
-    ReportDefect["<b>Report defect</b><br/>From app or Zalo"]
-    ClassifyRoute["<b>Classify + route</b><br/>Type + priority"]
-    HITL["<b>HITL approval</b><br/>Manager review"]
-    TicketStatus["<b>Ticket status</b><br/>Live tracking"]
-
-    %% Connectors
-    Login --> ResHome
-    ResHome --> Onboarding
-    Onboarding --> ChecklistDone
-    ChecklistDone --> Survey
-
-    ResHome -.-> VirtualConcierge
-    VirtualConcierge -.-> VirtualConcierge
-
-    ZaloMsg --> MatchRes
-    MatchRes --> ReportDefect
-    ResHome --> ReportDefect
-    ReportDefect --> ClassifyRoute
-    ClassifyRoute --> HITL
-    HITL --> TicketStatus
-
-    %% Styles
-    classDef startup fill:#F7F5F0,stroke:#D1D5DB,stroke-width:1px,color:#2D3748;
-    class Login,ZaloMsg startup;
-
-    classDef greenNode fill:#E6F6F4,stroke:#A3E4D7,stroke-width:1px,color:#166534;
-    class ResHome,Onboarding,ChecklistDone,Survey greenNode;
-
-    classDef purpleNode fill:#EBEBFA,stroke:#C0C0EB,stroke-width:1px,color:#4338CA;
-    class VirtualConcierge purpleNode;
-
-    classDef redNode fill:#FDF2F0,stroke:#FADBD8,stroke-width:1px,color:#991B1B;
-    class MatchRes,ReportDefect,ClassifyRoute,HITL,TicketStatus redNode;
+    classDef marketing fill:#F7F5F0,stroke:#D1D5DB,stroke-width:1px,color:#2D3748;
+    class Landing marketing;
+    classDef resident fill:#E6F6F4,stroke:#A3E4D7,stroke-width:1px,color:#166534;
+    class Onboarding,Zalo,Verify resident;
+    classDef agent fill:#F4F3F3,stroke:#D1D5DB,stroke-width:1px,color:#374151;
+    class Summary,Detect,Prompt agent;
+    classDef management fill:#FDF2F0,stroke:#FADBD8,stroke-width:1px,color:#991B1B;
+    class Ticket,Queue,HITL,Status management;
