@@ -1,0 +1,80 @@
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryTextColor': '#2D3748',
+    'lineColor': '#718096',
+    'fontSize': '14px',
+    'fontFamily': 'inter, sans-serif'
+  },
+  'flowchart': {
+    'nodeSpacing': 30,
+    'rankSpacing': 40,
+    'curve': 'basis'
+  }
+}%%}
+
+graph TD
+%% === ĐỊNH NGHĨA CÁC NODE (CÁC Ô) ===
+
+%% Các ô bắt đầu (Màu kem)
+Login("<b>Resident login</b>")
+ZaloMsg("<b>Zalo message</b>")
+
+%% Các ô màu xanh lá cây
+ResHome("<b>Resident home</b><br/>Checklist or concierge access")
+Onboarding("<b>Onboarding</b><br/>Checklist steps")
+ChecklistDone("<b>Checklist finished</b><br/>All steps done")
+Survey("<b>Survey shown</b><br/>After completion")
+
+%% Ô màu tím
+VirtualConcierge("<b>Virtual concierge</b><br/>Ask anytime, cited source")
+
+%% Các ô màu hồng
+MatchRes("<b>Match resident</b><br/>Zalo ID to unit")
+ReportDefect("<b>Report defect</b><br/>From app or Zalo")
+ClassifyRoute("<b>Classify + route</b><br/>Type + priority")
+HITL("<b>HITL approval</b><br/>Manager review")
+TicketStatus("<b>Ticket status</b><br/>Live tracking")
+
+%% === ĐỊNH NGHĨA KẾT NỐI (MŨI TÊN) ===
+
+%% Luồng bên trái (Màu xanh)
+Login --> ResHome
+ResHome --> Onboarding
+Onboarding --> ChecklistDone
+ChecklistDone --> Survey
+
+%% Luồng ở giữa (Màu tím)
+ResHome -.-> VirtualConcierge
+VirtualConcierge -.-> VirtualConcierge
+
+ZaloMsg --> MatchRes
+MatchRes --> ReportDefect
+ResHome --> ReportDefect
+ReportDefect --> ClassifyRoute
+ClassifyRoute --> HITL
+HITL --> TicketStatus
+
+
+classDef default fill:#fff,stroke:#718096,stroke-width:1px,rx:8,ry:8,color:#2D3748;
+
+%% Style cho các ô màu kem
+classDef startup fill:#F7F5F0,stroke:#D1D5DB,stroke-width:1px,color:#2D3748;
+class Login,ZaloMsg startup;
+
+%% Style cho các ô màu xanh
+classDef greenNode fill:#E6F6F4,stroke:#A3E4D7,stroke-width:1px,color:#166534;
+class ResHome,Onboarding,ChecklistDone,Survey greenNode;
+
+%% Style cho ô màu tím
+classDef purpleNode fill:#EBEBFA,stroke:#C0C0EB,stroke-width:1px,color:#4338CA;
+class VirtualConcierge purpleNode;
+
+%% Style cho các ô màu hồng
+classDef redNode fill:#FDF2F0,stroke:#FADBD8,stroke-width:1px,color:#991B1B;
+class MatchRes,ReportDefect,ClassifyRoute,HITL,TicketStatus redNode;
+
+%% Style cho các mũi tên
+linkStyle default stroke:#718096,stroke-width:1px,fill:none;
+%% Mũi tên nét đứt cho Virtual Concierge
+linkStyle 4,5 stroke-dasharray: 5 5;
