@@ -14,7 +14,7 @@ OnBxrD AI Agent is a stateful, source-grounded AI assistant that guides new resi
 
 - **Target user & use case**: New homeowners/residents right after unit handover, who need step-by-step onboarding guidance, answers about amenities/regulations, and a way to report and track defects; property management staff who must review and approve every commitment or ticket before it is created.
 - **Key differentiator & value proposition**: Unlike scattered manual processes (phone calls, Zalo, paper checklists), OnBxrD combines a stateful onboarding checklist (LangGraph), source-grounded Q&A (RAG over the resident handbook), and structured defect-ticket escalation — all gated by mandatory human approval (HITL) so management retains authority and accountability.
-- **Success definition & metrics**: Success means residents complete onboarding faster and with less friction, defect requests are triaged and resolved accurately, and management spends less time on repetitive questions. Primary KPI: % of residents completing the onboarding checklist within the target window (initial target: 80% within 7 days of handover).
+- **Success definition & metrics**: Success means residents complete onboarding faster, defect requests are triaged and resolved accurately, and management spends less time on repetitive questions. Primary KPI: % of residents completing the onboarding checklist within the target window (initial target: 80% within 7 days of handover).
 
 **Strategic Alignment**
 - **Business objectives supported**: Improve post-sale customer experience; increase resident retention and referral rate; reduce management staff time spent on repetitive onboarding/Q&A tasks.
@@ -24,7 +24,7 @@ OnBxrD AI Agent is a stateful, source-grounded AI assistant that guides new resi
 
 **Resource Requirements**
 - **Development effort estimate**: MVP buildable by a small cross-functional team in 6–8 weeks (pilot/hackathon-scale project).
-- **Timeline & key milestones**: Discovery & data prep (week 1) → Core agent + checklist flow (weeks 2–4) → Ticketing + HITL approval (weeks 4–6) → Testing, eval, and pilot launch (weeks 6–8).
+- **Timeline & key milestones**: Discovery & data prep (week 1) → Core agent + checklist flow (weeks 2–4) → Ticketing + HITL approval (weeks 4–5) → Testing, eval, and pilot launch (weeks 5-6).
 - **Team members & skills needed**: 1 backend engineer (FastAPI/Postgres), 1 frontend engineer (React), 1 AI/ML engineer (LLM orchestration, RAG, LangGraph), part-time product/design support.
 - **Budget & resource allocation**: Limited/pilot-stage budget; primary costs are LLM API usage (GPT-4o-mini), Render hosting, and engineering time — no dedicated infrastructure team assumed.
 
@@ -148,9 +148,49 @@ After a resident receives their unit, onboarding today spans multiple disconnect
 ## 5. Technical Requirements
 
 **Architecture Specifications**
-- **System overview**: React frontend (Resident App + Management Console) → FastAPI backend → LangGraph-orchestrated agent (using GPT-4o-mini) → RAG layer (LlamaIndex over resident handbook/regulations) → PostgreSQL for persistent state (residents, checklists, requests, approvals, tickets) → external ticketing tool integration.
+- **System overview**:
+
+```mermaid
+flowchart LR
+  frontend["React frontend<br/>Resident App + Management Console"]
+  backend["FastAPI backend"]
+  agent["LangGraph-orchestrated agent<br/>GPT-4o-mini"]
+  rag["RAG layer<br/>LlamaIndex over handbook/regulations"]
+  postgres["PostgreSQL<br/>residents, checklists, requests, approvals, tickets"]
+  ticketing["External ticketing tool integration"]
+
+  frontend --> backend
+  backend --> agent
+  agent --> rag
+  agent --> postgres
+  backend --> ticketing
+```
+
 - **Component definitions**: Onboarding checklist manager (LangGraph state machine); Q&A/retrieval service (LlamaIndex index + LLM); classification/routing module; HITL approval service; ticket-creation connector.
-- **Data flow**: Resident message → agent orchestration (LangGraph) → checklist/RAG/classification as needed → for defect requests, structured payload sent to approval queue → on approval, ticket-creation connector calls ticketing system → status synced back to resident view.
+- **Data flow**:
+
+```mermaid
+sequenceDiagram
+  actor Resident
+  participant Frontend as Resident App
+  participant Backend as FastAPI Backend
+  participant Agent as LangGraph Agent
+  participant Services as Checklist/RAG/Classification
+  participant Approval as HITL Approval Queue
+  participant Ticketing as Ticketing System
+
+  Resident->>Frontend: Send message
+  Frontend->>Backend: Submit chat request
+  Backend->>Agent: Orchestrate resident workflow
+  Agent->>Services: Use checklist, RAG, or classification as needed
+  Services-->>Agent: Return workflow result
+  Agent->>Approval: Send structured defect payload when approval is required
+  Approval->>Ticketing: Create ticket after management approval
+  Ticketing-->>Backend: Sync ticket status
+  Backend-->>Frontend: Return updated response/status
+  Frontend-->>Resident: Show answer, approval state, or ticket status
+```
+
 - **Scalability/performance**: Must handle concentrated onboarding waves right after handover (many residents onboarding within the same short window).
 
 **API Requirements**
