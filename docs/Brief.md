@@ -5,7 +5,7 @@
 ---
 
 ## 1. Executive Summary & Problem Statement
-**MoveIn AI Agent** is an intelligent virtual assistant designed to automate resident onboarding and post-handover customer care. Currently, this process is fragmented, highly manual, and paper-based, leading to poor resident experiences, delayed defect resolutions, and high operational overhead. MoveIn bridges this gap using Retrieval-Augmented Generation (RAG) and Human-in-the-Loop (HITL) workflows to provide seamless, accurate, 24/7 support.
+**OnBxrd** is an intelligent virtual assistant designed to automate resident onboarding and post-handover customer care. Currently, this process is fragmented, highly manual, and paper-based, leading to poor resident experiences, delayed defect resolutions, and high operational overhead. MoveIn bridges this gap using Retrieval-Augmented Generation (RAG) and Human-in-the-Loop (HITL) workflows to provide seamless, accurate, 24/7 support.
 
 ## 2. Core Objectives & KPIs
 * **Accelerate Onboarding:** Reduce average resident onboarding duration by **40%**.
