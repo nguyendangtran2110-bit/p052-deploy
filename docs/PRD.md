@@ -1,380 +1,314 @@
-# PRD — EduHub
+# Product Requirements Document: OnBxrD AI Agent
+**Resident Onboarding & Post-Handover Care Assistant**
 
-**Phiên bản:** 0.2
-**Trạng thái:** Draft  
-**Phạm vi MVP:** Hệ thống nội bộ cho một tổ chức giáo dục  
-
-## 1. Tổng quan
-
-EduHub là ứng dụng web quản lý và khai thác tài liệu học thuật nội bộ. Sản phẩm tổ chức tài liệu theo các Hub tương tự Studocu hoặc VNUDocsHub, nhưng không định hướng thành cộng đồng chia sẻ mở.
-
-Người dùng trong tổ chức có thể xem, tải xuống, tải lên và tìm kiếm tài liệu theo quyền được cấp. Ba AI Agent hỗ trợ tìm tài liệu, hỏi đáp học thuật và xây dựng lộ trình học. Mọi câu trả lời của AI phải dựa trên tài liệu mà người dùng có quyền truy cập, kèm trích dẫn rõ ràng và không tự bịa thông tin.
-
-> Trong PRD này, **Public** nghĩa là mọi tài khoản đã đăng nhập trong tổ chức đều có thể truy cập; không có nghĩa là công khai trên Internet.
+**Owner**: Đào Đức Mạnh
+**Status**: Final
+**Last Updated**: August 2, 2026
 
 ---
 
-## 2. Mục tiêu sản phẩm
+## 1. Executive Summary
 
-1. Tập trung tài liệu học tập của tổ chức vào một hệ thống thống nhất.
-2. Cho phép sinh viên đóng góp tài liệu nhưng vẫn có quy trình kiểm duyệt.
-3. Kiểm soát quyền truy cập đối với tài liệu riêng tư.
-4. Giúp người dùng tìm và hiểu tài liệu nhanh hơn bằng AI có trích dẫn.
-5. Tạo lộ trình ôn tập có cấu trúc từ chính tài liệu nội bộ.
+**Product Vision**
+OnBxrD AI Agent is a stateful, source-grounded AI assistant that guides new residents through personalized post-handover onboarding — from utility activation to defect reporting — while giving management full human-in-the-loop control.
 
-### Ngoài phạm vi MVP
+- **Target user & use case**: New homeowners/residents right after unit handover, who need step-by-step onboarding guidance, answers about amenities/regulations, and a way to report and track defects; property management staff who must review and approve every commitment or ticket before it is created.
+- **Key differentiator & value proposition**: Unlike scattered manual processes (phone calls, Zalo, paper checklists), OnBxrD combines a stateful onboarding checklist (LangGraph), source-grounded Q&A (RAG over the resident handbook), and structured defect-ticket escalation — all gated by mandatory human approval (HITL) so management retains authority and accountability.
+- **Success definition & metrics**: Success means residents complete onboarding faster, defect requests are triaged and resolved accurately, and management spends less time on repetitive questions. Primary KPI: % of residents completing the onboarding checklist within the target window (initial target: 80% within 7 days of handover).
 
-- Kho tài liệu cộng đồng công khai trên Internet.
-- Cho phép user chủ động upload tài liệu lên và khai thác agent ngay từ tài liệu đó (Giống các ChatLLM hay NotebookLLM)
-- Hỗ trợ nhiều tổ chức trên cùng một hệ thống.
-- Video bài giảng hoặc lớp học trực tuyến thời gian thực.
+**Strategic Alignment**
+- **Business objectives supported**: Improve post-sale customer experience; increase resident retention and referral rate; reduce management staff time spent on repetitive onboarding/Q&A tasks.
+- **User problems solved**: Fragmented, unclear onboarding steps; no centralized source of truth for building rules; opaque defect-reporting process with no status visibility.
+- **Market opportunity & timing**: Developers/operators handing over large volumes of units at once face a scaling bottleneck in customer care; an AI-driven onboarding layer lets them scale support without proportional headcount growth, at a moment when resident experience directly drives referral-based sales.
+- **Competitive advantage gained**: A single, personalized, always-available onboarding and support agent — differentiated from competitors' manual, multi-channel processes — while keeping human oversight for every commitment.
 
----
-
-## 3. Đối tượng và phân quyền
-
-Hệ thống có hai vai trò.
-
-| Chức năng | Sinh viên | Giảng viên |
-|---|---:|---:|
-| Xem và tải tài liệu Public | Có | Có |
-| Xem và tải tài liệu Private được mời | Có | Có |
-| Tải tài liệu lên | Có | Có |
-| Chọn tài liệu Private/Public khi tải lên | Không | Có |
-| Duyệt tài liệu sinh viên tải lên | Không | Có |
-| Chuyển tài liệu giữa Private và Public | Không | Có |
-| Quản lý người được truy cập tài liệu Private | Không | Có |
-| Sử dụng ba AI Agent | Có | Có |
-
-### Quy tắc tài liệu do sinh viên tải lên
-
-1. Tài liệu được tạo với trạng thái `PENDING`.
-2. Mức hiển thị mặc định là `PUBLIC`.
-3. Tài liệu chưa được duyệt chỉ người tải lên và giảng viên có thể xem.
-4. Sau khi giảng viên duyệt, mọi tài khoản trong tổ chức có thể truy cập.
-5. Nếu bị từ chối, sinh viên nhận được thông báo, giảng viên có thể để lại lý do nếu muốn.
-
-### Quy tắc tài liệu do giảng viên tải lên
-
-- Có thể chọn `PUBLIC` hoặc `PRIVATE`.
-- Được duyệt ngay khi tải lên.
-- Với tài liệu Private, giảng viên chọn danh sách người được truy cập.
-- Giảng viên có thể thay đổi mức hiển thị sau khi tài liệu đã được đăng.
+**Resource Requirements**
+- **Development effort estimate**: MVP buildable by a small cross-functional team in 6–8 weeks (pilot/hackathon-scale project).
+- **Timeline & key milestones**: Discovery & data prep (week 1) → Core agent + checklist flow (weeks 2–4) → Ticketing + HITL approval (weeks 4–5) → Testing, eval, and pilot launch (weeks 5-6).
+- **Team members & skills needed**: 1 backend engineer (FastAPI/Postgres), 1 frontend engineer (React), 1 AI/ML engineer (LLM orchestration, RAG, LangGraph), part-time product/design support.
+- **Budget & resource allocation**: Limited/pilot-stage budget; primary costs are LLM API usage (GPT-4o-mini), Render hosting, and engineering time — no dedicated infrastructure team assumed.
 
 ---
 
-## 4. Phân loại và vòng đời tài liệu
+## 2. Problem Statement & Opportunity
 
-### Mức hiển thị
+**Problem Definition**
+After a resident receives their unit, onboarding today spans multiple disconnected touchpoints: handover paperwork, utility activation, building-rule explanations, and defect reporting — each handled manually and inconsistently by management staff. Residents lack a single guided flow, must actively seek out information, and have no visibility into the status of defect requests once submitted. This creates a weak post-sale experience precisely at the moment that most shapes a resident's willingness to recommend the property to others. The problem statement is based on the developer/operator's direct observation of current onboarding operations (fragmented process, poor post-sale experience, reduced referrals) as the origin and motivation for this project.
 
-| Mức | Quyền truy cập |
-|---|---|
-| `PUBLIC` | Tất cả tài khoản trong tổ chức |
-| `PRIVATE` | Người tải lên và người được mời |
+**Opportunity Analysis**
+- **Market size & growth potential**: Any developer/operator handing over units at scale (dozens to thousands of units per project) faces this same onboarding bottleneck; the solution generalizes across residential projects.
+- **User segment size & characteristics**: All residents in a newly handed-over building/phase — typically a concentrated wave of onboarding demand in the weeks immediately following handover.
+- **Revenue opportunity & business impact**: Improved referral rates reduce customer acquisition cost for future phases/projects; reduced management workload lowers ongoing operating cost per unit.
+- **Competitive gap this addresses**: Most operators still rely on manual, multi-channel coordination with no structured, auditable escalation path — OnBxrd closes this gap with a single AI-driven, human-supervised workflow.
 
-### Trạng thái kiểm duyệt
-
-| Trạng thái | Ý nghĩa |
-|---|---|
-| `PENDING` | Chờ giảng viên duyệt |
-| `APPROVED` | Được phép hiển thị và dùng cho AI |
-| `REJECTED` | Không được công bố và không dùng cho AI |
-
-Chỉ tài liệu `APPROVED` mà người dùng có quyền truy cập mới được đưa vào quá trình tìm kiếm và tạo câu trả lời của AI.
+**Success Criteria**
+- **Primary success metrics & targets**: % onboarding checklist completion (target 80% within 7 days); average onboarding completion time; % Q&A answers correctly source-grounded.
+- **Secondary metrics to monitor**: Defect ticket resolution time and routing accuracy; HITL approval turnaround time; resident satisfaction score.
+- **User behavior changes expected**: Residents self-serve onboarding steps and routine questions through the agent instead of calling management directly.
+- **Business outcomes anticipated**: Higher referral rate, lower management support load, faster and more consistent defect resolution.
 
 ---
 
-## 5. Chức năng chính
+## 3. User Requirements & Stories
 
-### 5.1 Knowledge Hub
+**Primary User Personas**
 
-- Danh sách tài liệu theo môn học, loại tài liệu và người tải lên.
-- Tìm kiếm theo từ khóa và tìm kiếm ngữ nghĩa.
-- Lọc theo môn học, học kỳ, năm học, loại tài liệu và mức hiển thị.
-- Xem trước thông tin tài liệu trước khi tải xuống.
-- Tổng hợp các tài liệu liên quan đến một chủ đề.
-- So sánh hoặc tóm tắt nhiều tài liệu được chọn.
+*Persona 1 — New Resident*
+- Goals: Complete onboarding quickly and correctly; understand amenities/regulations; report and track defects.
+- Current workflow & pain points: Ad hoc calls/messages to management office; no centralized checklist; unclear defect status.
+- Success criteria: Onboarding completed with minimal back-and-forth; questions answered instantly and accurately; defects resolved and visible end-to-end.
 
-### 5.2 Academic Assistant
+*Persona 2 — Property Management Staff*
+- Goals: Review and approve requests before commitments are made; monitor resident onboarding progress at scale; avoid unauthorized commitments.
+- Current workflow & pain points: Manually fielding repetitive questions and requests; no structured queue or audit trail; risk of overload during handover waves.
+- Success criteria: Clear approval queue (HITL); visibility into resident progress and request status; confidence that the agent never commits outside its authority.
 
-- Hỏi đáp chuyên sâu theo môn học.
-- Trả lời dựa trên một hoặc nhiều tài liệu được phép truy cập.
-- Cho phép giới hạn phạm vi theo môn hoặc tài liệu cụ thể.
-- Hiển thị nguồn, trang hoặc đoạn nội dung hỗ trợ câu trả lời.
-- Từ chối suy đoán khi không có đủ dữ liệu.
+**User Journey Mapping**
+- **Current state**: Resident receives keys → contacts management ad hoc for each need (utilities, rules, defects) → inconsistent, undocumented responses → resident uncertain of status or next steps.
+- **Future state**: Resident opens OnBxrD app → agent presents personalized onboarding checklist → resident asks questions answered with cited sources → resident reports a defect → agent classifies it and routes to management for approval (HITL) → ticket created and status tracked to completion → resident notified at each milestone.
+- **Key touchpoints**: Checklist walkthrough, Q&A interaction, defect intake, HITL approval, status updates.
+- **Pain points/opportunity areas addressed**: Centralizing information (RAG), replacing manual triage with classification, and replacing informal commitments with an auditable HITL gate.
 
-### 5.3 Learning Assistant
+**Core User Stories** (Epic-level, prioritized)
 
-- Giải thích khái niệm theo mức độ phù hợp với người học.
-- Tóm tắt nội dung trọng tâm.
-- Tạo lộ trình ôn tập tương tác theo mục tiêu và thời gian của người dùng.
-- Chia lộ trình thành các buổi học, tương tự cấu trúc khóa học nhưng không có video.
-- Mỗi buổi học bao gồm:
-  - Mục tiêu học tập.
-  - Tài liệu cần sử dụng.
-  - Nội dung lý thuyết cô đọng.
-  - Bài tập vận dụng.
-  - Trạng thái hoàn thành.
+1. *Onboarding checklist guidance* (Must Have)
+   - As a new resident, I want the agent to walk me through a personalized onboarding checklist so that I know exactly what steps remain and complete them without confusion.
+   - Given a resident has just been added to the system, when they open the app, then the agent presents their current checklist step and next action.
+   - Acceptance criteria: Checklist state persists across sessions; resident can see completed vs. pending steps; agent references the correct step context in conversation.
 
-### Nguyên tắc chung cho ba Agent
+2. *Source-grounded Q&A* (Must Have)
+   - As a resident, I want to ask questions about amenities and building regulations so that I get accurate answers without calling management.
+   - Given the resident asks a question covered in the handbook/regulations, when the agent responds, then it cites the source section.
+   - Acceptance criteria: Answers are grounded in the RAG knowledge base; unanswerable questions are flagged rather than guessed; source reference is shown to the resident.
 
-- Chỉ sử dụng tài liệu người dùng có quyền truy cập.
-- Không sử dụng tài liệu chưa được duyệt.
-- Mỗi nhận định quan trọng phải có citation.
-- Citation phải mở được đúng tài liệu và vị trí nguồn.
-- Khi không đủ nguồn, Agent phải thông báo không đủ dữ liệu thay vì tự tạo câu trả lời.
-- Nội dung trong tài liệu được xem là dữ liệu tham khảo, không được phép ghi đè quy tắc hệ thống.
+3. *Defect/repair request intake and classification* (Must Have)
+   - As a resident, I want to report a defect through the agent so that it gets routed to the right team without me needing to know who to contact.
+   - Given a resident describes a defect, when the agent processes it, then it classifies the request type and prepares a structured request for approval.
+   - Acceptance criteria: Request is captured with resident, unit, description, and category; classification is visible to the approver.
 
----
+4. *HITL approval before ticket creation* (Must Have)
+   - As a management staff member, I want to review and approve every request before a ticket is created or a deadline is committed, so that the agent never acts outside its authority.
+   - Given a classified request, when it reaches the approval queue, then no ticket is created or communicated to the resident until a staff member approves it.
+   - Acceptance criteria: Approval queue shows pending requests; approve/reject/edit actions are logged; resident is only notified after approval.
 
-## 6. Luồng người dùng chính
+5. *Status tracking to completion* (Must Have)
+   - As a resident, I want to see the status of my defect request so that I know what is happening and when it will be resolved.
+   - Given an approved ticket, when its status changes, then the resident sees the updated status in the app.
+   - Acceptance criteria: Status states (submitted, approved, in progress, resolved) are visible; updates reflect ticketing system state or documented fallback when unavailable.
 
-### Sinh viên tải tài liệu
+6. *Priority classification and routing* (Should Have)
+   - As management, I want requests automatically prioritized so that urgent issues (e.g., safety, utilities) are surfaced first.
+   - Acceptance criteria: Requests are tagged with a priority level; approval queue can be sorted by priority.
 
-1. Sinh viên chọn môn học và tải tệp lên.
-2. Nhập tiêu đề, mô tả, loại tài liệu và thông tin học kỳ.
-3. Hệ thống lưu tài liệu ở trạng thái `PENDING` và `PUBLIC`.
-4. Giảng viên duyệt hoặc từ chối.
-5. Sau khi duyệt, tài liệu xuất hiện trong Hub và được phép dùng cho AI.
+7. *Milestone reminders* (Should Have)
+   - As a resident, I want reminders about upcoming onboarding milestones so that I don't miss required steps.
+   - Acceptance criteria: Agent proactively surfaces upcoming/overdue checklist items.
 
-### Giảng viên tải tài liệu Private
+8. *Per-resident memory* (Should Have)
+   - As a resident, I want the agent to remember my prior interactions so that I don't have to repeat information.
+   - Acceptance criteria: Agent retrieves and uses prior conversation/context relevant to the current session.
 
-1. Giảng viên tải tệp và nhập metadata.
-2. Chọn mức `PRIVATE`.
-3. Chọn người được truy cập.
-4. Tài liệu được xử lý và xuất hiện trong Hub của những người có quyền.
+9. *Satisfaction survey & insight aggregation* (Could Have)
+   - As management, I want aggregated satisfaction data so that I can identify systemic onboarding issues.
+   - Acceptance criteria: Survey triggered after checklist completion; results aggregated into a management-facing summary.
 
-### Người dùng hỏi AI
-
-1. Người dùng chọn Agent và phạm vi môn học.
-2. Hệ thống xác định tập tài liệu được phép truy cập.
-3. Hệ thống tìm các đoạn liên quan.
-4. Agent tạo câu trả lời từ các đoạn đã tìm được.
-5. Câu trả lời hiển thị citation đến tài liệu nguồn.
-
-### Tạo lộ trình học
-
-1. Người dùng chọn môn học, mục tiêu và khoảng thời gian.
-2. Learning Assistant đề xuất các buổi học.
-3. Người dùng xem tài liệu, phần lý thuyết và bài tập trong từng buổi.
-4. Người dùng đánh dấu hoàn thành và tiếp tục buổi tiếp theo.
+10. *Routing/resolution evaluation* (Could Have)
+    - As a product owner, I want to evaluate whether requests are resolved through the correct workflow so that I can measure and improve routing accuracy.
+    - Acceptance criteria: Evaluation reports the rate of correctly routed/resolved requests against defined rubrics.
 
 ---
 
-## 7. Yêu cầu chức năng
+## 4. Functional Requirements
 
-| ID | Yêu cầu | Ưu tiên |
-|---|---|---|
-| FR-01 | Đăng nhập và xác định vai trò Sinh viên/Giảng viên | P0 |
-| FR-02 | Xem, lọc, tìm kiếm và tải xuống tài liệu | P0 |
-| FR-03 | Sinh viên tải tài liệu và chờ duyệt | P0 |
-| FR-04 | Giảng viên duyệt hoặc từ chối tài liệu | P0 |
-| FR-05 | Giảng viên tải tài liệu Public hoặc Private | P0 |
-| FR-06 | Quản lý danh sách người được xem tài liệu Private | P0 |
-| FR-07 | AI chỉ truy xuất tài liệu mà người dùng có quyền | P0 |
-| FR-08 | Câu trả lời AI có citation đến tài liệu nguồn | P0 |
-| FR-09 | Knowledge Hub hỗ trợ tìm kiếm và tổng hợp tài liệu | P0 |
-| FR-10 | Academic Assistant hỗ trợ hỏi đáp theo môn | P0 |
-| FR-11 | Learning Assistant tạo lộ trình học theo buổi | P1 |
-| FR-12 | Theo dõi tiến độ từng buổi học | P1 |
-| FR-13 | Giảng viên chuyển tài liệu giữa Public và Private | P1 |
-| FR-14 | Người dùng báo cáo tài liệu hoặc câu trả lời sai | P1 |
+**Core Features (Must Have)**
+- **Resident App**: Login, personalized onboarding checklist view, chat interface for Q&A and defect reporting, request status view.
+- **Management Console**: Approval queue (HITL) for tickets/commitments, resident onboarding progress overview, request history.
+- **Onboarding Agent (LangGraph)**: Maintains per-resident checklist state across sessions; guides resident step by step; updates state as steps complete.
+- **Source-grounded Q&A (RAG + LlamaIndex)**: Answers questions using the resident handbook and building regulations; cites source; declines to answer ungrounded questions.
+- **Defect/Repair Intake & Classification**: Captures resident-reported issues, classifies by type, prepares structured request.
+- **HITL Approval Workflow**: All ticket creation and deadline commitments require explicit management approval before any ticket is created or communicated to the resident.
+- **Ticket Creation Tool Integration**: Creates tickets in the ticketing system upon approval; handles unresponsive-system errors gracefully (retry/fallback, visible error state).
+- **Chat Summary agent**: A persistent in-chat summary that aggregates the resident's onboarding progress, open requests, and key answers - similar to Meta AI's chat summary feature.
 
----
+**Secondary Features (Nice to Have)**
+- Priority-based classification and routing of requests.
+- Automated reminders for upcoming/overdue onboarding milestones.
+- Per-resident memory of prior interactions and preferences.
+- Post-onboarding satisfaction survey with aggregated insight reporting for management.
+- Evaluation framework measuring correct-routing/resolution rate.
 
-## 8. Mô hình dữ liệu đề xuất
-
-### `users`
-
-| Cột | Kiểu | Mô tả |
-|---|---|---|
-| `id` | UUID | Khóa chính |
-| `email` | VARCHAR | Email đăng nhập, duy nhất |
-| `full_name` | VARCHAR | Họ tên |
-| `role` | ENUM | `STUDENT`, `LECTURER` |
-| `status` | ENUM | `ACTIVE`, `DISABLED` |
-| `created_at` | TIMESTAMP | Thời điểm tạo |
-
-### `subjects`
-
-| Cột | Kiểu | Mô tả |
-|---|---|---|
-| `id` | UUID | Khóa chính |
-| `code` | VARCHAR | Mã môn học |
-| `name` | VARCHAR | Tên môn học |
-| `description` | TEXT | Mô tả ngắn |
-| `created_at` | TIMESTAMP | Thời điểm tạo |
-
-### `documents`
-
-| Cột | Kiểu | Mô tả |
-|---|---|---|
-| `id` | UUID | Khóa chính |
-| `subject_id` | UUID | Môn học liên quan |
-| `owner_id` | UUID | Người tải lên |
-| `title` | VARCHAR | Tiêu đề |
-| `description` | TEXT | Mô tả |
-| `document_type` | ENUM | Slide, giáo trình, đề cương, bài tập, ghi chú... |
-| `file_url` | TEXT | Vị trí lưu tệp |
-| `visibility` | ENUM | `PUBLIC`, `PRIVATE` |
-| `approval_status` | ENUM | `PENDING`, `APPROVED`, `REJECTED`, `ARCHIVED` |
-| `approved_by` | UUID, NULL | Giảng viên duyệt |
-| `rejection_reason` | TEXT, NULL | Lý do từ chối |
-| `semester` | VARCHAR, NULL | Học kỳ |
-| `academic_year` | VARCHAR, NULL | Năm học |
-| `created_at` | TIMESTAMP | Thời điểm tải lên |
-| `updated_at` | TIMESTAMP | Lần cập nhật gần nhất |
-
-### `document_access`
-
-Chỉ dùng cho tài liệu `PRIVATE`.
-
-| Cột | Kiểu | Mô tả |
-|---|---|---|
-| `id` | UUID | Khóa chính |
-| `document_id` | UUID | Tài liệu |
-| `user_id` | UUID | Người được cấp quyền |
-| `granted_by` | UUID | Giảng viên cấp quyền |
-| `created_at` | TIMESTAMP | Thời điểm cấp |
-
-### `document_chunks`
-
-| Cột | Kiểu | Mô tả |
-|---|---|---|
-| `id` | UUID | Khóa chính |
-| `document_id` | UUID | Tài liệu nguồn |
-| `content` | TEXT | Nội dung đoạn |
-| `page_number` | INT, NULL | Trang hoặc slide |
-| `chunk_index` | INT | Thứ tự đoạn |
-| `embedding` | VECTOR | Vector phục vụ tìm kiếm |
-
-### `conversations`
-
-| Cột | Kiểu | Mô tả |
-|---|---|---|
-| `id` | UUID | Khóa chính |
-| `user_id` | UUID | Người tạo hội thoại |
-| `agent_type` | ENUM | `KNOWLEDGE_HUB`, `ACADEMIC`, `LEARNING` |
-| `subject_id` | UUID, NULL | Môn học đang chọn |
-| `created_at` | TIMESTAMP | Thời điểm tạo |
-
-### `messages`
-
-| Cột | Kiểu | Mô tả |
-|---|---|---|
-| `id` | UUID | Khóa chính |
-| `conversation_id` | UUID | Hội thoại |
-| `sender` | ENUM | `USER`, `ASSISTANT` |
-| `content` | TEXT | Nội dung tin nhắn |
-| `grounded_status` | ENUM, NULL | `GROUNDED`, `INSUFFICIENT_SOURCE`, `FAILED` |
-| `created_at` | TIMESTAMP | Thời điểm tạo |
-
-### `citations`
-
-| Cột | Kiểu | Mô tả |
-|---|---|---|
-| `id` | UUID | Khóa chính |
-| `message_id` | UUID | Câu trả lời AI |
-| `document_id` | UUID | Tài liệu nguồn |
-| `chunk_id` | UUID | Đoạn nội dung nguồn |
-| `page_number` | INT, NULL | Trang hoặc slide |
-| `excerpt` | TEXT | Trích đoạn hiển thị |
-
-### `learning_paths`
-
-| Cột | Kiểu | Mô tả |
-|---|---|---|
-| `id` | UUID | Khóa chính |
-| `user_id` | UUID | Người học |
-| `subject_id` | UUID | Môn học |
-| `title` | VARCHAR | Tên lộ trình |
-| `goal` | TEXT | Mục tiêu học tập |
-| `duration_days` | INT | Thời lượng dự kiến |
-| `status` | ENUM | `ACTIVE`, `COMPLETED`, `ARCHIVED` |
-| `created_at` | TIMESTAMP | Thời điểm tạo |
-
-### `learning_sessions`
-
-| Cột | Kiểu | Mô tả |
-|---|---|---|
-| `id` | UUID | Khóa chính |
-| `learning_path_id` | UUID | Lộ trình cha |
-| `session_order` | INT | Thứ tự buổi |
-| `title` | VARCHAR | Tên buổi học |
-| `objectives` | TEXT | Mục tiêu |
-| `theory_content` | TEXT | Lý thuyết cô đọng |
-| `exercise_content` | TEXT | Bài tập vận dụng |
-| `status` | ENUM | `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED` |
-
-### `learning_session_documents`
-
-| Cột | Kiểu | Mô tả |
-|---|---|---|
-| `session_id` | UUID | Buổi học |
-| `document_id` | UUID | Tài liệu được sử dụng |
-| `page_range` | VARCHAR, NULL | Phạm vi trang gợi ý |
+**Feature Prioritization (MoSCoW)**
+- **Must**: Checklist guidance, source-grounded Q&A, defect intake/classification, HITL approval, status tracking, error handling for ticketing downtime, overload alerting.
+- **Should**: Priority routing, milestone reminders, per-resident memory.
+- **Could**: Satisfaction survey/insight aggregation, routing/resolution evaluation.
+- **Won't (this phase)**: Automated ticket creation without HITL approval; commitments made by the agent outside its authorized scope.
 
 ---
 
-## 9. Yêu cầu phi chức năng
+## 5. Technical Requirements
 
-- Kiểm tra quyền truy cập trước khi tìm kiếm và trước khi mở citation.
-- Không để nội dung Private xuất hiện trong kết quả hoặc câu trả lời của người không có quyền.
-- Mật khẩu và dữ liệu nhạy cảm phải được bảo vệ theo tiêu chuẩn của framework sử dụng.
-- Ghi audit log cho thao tác duyệt, từ chối, đổi visibility và cấp quyền Private.
-- Hỗ trợ giao diện responsive trên desktop và mobile.
-- Thời gian tìm kiếm mục tiêu: P95 dưới 3 giây.
-- Thời gian phản hồi AI mục tiêu: P95 dưới 10 giây, có streaming.
-- Khi xử lý tài liệu thất bại, hệ thống phải hiển thị trạng thái và cho phép thử lại.
+**Architecture Specifications**
+- **System overview**:
+
+```mermaid
+flowchart LR
+  frontend["React frontend<br/>Resident App + Management Console"]
+  backend["FastAPI backend"]
+  agent["LangGraph-orchestrated agent<br/>GPT-4o-mini"]
+  rag["RAG layer<br/>LlamaIndex over handbook/regulations"]
+  postgres["PostgreSQL<br/>residents, checklists, requests, approvals, tickets"]
+  ticketing["External ticketing tool integration"]
+
+  frontend --> backend
+  backend --> agent
+  agent --> rag
+  agent --> postgres
+  backend --> ticketing
+```
+
+- **Component definitions**: Onboarding checklist manager (LangGraph state machine); Q&A/retrieval service (LlamaIndex index + LLM); classification/routing module; HITL approval service; ticket-creation connector.
+- **Data flow**:
+
+```mermaid
+sequenceDiagram
+  actor Resident
+  participant Frontend as Resident App
+  participant Backend as FastAPI Backend
+  participant Agent as LangGraph Agent
+  participant Services as Checklist/RAG/Classification
+  participant Approval as HITL Approval Queue
+  participant Ticketing as Ticketing System
+
+  Resident->>Frontend: Send message
+  Frontend->>Backend: Submit chat request
+  Backend->>Agent: Orchestrate resident workflow
+  Agent->>Services: Use checklist, RAG, or classification as needed
+  Services-->>Agent: Return workflow result
+  Agent->>Approval: Send structured defect payload when approval is required
+  Approval->>Ticketing: Create ticket after management approval
+  Ticketing-->>Backend: Sync ticket status
+  Backend-->>Frontend: Return updated response/status
+  Frontend-->>Resident: Show answer, approval state, or ticket status
+```
+
+- **Scalability/performance**: Must handle concentrated onboarding waves right after handover (many residents onboarding within the same short window).
+
+**API Requirements**
+- Endpoints for: resident authentication, checklist state retrieval/update, chat/Q&A interaction, defect request submission, approval queue (list/approve/reject/edit), ticket status retrieval.
+- Request/response formats: JSON; each defect request includes resident ID, unit ID, description, classification, priority (if enabled), and status.
+- Authentication/authorization: Role-based (resident vs. management); resident can only access their own data; management can access requests/status across residents.
+- Rate limiting/error handling: Graceful degradation and clear error messaging when the ticketing system is unresponsive; retry logic with backoff.
+
+**Data Requirements**
+- **Data model**: Residents, Units, Checklists/ChecklistSteps, Conversations, DefectRequests, Approvals, Tickets, KnowledgeBase documents (handbook/regulations).
+- **Data sources/integrations**: Resident handbook and regulation documents (indexed via LlamaIndex); ticketing system integration.
+- **Validation/constraints**: Defect requests must reference a valid resident/unit; approvals must be tied to an identified management user.
+- **Privacy/security**: Resident personal data access restricted by role; no data exposed to unauthorized parties.
+
+**Performance Specifications**
+- Near real-time conversational response for checklist guidance and Q&A.
+- Persistent, reliable state tracking per resident across sessions.
+- Overload alerting when request volume exceeds expected thresholds during handover waves.
 
 ---
 
-## 10. Chỉ số thành công MVP
+## 6. User Experience Requirements
 
-| Chỉ số | Mục tiêu |
-|---|---:|
-| Tài liệu sinh viên tải lên được xử lý đúng quy trình duyệt | 100% |
-| Vi phạm quyền truy cập trong bộ kiểm thử | 0 |
-| Câu trả lời AI có citation hợp lệ | ≥ 90% |
-| Câu trả lời được đánh giá hữu ích | ≥ 70% |
-| Độ chính xác trên bộ câu hỏi kiểm thử nội bộ | ≥ 80% |
-| Thời gian để người dùng nhận câu trả lời đầu tiên | Dưới 5 phút sau khi có tài liệu đã duyệt |
+**Design Principles**
+- Conversational, guided experience that reduces resident effort rather than adding another form to fill out.
+- Transparency: always show checklist progress and request status; always cite sources for factual answers.
+- Trust through visible human oversight: resident understands that certain actions require management approval.
 
----
+**Interface Requirements**
+- **Resident App**: Chat-first interface with a visible checklist/progress panel; defect-reporting flow embedded in chat; status view for submitted requests.
+- **Management Console**: Approval queue (dashboard), resident progress overview, request/ticket history.
+- **Responsive design**: Resident App optimized for mobile; Management Console optimized for desktop.
 
-## 11. Phạm vi triển khai theo giai đoạn
-
-### Giai đoạn 1 — Quản lý tài liệu
-
-- Đăng nhập và hai vai trò.
-- Hub tài liệu, tìm kiếm cơ bản và bộ lọc.
-- Upload, download, duyệt tài liệu.
-- Public, Private và invite-only access.
-
-### Giai đoạn 2 — AI có trích dẫn
-
-- Xử lý và chia nhỏ tài liệu.
-- Knowledge Hub Agent.
-- Academic Assistant.
-- Citation theo trang hoặc đoạn.
-
-### Giai đoạn 3 — Learning Assistant
-
-- Tạo lộ trình theo mục tiêu và thời gian.
-- Chia lộ trình thành các buổi học.
-- Nội dung lý thuyết, tài liệu và bài tập.
-- Theo dõi tiến độ.
+**Usability Criteria**
+- High task completion rate for onboarding checklist steps.
+- Clear, actionable messaging when the agent cannot answer or a request is pending approval.
+- Minimal learning curve — resident should be able to start onboarding immediately after first login.
 
 ---
 
-## 12. Vấn đề cần thống nhất
+## 7. Non-Functional Requirements
 
-1. Tài liệu Public có áp dụng cho toàn bộ tổ chức hay cần giới hạn theo khoa hoặc môn học?
-2. Một môn học do ai tạo và ai được quyền quản lý?
-3. Có cho phép sinh viên chỉnh sửa hoặc xóa tài liệu sau khi đã được duyệt không?
-4. Khi giảng viên chuyển tài liệu từ Public sang Private, những người nào được giữ quyền truy cập?
-5. Knowledge Hub Agent có chỉ tìm và tóm tắt hay còn hỗ trợ so sánh, nhóm và đề xuất tài liệu?
-6. Academic Assistant có hỗ trợ giải bài tập hay chỉ giải thích kiến thức và hướng dẫn từng bước?
-7. Bài tập trong Learning Assistant được sinh tự động hay lấy từ tài liệu có sẵn?
-8. Các định dạng tệp bắt buộc cho MVP: chỉ PDF hay thêm PPTX/DOCX?
-9. Có cần lưu phiên bản tài liệu để citation cũ vẫn truy xuất đúng nguồn không?
+**Security Requirements**
+- Role-based access control distinguishing resident and management users.
+- Confidentiality and protection of resident personal information.
+- The agent must never make commitments (deadlines, guarantees) outside its authorized scope.
+- Mandatory HITL approval before any ticket creation or deadline commitment.
+- Audit trail of all HITL approvals and agent actions.
+
+**Performance Requirements**
+- Conversational response times suitable for real-time chat interaction.
+- Reliable handling of concurrent onboarding sessions during handover waves.
+
+**Reliability Requirements**
+- Graceful fallback/retry when the ticketing system does not respond.
+- Overload alerting so management is notified when request volume exceeds capacity.
+
+**Scalability Requirements**
+- Designed to handle the concentrated demand of a full building/phase handover, not just isolated individual onboarding.
+
+---
+
+## 8. Success Metrics & Analytics
+
+**Key Performance Indicators**
+- Onboarding checklist completion rate and time-to-completion.
+- % of Q&A answers correctly grounded with a cited source.
+- Defect request classification accuracy and resolution time.
+- HITL approval turnaround time.
+- Resident satisfaction score.
+- Referral rate uplift versus pre-launch baseline.
+
+**Analytics Implementation**
+- Track checklist step completions, Q&A interactions (with/without grounded source), defect request submissions and outcomes, approval actions and turnaround time.
+- Management-facing dashboard summarizing onboarding progress and request status across residents.
+
+**Success Measurement**
+- Baseline: current (manual) onboarding completion time and referral rate, where available.
+- Targets: e.g., 80% checklist completion within 7 days; reviewed after pilot launch and adjusted based on observed data.
+
+---
+
+## 9. Implementation Plan
+
+**Development Phases**
+- **Phase 1 — Discovery & Data Prep**: Gather resident handbook/regulation content for RAG indexing; define checklist structure and defect categories.
+- **Phase 2 — Core Agent & Checklist Flow**: Build LangGraph-based onboarding checklist manager; build resident chat interface; integrate RAG Q&A.
+- **Phase 3 — Ticketing & HITL Approval**: Build defect classification, approval queue, ticket-creation integration, and error handling for ticketing downtime.
+- **Phase 4 — Testing, Eval & Pilot Launch**: Test end-to-end flows; pilot with a subset of residents/units; gather feedback and iterate.
+
+**Resource Allocation**
+- Backend engineer(s) for FastAPI/Postgres and ticketing integration.
+- Frontend engineer for React Resident App and Management Console.
+- AI/ML engineer for LangGraph orchestration, RAG indexing, and classification logic.
+- Product/design support for checklist UX and approval queue design.
+
+**Timeline and Milestones**
+- Weeks 1–2: Discovery, data prep, checklist/defect taxonomy defined.
+- Weeks 3–4: Core onboarding agent and Q&A functional.
+- Weeks 5–6: Defect intake, HITL approval, ticket integration functional.
+- Weeks 7–8: End-to-end testing, pilot launch, feedback collection.
+
+---
+
+## 10. Risk Assessment & Mitigation
+
+**Technical Risks**
+- Ticketing system unresponsiveness or downtime → mitigate with retry/fallback logic and visible error states.
+- RAG answers not properly grounded → mitigate by requiring source citation and declining to answer when confidence/grounding is insufficient.
+- Overload during concentrated handover waves → mitigate with overload alerting and queue management for HITL approvals.
+
+**Business Risks**
+- Resident distrust if the agent appears to make unauthorized commitments → mitigate with strict HITL gating and transparent status messaging.
+- Low resident adoption of the app → mitigate with a simple, guided first-use experience and proactive checklist prompts.
+- Management staff bypassing the HITL queue under time pressure → mitigate by making the approval workflow faster than the manual alternative it replaces.
+
+**Mitigation Strategies**
+- Continuous monitoring of grounded-answer rate, approval turnaround time, and ticketing error rate.
+- Pilot with a limited resident/unit group before full rollout to validate assumptions and refine classification/routing logic.
+- Clear escalation path for cases the agent cannot handle (handoff to human staff).
+

@@ -1,0 +1,46 @@
+graph TD
+    %% Define Nodes
+    Login["<b>Resident login</b>"]
+    ZaloMsg["<b>Zalo message</b>"]
+
+    ResHome["<b>Resident home</b><br/>Checklist or concierge access"]
+    Onboarding["<b>Onboarding</b><br/>Checklist steps"]
+    ChecklistDone["<b>Checklist finished</b><br/>All steps done"]
+    Survey["<b>Survey shown</b><br/>After completion"]
+
+    VirtualConcierge["<b>Virtual concierge</b><br/>Ask anytime, cited source"]
+
+    MatchRes["<b>Match resident</b><br/>Zalo ID to unit"]
+    ReportDefect["<b>Report defect</b><br/>From app or Zalo"]
+    ClassifyRoute["<b>Classify + route</b><br/>Type + priority"]
+    HITL["<b>HITL approval</b><br/>Manager review"]
+    TicketStatus["<b>Ticket status</b><br/>Live tracking"]
+
+    %% Connectors
+    Login --> ResHome
+    ResHome --> Onboarding
+    Onboarding --> ChecklistDone
+    ChecklistDone --> Survey
+
+    ResHome -.-> VirtualConcierge
+    VirtualConcierge -.-> VirtualConcierge
+
+    ZaloMsg --> MatchRes
+    MatchRes --> ReportDefect
+    ResHome --> ReportDefect
+    ReportDefect --> ClassifyRoute
+    ClassifyRoute --> HITL
+    HITL --> TicketStatus
+
+    %% Styles
+    classDef startup fill:#F7F5F0,stroke:#D1D5DB,stroke-width:1px,color:#2D3748;
+    class Login,ZaloMsg startup;
+
+    classDef greenNode fill:#E6F6F4,stroke:#A3E4D7,stroke-width:1px,color:#166534;
+    class ResHome,Onboarding,ChecklistDone,Survey greenNode;
+
+    classDef purpleNode fill:#EBEBFA,stroke:#C0C0EB,stroke-width:1px,color:#4338CA;
+    class VirtualConcierge purpleNode;
+
+    classDef redNode fill:#FDF2F0,stroke:#FADBD8,stroke-width:1px,color:#991B1B;
+    class MatchRes,ReportDefect,ClassifyRoute,HITL,TicketStatus redNode;
