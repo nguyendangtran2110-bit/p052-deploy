@@ -1,0 +1,271 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #191919;
+  background: #ffffff;
+  font-family: "Inter", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; background: #fff; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+
+.button-dark {
+  border-radius: 0.5rem;
+  background: #191919;
+  color: #fff;
+  font-weight: 500;
+  transition: background-color 200ms ease, transform 200ms ease;
+}
+.button-dark:hover { background: rgba(25, 25, 25, 0.88); transform: translateY(-1px); }
+.button-dark:focus-visible, .button-light:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid #191919; outline-offset: 3px; }
+.button-light { border: 1px solid #d9d9d9; border-radius: 0.5rem; background: #fff; color: #191919; padding: 0.75rem 1rem; font-size: 0.8rem; font-weight: 500; }
+
+.eyebrow { color: rgba(25, 25, 25, 0.5); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.2em; line-height: 1.2; text-transform: uppercase; }
+.app-nav { position: fixed; left: 0; right: 0; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.5rem; background: rgba(255, 255, 255, 0.94); border-bottom: 1px solid #ececec; backdrop-filter: blur(16px); }
+.app-nav-landing { border-bottom-color: transparent; background: transparent; backdrop-filter: none; }
+.app-tab-list { display: flex; align-items: center; gap: 0.2rem; border: 1px solid rgba(25, 25, 25, 0.12); border-radius: 0.55rem; padding: 0.22rem; background: rgba(255, 255, 255, 0.68); }
+.app-tab { border-radius: 0.36rem; padding: 0.52rem 0.7rem; color: rgba(25, 25, 25, 0.58); font-size: 0.72rem; font-weight: 500; white-space: nowrap; transition: background-color 200ms ease, color 200ms ease; }
+.app-tab:hover { color: #191919; }
+.app-tab-active { background: #191919; color: #fff; }
+.nav-context-button { border: 1px solid rgba(25, 25, 25, 0.16); border-radius: 0.5rem; padding: 0.6rem 0.85rem; color: #191919; font-size: 0.72rem; font-weight: 500; background: rgba(255, 255, 255, 0.75); }
+.app-nav-landing .nav-context-button { background: #191919; color: #fff; border-color: #191919; }
+.app-view { padding-top: 10rem; }
+.view-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem; max-width: 70rem; margin: 0 auto 3.25rem; }
+.view-title { max-width: 50rem; margin-top: 0.85rem; font-family: "P22 Mackinac W01 Book", Georgia, serif; font-size: clamp(2.7rem, 6vw, 5.9rem); font-weight: 400; letter-spacing: -0.06em; line-height: 1.02; }
+.view-lede { max-width: 34rem; margin-top: 1.25rem; color: rgba(25, 25, 25, 0.6); font-size: 0.98rem; line-height: 1.7; }
+.workspace-panel { border: 1px solid #dedede; background: #fafafa; padding: 1.5rem; }
+.onboarding-grid { display: grid; grid-template-columns: 0.92fr 1.25fr 0.65fr; gap: 1rem; max-width: 70rem; margin: 0 auto; }
+.checklist-panel, .onboarding-chat-panel, .summary-panel { min-height: 540px; }
+.step-list { display: grid; gap: 0.5rem; margin-top: 1.4rem; }
+.onboarding-step { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.75rem; border: 1px solid transparent; padding: 0.8rem 0.65rem; text-align: left; transition: border-color 200ms ease, background-color 200ms ease; }
+.onboarding-step:hover, .onboarding-step-active { border-color: #d8d8d8; background: #fff; }
+.onboarding-step strong { display: block; font-size: 0.82rem; font-weight: 500; }
+.onboarding-step small { display: block; margin-top: 0.28rem; color: rgba(25, 25, 25, 0.5); font-size: 0.66rem; line-height: 1.4; }
+.step-number { display: inline-block; width: 1.6rem; color: rgba(25, 25, 25, 0.38); font-size: 0.66rem; }
+.checklist-footer { display: flex; justify-content: space-between; gap: 0.75rem; margin-top: auto; border-top: 1px solid #dedede; padding-top: 1rem; color: rgba(25, 25, 25, 0.45); font-size: 0.63rem; }
+.onboarding-chat-panel { display: flex; flex-direction: column; }
+.onboarding-current { margin-top: 1.3rem; border-left: 2px solid #191919; padding-left: 1rem; }
+.current-label { color: rgba(25, 25, 25, 0.45); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+.onboarding-current h2 { margin-top: 0.45rem; font-family: "P22 Mackinac W01 Book", Georgia, serif; font-size: clamp(1.7rem, 3vw, 2.6rem); font-weight: 400; letter-spacing: -0.05em; }
+.onboarding-current p { max-width: 27rem; margin: 0.6rem 0 1rem; color: rgba(25, 25, 25, 0.6); font-size: 0.78rem; line-height: 1.6; }
+.onboarding-current .button-dark { padding: 0.7rem 0.9rem; font-size: 0.72rem; }
+.onboarding-thread { margin-top: 1.5rem; }
+.summary-panel { display: flex; flex-direction: column; }
+.summary-panel h3 { margin-top: 0.45rem; font-size: 1rem; font-weight: 500; }
+.summary-block { display: grid; gap: 0.3rem; border-bottom: 1px solid #ddd; padding: 1rem 0; }
+.summary-block span { color: rgba(25, 25, 25, 0.45); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.1em; }
+.summary-block strong { font-size: 0.8rem; font-weight: 500; }
+.summary-block small { color: rgba(25, 25, 25, 0.48); font-size: 0.68rem; line-height: 1.45; }
+.summary-link { display: inline-flex; align-items: center; justify-content: space-between; gap: 0.7rem; margin-top: auto; border-bottom: 1px solid #191919; padding: 0.7rem 0; text-align: left; font-size: 0.72rem; }
+
+.unread-badge { display: inline-flex; flex-direction: column; align-items: flex-end; border-left: 1px solid #cfcfcf; padding-left: 1.2rem; }
+.unread-badge strong { font-family: "P22 Mackinac W01 Book", Georgia, serif; font-size: 3.4rem; font-weight: 400; line-height: 0.9; letter-spacing: -0.06em; }
+.unread-badge span { margin-top: 0.5rem; color: rgba(25, 25, 25, 0.5); font-size: 0.68rem; }
+.zalo-grid { display: grid; grid-template-columns: 1.18fr 0.82fr; gap: 1rem; max-width: 70rem; margin: 0 auto; }
+.zalo-chat-panel { display: flex; min-height: 690px; flex-direction: column; }
+.zalo-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #dedede; padding-bottom: 1rem; }
+.zalo-header h3, .signal-panel h3 { margin-top: 0.45rem; font-size: 1rem; font-weight: 500; }
+.message-count, .signal-count, .queue-count { color: rgba(25, 25, 25, 0.45); font-size: 0.65rem; }
+.zalo-messages { display: flex; flex: 1; flex-direction: column; gap: 0.55rem; overflow-y: auto; padding: 1.2rem 0.2rem 1.2rem 0; }
+.zalo-message { max-width: 84%; border: 1px solid transparent; padding: 0.62rem 0.72rem; }
+.zalo-message-resident { align-self: flex-start; background: #fff; }
+.zalo-message-management { align-self: flex-end; background: #f0f0f0; }
+.zalo-message-important { border-color: #c7d9c8; background: #f5fbf5; }
+.zalo-message-meta { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.28rem; }
+.zalo-message-meta strong { font-size: 0.64rem; font-weight: 600; }
+.zalo-message-meta span { color: rgba(25, 25, 25, 0.4); font-size: 0.58rem; }
+.zalo-message p { color: rgba(25, 25, 25, 0.7); font-size: 0.74rem; line-height: 1.45; }
+.issue-chip { display: inline-block; margin-top: 0.45rem; color: #417048; font-size: 0.58rem; font-weight: 600; }
+.signal-panel { display: flex; min-height: 690px; flex-direction: column; }
+.signal-intro { margin-top: 1rem; color: rgba(25, 25, 25, 0.6); font-size: 0.75rem; line-height: 1.55; }
+.signal-list { display: grid; gap: 0.55rem; margin-top: 1.35rem; }
+.signal-item { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 0.6rem; border-bottom: 1px solid #ddd; padding: 0.85rem 0; text-align: left; }
+.signal-item:hover strong { text-decoration: underline; }
+.signal-item strong { display: block; font-size: 0.75rem; font-weight: 500; }
+.signal-item small { display: block; margin-top: 0.28rem; color: rgba(25, 25, 25, 0.5); font-size: 0.63rem; line-height: 1.45; }
+.severity { border: 1px solid #d5d5d5; padding: 0.25rem 0.35rem; font-size: 0.55rem; }
+.severity-urgent, .severity-high { border-color: #e2baba; color: #914444; }
+.severity-medium { border-color: #d4c9a9; color: #796b3e; }
+.signal-footer { display: flex; justify-content: space-between; gap: 1rem; margin-top: auto; border-top: 1px solid #ddd; padding: 1rem 0; color: rgba(25, 25, 25, 0.45); font-size: 0.64rem; }
+.signal-footer strong { color: #191919; font-weight: 500; }
+.signal-panel > .button-dark { padding: 0.8rem; font-size: 0.72rem; }
+.agent-toast { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 60; width: min(23rem, calc(100vw - 2rem)); border: 1px solid #c8d9c9; background: rgba(250, 255, 250, 0.98); padding: 1.1rem; box-shadow: 0 18px 55px rgba(25, 25, 25, 0.16); }
+.toast-kicker { display: block; color: #47704c; font-size: 0.6rem; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase; }
+.agent-toast strong { display: block; margin-top: 0.45rem; font-size: 0.9rem; font-weight: 500; }
+.agent-toast p { margin-top: 0.45rem; color: rgba(25, 25, 25, 0.6); font-size: 0.73rem; line-height: 1.5; }
+.toast-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.9rem; }
+.toast-actions .button-dark, .toast-actions .button-light { padding: 0.55rem 0.7rem; font-size: 0.66rem; }
+
+.role-switch { display: flex; gap: 0.2rem; border: 1px solid #ddd; border-radius: 0.45rem; padding: 0.2rem; }
+.role-switch button { border-radius: 0.3rem; padding: 0.55rem 0.75rem; color: rgba(25, 25, 25, 0.55); font-size: 0.7rem; font-weight: 500; }
+.role-switch button:hover { color: #191919; }
+.role-switch .role-button-active { background: #191919; color: #fff; }
+.ticket-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 1rem; max-width: 70rem; margin: 0 auto; }
+.ticket-form-panel, .ticket-context-panel, .management-queue-panel, .approval-detail-panel { min-height: 570px; }
+.prefill-note { margin-top: 1.15rem; border-left: 2px solid #191919; background: #fff; padding: 0.75rem 0.9rem; color: rgba(25, 25, 25, 0.58); font-size: 0.7rem; line-height: 1.5; }
+.ticket-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.4rem; }
+.ticket-form label { display: grid; gap: 0.35rem; color: rgba(25, 25, 25, 0.5); font-size: 0.66rem; }
+.ticket-form input, .ticket-form select, .ticket-form textarea { width: 100%; border: 1px solid #d9d9d9; border-radius: 0.25rem; background: #fff; padding: 0.7rem; color: #191919; font-size: 0.76rem; outline: 0; }
+.ticket-form textarea { resize: vertical; line-height: 1.45; }
+.field-wide { grid-column: 1 / -1; }
+.ticket-form-actions { display: flex; justify-content: space-between; gap: 0.75rem; margin-top: auto; padding-top: 2rem; }
+.ticket-form-actions .button-dark, .ticket-form-actions .button-light { padding: 0.75rem 0.9rem; font-size: 0.7rem; }
+.ticket-form-actions button:disabled, .approval-actions button:disabled { cursor: not-allowed; opacity: 0.55; }
+.ticket-context-panel h3, .approval-detail-panel h3 { margin-top: 0.5rem; font-size: 1.05rem; font-weight: 500; }
+.context-quote { margin-top: 1.6rem; border-left: 2px solid #191919; padding: 0.2rem 0 0.2rem 1rem; color: rgba(25, 25, 25, 0.68); font-family: "P22 Mackinac W01 Book", Georgia, serif; font-size: 1.35rem; line-height: 1.35; }
+.context-row { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #ddd; padding: 1rem 0; }
+.context-row span { color: rgba(25, 25, 25, 0.45); font-size: 0.64rem; }
+.context-row strong { max-width: 12rem; text-align: right; font-size: 0.7rem; font-weight: 500; }
+.management-ticket-layout { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 1rem; max-width: 70rem; margin: 0 auto; }
+.management-queue-panel, .approval-detail-panel { display: flex; flex-direction: column; }
+.queue-ticket { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #ddd; padding: 1rem 0; }
+.queue-ticket-active { border-left: 2px solid #191919; padding-left: 0.8rem; }
+.queue-ticket h4 { margin-top: 0.55rem; font-size: 0.82rem; font-weight: 500; }
+.queue-ticket p { margin-top: 0.3rem; color: rgba(25, 25, 25, 0.56); font-size: 0.68rem; }
+.queue-ticket small { display: block; max-width: 16rem; margin-top: 0.55rem; color: rgba(25, 25, 25, 0.52); font-size: 0.65rem; line-height: 1.45; }
+.approval-detail-panel .approval-details { margin-top: 1.4rem; }
+.approval-audit { display: grid; gap: 0.3rem; margin-top: auto; border: 1px solid #d7e3d8; background: #f4faf4; padding: 0.9rem; }
+.approval-audit span { color: #47704c; font-size: 0.6rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+.approval-audit strong { font-size: 0.75rem; font-weight: 500; }
+.approval-audit small { color: rgba(25, 25, 25, 0.5); font-size: 0.64rem; }
+.management-ticket-layout .approval-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; }
+
+.landing-route-grid { display: grid; grid-template-columns: repeat(3, 1fr); max-width: 70rem; margin: 0 auto; border-top: 1px solid #ddd; }
+.landing-route-card { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.7rem; border-bottom: 1px solid #ddd; padding: 1.4rem 0.35rem; text-align: left; transition: background-color 200ms ease, padding 200ms ease; }
+.landing-route-card:hover { background: #fafafa; padding-right: 0.8rem; padding-left: 0.8rem; }
+.landing-route-card .capability-description { grid-column: 2 / -1; }
+
+.feature-row { display: flex; width: 100%; align-items: center; justify-content: space-between; background: #f4f3f3; padding: 0.875rem 1rem; text-align: left; transition: background-color 200ms ease; }
+.feature-row:hover { background: #eaeaea; }
+.section-shell { padding: 8rem 1.5rem 8rem; }
+.section-intro { margin: 0 auto 3.75rem; max-width: 70rem; }
+.section-title { max-width: 42rem; margin: 0.85rem 0 0; font-family: "P22 Mackinac W01 Book", Georgia, serif; font-size: clamp(2.6rem, 5vw, 5.1rem); font-weight: 400; letter-spacing: -0.055em; line-height: 1.05; }
+.section-lede { max-width: 31rem; margin-top: 1.25rem; color: rgba(25, 25, 25, 0.62); font-size: 0.98rem; line-height: 1.7; }
+
+.demo-shell { margin: 0 auto; max-width: 70rem; overflow: hidden; border: 1px solid #dedede; background: #fafafa; box-shadow: 0 24px 80px rgba(25, 25, 25, 0.06); }
+.demo-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #dedede; background: #fff; padding: 1.25rem 1.5rem; }
+.mode-switch { display: flex; gap: 0.2rem; border: 1px solid #e2e2e2; border-radius: 0.45rem; padding: 0.2rem; }
+.mode-button { border-radius: 0.3rem; padding: 0.5rem 0.7rem; color: rgba(25, 25, 25, 0.5); font-size: 0.72rem; font-weight: 500; transition: background-color 200ms ease, color 200ms ease; }
+.mode-button-active { background: #191919; color: #fff; }
+.demo-grid { display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 1px; background: #dedede; }
+.demo-panel { display: flex; min-height: 380px; flex-direction: column; gap: 1.3rem; background: #fafafa; padding: 1.5rem; }
+.panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.panel-heading h3, .approval-card h3, .management-summary h3 { margin-top: 0.35rem; font-size: 1.05rem; font-weight: 500; letter-spacing: -0.02em; }
+.panel-kicker { color: rgba(25, 25, 25, 0.45); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase; }
+.progress-number { font-family: "P22 Mackinac W01 Book", Georgia, serif; font-size: 1.6rem; }
+.progress-track { height: 0.25rem; overflow: hidden; background: #e7e7e7; }
+.progress-track span { display: block; height: 100%; background: #191919; transition: width 350ms ease; }
+.checklist-list { display: grid; gap: 0.5rem; }
+.checklist-item { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0.75rem; border: 1px solid transparent; padding: 0.68rem 0.5rem; text-align: left; transition: border-color 200ms ease, background-color 200ms ease; }
+.checklist-item:hover { border-color: #dedede; background: #fff; }
+.status-dot { display: inline-grid; height: 1.25rem; width: 1.25rem; place-items: center; border-radius: 50%; font-size: 0.7rem; }
+.status-dot-complete { background: #191919; color: #fff; }
+.status-dot-pending { border: 1px solid #bcbcbc; background: #fff; }
+.live-dot { display: inline-flex; align-items: center; gap: 0.35rem; color: rgba(25, 25, 25, 0.45); font-size: 0.7rem; }
+.live-dot span { height: 0.4rem; width: 0.4rem; border-radius: 50%; background: #8ab38e; }
+.chat-thread { display: flex; flex-direction: column; gap: 0.8rem; }
+.chat-bubble { max-width: 92%; padding: 0.8rem 0.9rem; font-size: 0.78rem; line-height: 1.55; }
+.chat-bubble-user { align-self: flex-end; background: #191919; color: #fff; }
+.chat-bubble-agent { align-self: flex-start; border: 1px solid #dfdfdf; background: #fff; color: rgba(25, 25, 25, 0.75); }
+.citation { display: flex; align-items: center; gap: 0.25rem; margin-top: 0.8rem; color: rgba(25, 25, 25, 0.48); font-size: 0.64rem; }
+.chat-input-wrap { display: flex; align-items: center; gap: 0.5rem; border: 1px solid #dedede; background: #fff; padding: 0.4rem 0.5rem 0.4rem 0.75rem; }
+.chat-input-wrap input { min-width: 0; flex: 1; border: 0; background: transparent; color: #191919; font-size: 0.75rem; outline: 0; }
+.send-button { display: grid; height: 2rem; width: 2rem; place-items: center; border-radius: 0.25rem; background: #f4f3f3; }
+.status-label { border: 1px solid #d4d4d4; background: #fff; padding: 0.35rem 0.5rem; color: rgba(25, 25, 25, 0.55); font-size: 0.62rem; }
+.status-label-success { border-color: #c4ddc7; background: #eef8ef; color: #376b3d; }
+.request-copy { display: grid; gap: 0.35rem; color: rgba(25, 25, 25, 0.48); font-size: 0.68rem; }
+.request-copy strong { color: #191919; font-size: 0.8rem; font-weight: 500; }
+.request-timeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin-top: 0.5rem; }
+.request-timeline > div { display: flex; flex-direction: column; align-items: flex-start; gap: 0.35rem; }
+.request-timeline span:not(.status-dot) { font-size: 0.67rem; font-weight: 500; }
+.request-timeline small { color: rgba(25, 25, 25, 0.45); font-size: 0.62rem; }
+.management-grid { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 1px; background: #dedede; }
+.management-summary, .approval-card { min-height: 380px; background: #fafafa; padding: 2rem; }
+.management-summary > p:not(.panel-kicker) { max-width: 19rem; margin-top: 1rem; color: rgba(25, 25, 25, 0.62); font-size: 0.9rem; line-height: 1.65; }
+.summary-metrics { display: grid; gap: 1px; margin-top: 4rem; background: #dedede; }
+.summary-metrics > div { display: flex; align-items: baseline; justify-content: space-between; background: #fff; padding: 0.85rem 1rem; }
+.summary-metrics strong { font-family: "P22 Mackinac W01 Book", Georgia, serif; font-size: 1.6rem; font-weight: 400; }
+.summary-metrics span { color: rgba(25, 25, 25, 0.5); font-size: 0.68rem; }
+.approval-card { display: flex; flex-direction: column; }
+.approval-details { display: grid; gap: 1rem; margin-top: 1.5rem; }
+.approval-details div { display: grid; gap: 0.35rem; border-bottom: 1px solid #e1e1e1; padding-bottom: 0.9rem; }
+.approval-details dt { color: rgba(25, 25, 25, 0.45); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.1em; }
+.approval-details dd { margin: 0; color: rgba(25, 25, 25, 0.75); font-size: 0.82rem; line-height: 1.45; }
+.approval-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: auto; }
+
+.workflow-section { border-top: 1px solid #e2e2e2; background: #f4f3f3; padding: 8rem 1.5rem; }
+.workflow-intro, .workflow-layout { max-width: 70rem; }
+.workflow-layout { display: grid; grid-template-columns: 1fr 0.8fr; gap: 5rem; margin: 0 auto; }
+.workflow-list { display: grid; gap: 0.4rem; }
+.workflow-item { display: grid; grid-template-columns: 2.5rem 1fr auto; align-items: center; gap: 0.75rem; border-bottom: 1px solid #d8d8d8; padding: 1.1rem 0.5rem; text-align: left; color: rgba(25, 25, 25, 0.48); transition: color 200ms ease, border-color 200ms ease; }
+.workflow-item:hover, .workflow-item-active { border-color: #191919; color: #191919; }
+.workflow-number { font-size: 0.7rem; }
+.workflow-item strong { display: block; font-size: 0.95rem; font-weight: 500; }
+.workflow-item small { display: block; max-width: 28rem; margin-top: 0.35rem; font-size: 0.76rem; line-height: 1.45; }
+.workflow-detail { align-self: end; border-left: 1px solid #c7c7c7; padding: 0 0 0.25rem 2rem; }
+.workflow-detail h3 { margin-top: 0.6rem; font-family: "P22 Mackinac W01 Book", Georgia, serif; font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 400; letter-spacing: -0.05em; }
+.workflow-detail p:not(.eyebrow) { max-width: 20rem; margin-top: 1rem; color: rgba(25, 25, 25, 0.62); font-size: 0.92rem; line-height: 1.65; }
+.inline-link { display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 2.2rem; border-bottom: 1px solid #191919; padding-bottom: 0.35rem; font-size: 0.78rem; }
+
+.capability-section { padding: 8rem 1.5rem; }
+.capability-list { max-width: 70rem; margin: 0 auto; border-top: 1px solid #dcdcdc; }
+.capability-row { display: grid; grid-template-columns: 3rem 1fr 1.5fr auto; align-items: center; gap: 1rem; width: 100%; border-bottom: 1px solid #dcdcdc; padding: 1.5rem 0.25rem; text-align: left; transition: padding 200ms ease, background-color 200ms ease; }
+.capability-row:hover { background: #fafafa; padding-right: 0.75rem; padding-left: 0.75rem; }
+.capability-index { color: rgba(25, 25, 25, 0.4); font-size: 0.7rem; }
+.capability-name { font-family: "P22 Mackinac W01 Book", Georgia, serif; font-size: clamp(1.4rem, 2.8vw, 2.2rem); }
+.capability-description { max-width: 24rem; color: rgba(25, 25, 25, 0.58); font-size: 0.82rem; line-height: 1.55; }
+.contact-section { display: grid; grid-template-columns: 1.3fr 0.7fr auto; align-items: end; gap: 2rem; border-top: 1px solid #dcdcdc; padding: 8rem max(1.5rem, calc((100vw - 70rem) / 2)); }
+
+@media (max-width: 900px) {
+  .demo-grid, .management-grid, .workflow-layout, .contact-section { grid-template-columns: 1fr; }
+  .workflow-layout { gap: 3rem; }
+  .workflow-detail { border-left: 0; border-top: 1px solid #c7c7c7; padding: 2rem 0 0; }
+  .contact-section { align-items: start; }
+  .onboarding-grid, .zalo-grid, .ticket-grid, .management-ticket-layout { grid-template-columns: 1fr; }
+  .checklist-panel, .onboarding-chat-panel, .summary-panel, .zalo-chat-panel, .signal-panel, .ticket-form-panel, .ticket-context-panel, .management-queue-panel, .approval-detail-panel { min-height: auto; }
+}
+
+@media (max-width: 640px) {
+  .app-nav { align-items: flex-start; padding: 0.85rem 1rem; }
+  .app-nav > .flex { flex-shrink: 0; }
+  .app-tab-list { max-width: 48vw; overflow-x: auto; }
+  .app-tab { padding: 0.45rem 0.55rem; font-size: 0.62rem; }
+  .nav-context-button { display: none; }
+  .app-view { padding-top: 8rem; }
+  .view-heading { align-items: flex-start; flex-direction: column; margin-bottom: 2.5rem; }
+  .view-heading > .button-light { align-self: flex-start; }
+  .unread-badge { align-items: flex-start; border-left: 0; border-top: 1px solid #cfcfcf; padding: 0.8rem 0 0; }
+  .section-shell, .workflow-section, .capability-section { padding: 5.5rem 1rem; }
+  .section-intro { margin-bottom: 2.5rem; }
+  .demo-toolbar { align-items: flex-start; flex-direction: column; padding: 1rem; }
+  .mode-switch { width: 100%; }
+  .mode-button { flex: 1; }
+  .demo-panel, .management-summary, .approval-card { min-height: auto; padding: 1.2rem; }
+  .approval-actions { flex-direction: column-reverse; }
+  .approval-actions button { width: 100%; }
+  .capability-row { grid-template-columns: 2rem 1fr auto; gap: 0.7rem; }
+  .capability-description { grid-column: 2 / 4; max-width: none; }
+  .contact-section { padding: 5.5rem 1rem; }
+  .ticket-form { grid-template-columns: 1fr; }
+  .field-wide { grid-column: auto; }
+  .ticket-form-actions, .management-ticket-layout .approval-actions { flex-direction: column-reverse; }
+  .ticket-form-actions button, .management-ticket-layout .approval-actions button { width: 100%; }
+  .landing-route-grid { grid-template-columns: 1fr; }
+  .landing-route-card { grid-template-columns: auto 1fr auto; }
+  .zalo-message { max-width: 94%; }
+  .zalo-chat-panel, .signal-panel { padding: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

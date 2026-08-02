@@ -7,6 +7,7 @@ __pycache__
 .pytest_cache
 .ruff_cache
 docs/
+docs/superpowers/
 presentation/
 eval/
 *.md
@@ -14,3 +15,4 @@ eval/
 .dockerignore
 Dockerfile
 docker-compose.yml
+test_log.txt
