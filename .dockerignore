@@ -10,6 +10,7 @@ docs/
 docs/superpowers/
 presentation/
 eval/
+AGENTS.md
 *.md
 !requirements.txt
 .dockerignore
