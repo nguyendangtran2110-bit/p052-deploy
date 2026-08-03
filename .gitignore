@@ -68,3 +68,5 @@ test_log.txt
 
 # AI Log Hook smoke-test marker
 .codex-ai-log-hook-test
+
+# Codex Desktop auto-hook verification (no runtime effect)
