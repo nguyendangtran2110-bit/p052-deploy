@@ -65,3 +65,6 @@ AGENTS.md
 
 # Test log file
 test_log.txt
+
+# AI Log Hook smoke-test marker
+.codex-ai-log-hook-test
