@@ -6,10 +6,15 @@ __pycache__
 *.pyc
 .pytest_cache
 .ruff_cache
+# Agent tooling, skills, and generated logs
+.impeccable/
+AGENTS.md
+SKILL.md
 docs/
 docs/superpowers/
 presentation/
 eval/
+AGENTS.md
 *.md
 !requirements.txt
 .dockerignore

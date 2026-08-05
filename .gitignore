@@ -55,14 +55,16 @@ out/
 *.pyc
 *.pyo
 
-# AI logs — tracked structure, ignored content
-.ai-log/*.jsonl
-.ai-log/archive/
-
-# Codex planning artifacts
-docs/superpowers/
+# Agent tooling, skills, and generated logs
+.impeccable/
 AGENTS.md
-.impeccable
+SKILL.md
+docs/superpowers/
 
 # Test log file
 test_log.txt
+
+# AI Log Hook smoke-test marker
+.codex-ai-log-hook-test
+
+# Codex Desktop auto-hook verification (no runtime effect)
