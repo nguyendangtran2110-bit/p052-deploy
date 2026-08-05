@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 
 from src.backend.api.router import api_router
 from src.backend.core.config import get_settings
-from src.backend.domain.common.errors import DomainError
+from src.backend.domain.common.errors import AuthenticationError, DomainError
 from src.backend.infrastructure.db.session import close_db, init_db
 
 
@@ -38,9 +38,11 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.exception_handler(DomainError)
 async def handle_domain_error(_request: Request, exc: DomainError) -> JSONResponse:
+    headers = {"WWW-Authenticate": "Bearer"} if isinstance(exc, AuthenticationError) else None
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": {"code": exc.code, "message": exc.message}},
+        headers=headers,
     )
 
 

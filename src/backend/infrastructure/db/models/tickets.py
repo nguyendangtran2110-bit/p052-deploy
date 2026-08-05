@@ -21,6 +21,7 @@ from src.backend.infrastructure.db.base import Base, TimestampMixin, UuidPrimary
 
 if TYPE_CHECKING:
     from src.backend.infrastructure.db.models.conversations import Conversation
+    from src.backend.infrastructure.db.models.identity import UserAccount
     from src.backend.infrastructure.db.models.residents import Resident, Unit
 
 
@@ -36,6 +37,7 @@ class Ticket(UuidPrimaryKeyMixin, TimestampMixin, Base):
         UniqueConstraint("resident_id", "idempotency_key", name="uq_ticket_resident_idempotency"),
         Index("ix_ticket_resident_status", "resident_id", "status"),
         Index("ix_ticket_unit_status", "unit_id", "status"),
+        Index("ix_ticket_assignee_status", "assigned_to_id", "status"),
     )
 
     ticket_code: Mapped[str] = mapped_column(String(40), unique=True, index=True)
@@ -55,10 +57,16 @@ class Ticket(UuidPrimaryKeyMixin, TimestampMixin, Base):
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    assigned_to_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("user_accounts.id", ondelete="SET NULL"), index=True
+    )
+    assigned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
     resident: Mapped[Resident] = relationship(back_populates="tickets")
     unit: Mapped[Unit] = relationship(back_populates="tickets")
     conversation: Mapped[Conversation | None] = relationship(back_populates="tickets")
+    assignee: Mapped[UserAccount | None] = relationship()
     events: Mapped[list[TicketEvent]] = relationship(
         back_populates="ticket", cascade="all, delete-orphan", order_by="TicketEvent.created_at"
     )

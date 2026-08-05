@@ -13,13 +13,16 @@ from src.backend.infrastructure.db.models import (  # noqa: F401
     Conversation,
     KnowledgeChunk,
     KnowledgeDocument,
+    ManagementProfile,
     Message,
+    RefreshSession,
     Resident,
     ResidentUnit,
     Ticket,
     TicketAttachment,
     TicketEvent,
     Unit,
+    UserAccount,
 )
 from src.backend.infrastructure.db.session import normalize_async_database_url
 

@@ -11,11 +11,12 @@ from src.backend.domain.common.errors import (
     ConflictError,
     InvalidTransitionError,
     NotFoundError,
+    ValidationError,
 )
-from src.backend.domain.identity.enums import ActorRole
-from src.backend.domain.tickets.enums import TicketStatus
+from src.backend.domain.identity.enums import AccountStatus, ActorRole, ManagementRole
+from src.backend.domain.tickets.enums import TicketPriority, TicketStatus
 from src.backend.infrastructure.db.models import Ticket, TicketEvent
-from src.backend.infrastructure.db.repositories import ResidentRepository, TicketRepository
+from src.backend.infrastructure.db.repositories import AccountRepository, ResidentRepository, TicketRepository
 
 ALLOWED_TRANSITIONS: dict[TicketStatus, set[TicketStatus]] = {
     TicketStatus.SUBMITTED: {TicketStatus.APPROVED, TicketStatus.REJECTED, TicketStatus.CANCELLED},
@@ -32,6 +33,7 @@ class TicketService:
         self.session = session
         self.tickets = TicketRepository(session)
         self.residents = ResidentRepository(session)
+        self.accounts = AccountRepository(session)
 
     async def create(self, command: CreateTicketCommand, actor: ActorContext) -> Ticket:
         if actor.role is ActorRole.RESIDENT and actor.resident_id != command.resident_id:
@@ -94,6 +96,8 @@ class TicketService:
         *,
         status: TicketStatus | None = None,
         source: str | None = None,
+        priority: TicketPriority | None = None,
+        assigned_to_id: str | None = None,
         resident_id: str | None = None,
         offset: int = 0,
         limit: int = 20,
@@ -109,6 +113,8 @@ class TicketService:
             resident_id=resident_id,
             status=status.value if status else None,
             source=source,
+            priority=priority.value if priority else None,
+            assigned_to_id=assigned_to_id,
             offset=offset,
             limit=limit,
         )
@@ -160,6 +166,65 @@ class TicketService:
         updated = await self.tickets.get(ticket.id)
         if updated is None:
             raise NotFoundError("Updated ticket could not be reloaded")
+        return updated
+
+    async def assign(
+        self,
+        ticket_id: str,
+        assignee_account_id: str | None,
+        due_at: datetime | None,
+        actor: ActorContext,
+    ) -> Ticket:
+        if not actor.is_management:
+            raise AuthorizationError("Management permission is required to assign tickets")
+        ticket = await self.tickets.get(ticket_id)
+        if ticket is None:
+            raise NotFoundError("Ticket was not found")
+
+        now = datetime.now(UTC)
+        if assignee_account_id is None:
+            due_at = None
+        if due_at is not None:
+            normalized_due_at = due_at.replace(tzinfo=UTC) if due_at.tzinfo is None else due_at.astimezone(UTC)
+            if normalized_due_at <= now:
+                raise ValidationError("Ticket due date must be in the future")
+            due_at = normalized_due_at
+
+        if actor.management_role is ManagementRole.STAFF:
+            if assignee_account_id != actor.actor_id:
+                raise AuthorizationError("Staff can only assign a ticket to themselves")
+            if ticket.assigned_to_id not in {None, actor.actor_id}:
+                raise AuthorizationError("Ticket is already assigned to another staff member")
+
+        if assignee_account_id:
+            assignee = await self.accounts.get(assignee_account_id)
+            if (
+                assignee is None
+                or assignee.role != ActorRole.MANAGEMENT.value
+                or assignee.status != AccountStatus.ACTIVE.value
+            ):
+                raise NotFoundError("Active management assignee was not found")
+
+        previous_assignee = ticket.assigned_to_id
+        ticket.assigned_to_id = assignee_account_id
+        ticket.assigned_at = now if assignee_account_id else None
+        ticket.due_at = due_at
+        ticket.events.append(
+            TicketEvent(
+                event_type="ticket_assigned" if assignee_account_id else "ticket_unassigned",
+                actor_type=actor.role.value,
+                actor_id=actor.actor_id,
+                payload={
+                    "previous_assignee_id": previous_assignee,
+                    "assignee_account_id": assignee_account_id,
+                    "due_at": due_at.isoformat() if due_at else None,
+                },
+            )
+        )
+        await self.session.commit()
+        updated = await self.tickets.get(ticket.id)
+        if updated is None:
+            raise NotFoundError("Assigned ticket could not be reloaded")
         return updated
 
     @staticmethod

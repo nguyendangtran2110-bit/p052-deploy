@@ -35,3 +35,8 @@ class AuthorizationError(DomainError):
 class InvalidTransitionError(DomainError):
     status_code = 409
     code = "invalid_transition"
+
+
+class ConfigurationError(DomainError):
+    status_code = 503
+    code = "configuration_error"

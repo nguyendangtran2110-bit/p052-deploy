@@ -8,7 +8,7 @@ from src.backend.api.dependencies import get_actor_context, require_resident
 from src.backend.application.tickets.contracts import CreateTicketCommand
 from src.backend.application.tickets.service import TicketService
 from src.backend.domain.common.auth import ActorContext
-from src.backend.domain.tickets.enums import TicketSource, TicketStatus
+from src.backend.domain.tickets.enums import TicketPriority, TicketSource, TicketStatus
 from src.backend.infrastructure.db.session import get_db_session
 from src.backend.schemas.tickets import (
     TicketCreate,
@@ -49,6 +49,8 @@ async def create_ticket(
 async def list_tickets(
     ticket_status: TicketStatus | None = Query(default=None, alias="status"),
     source: TicketSource | None = None,
+    priority: TicketPriority | None = None,
+    assigned_to_id: UUID | None = None,
     resident_id: UUID | None = None,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=100),
@@ -59,6 +61,8 @@ async def list_tickets(
         actor,
         status=ticket_status,
         source=source.value if source else None,
+        priority=priority,
+        assigned_to_id=str(assigned_to_id) if assigned_to_id else None,
         resident_id=str(resident_id) if resident_id else None,
         offset=offset,
         limit=limit,

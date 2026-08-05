@@ -2,12 +2,16 @@
 
 ## Pham vi
 
-Co so du lieu phuc vu ba nhom nghiep vu: danh tinh cu dan/can ho, hoi thoai va ticket, va kho tri thuc tu handbook/regulation. Backend la source of truth; agent khong ghi truc tiep vao database.
+Co so du lieu phuc vu bon nhom nghiep vu: tai khoan/xac thuc, cu dan/can ho, hoi thoai/ticket, va kho tri thuc tu handbook/regulation. Backend la source of truth; agent khong ghi truc tiep vao database.
 
 ## Entity relationship
 
 ```mermaid
 erDiagram
+    RESIDENTS o|--o| USER_ACCOUNTS : authenticates
+    USER_ACCOUNTS ||--o| MANAGEMENT_PROFILES : describes
+    USER_ACCOUNTS ||--o{ REFRESH_SESSIONS : owns
+    USER_ACCOUNTS o|--o{ TICKETS : assigned
     RESIDENTS ||--o{ RESIDENT_UNITS : occupies
     UNITS ||--o{ RESIDENT_UNITS : has
     RESIDENTS ||--o{ CONVERSATIONS : starts
@@ -25,12 +29,15 @@ erDiagram
 
 | Bang | Muc dich | Rang buoc quan trong |
 |---|---|---|
+| `user_accounts` | Danh tinh dang nhap cho cu dan va ban quan ly | Email unique, role/status check, token version de revoke access token |
+| `management_profiles` | Ho so nhan vien ban quan ly | Employee code unique, role `admin/manager/staff` |
+| `refresh_sessions` | Phien refresh token co the thu hoi | Chi luu SHA-256 cua token, expiry, revoke va replacement chain |
 | `residents` | Ho so cu dan | `resident_code`, email va phone unique |
 | `units` | Can ho trong du an/toa nha | Unique theo project + building + unit number |
 | `resident_units` | Quan he nhieu-nhieu cu dan/can ho | Backend dung bang nay de kiem tra quyen tao ticket |
 | `conversations` | Phien chat, co the anonymous khi chi hoi handbook | Gan resident/unit khi da xac thuc |
 | `messages` | Lich su user/assistant, citation va structured action | Khong luu chain-of-thought/internal analysis |
-| `tickets` | Yeu cau tu form hoac chatbot | Unique `(resident_id, idempotency_key)` |
+| `tickets` | Yeu cau tu form hoac chatbot | Unique `(resident_id, idempotency_key)`, assignee va due date |
 | `ticket_events` | Audit log bat bien cua ticket | Luu actor, trang thai cu/moi va comment |
 | `ticket_attachments` | Metadata file dinh kem | File duoc luu qua storage adapter |
 | `knowledge_documents` | Metadata handbook/regulation | SHA-256 unique, co version va pham vi toa nha |
@@ -75,5 +82,10 @@ Agent chi tra `confirm_ticket/create_ticket` voi payload co cau truc. Backend va
 
 ## Authentication boundary
 
-MVP local dung cac header `X-Actor-Role`, `X-Actor-Id`, `X-Resident-Id`. Day la development adapter de test RBAC va ownership, khong phai authentication production. Khi them JWT/OIDC, chi can thay dependency tao `ActorContext`; service va database rules khong thay doi.
-
+- Mat khau duoc hash bang Argon2; database khong luu mat khau ro.
+- Access JWT kiem tra chu ky HS256, issuer, audience, expiry, token type va token version.
+- Refresh JWT duoc rotate moi lan su dung; database chi luu hash token. Tai su dung token cu se revoke ca token family.
+- Doi mat khau, logout-all, khoa tai khoan va doi management role deu tang `token_version` de vo hieu hoa access token cu.
+- Cu dan chi dang ky khi `resident_code + email` khop ho so active da duoc ban quan ly tao.
+- Bootstrap token chi tao duoc management admin dau tien. Cac tai khoan tiep theo do admin tao.
+- Header `X-Actor-*` chi la adapter test khi `DEV_AUTH_ENABLED=true` va bi tat mac dinh.

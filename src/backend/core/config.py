@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,8 +21,19 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
 
-    # Local authentication adapter. Replace this with JWT/OIDC before production.
-    dev_auth_enabled: bool = True
+    # Legacy local headers are disabled by default. Bearer JWT is the primary adapter.
+    dev_auth_enabled: bool = False
+
+    # Authentication
+    jwt_secret_key: str = "local-development-secret-change-before-deploying"
+    jwt_algorithm: Literal["HS256"] = "HS256"
+    jwt_issuer: str = "onbxrd-api"
+    jwt_audience: str = "onbxrd-clients"
+    jwt_access_token_minutes: int = Field(default=15, ge=1, le=1440)
+    jwt_refresh_token_days: int = Field(default=30, ge=1, le=365)
+    auth_max_failed_attempts: int = Field(default=5, ge=1, le=20)
+    auth_lockout_minutes: int = Field(default=15, ge=1, le=1440)
+    management_bootstrap_token: str = ""
 
     # LLM
     openai_api_key: str = ""
@@ -42,6 +53,16 @@ class Settings(BaseSettings):
     @property
     def allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        if self.app_env == "production":
+            if self.dev_auth_enabled:
+                raise ValueError("DEV_AUTH_ENABLED must be false in production")
+            insecure_secret = self.jwt_secret_key.startswith(("local-development", "replace-with"))
+            if len(self.jwt_secret_key) < 32 or insecure_secret:
+                raise ValueError("JWT_SECRET_KEY must be a unique secret of at least 32 characters")
+        return self
 
 
 @lru_cache

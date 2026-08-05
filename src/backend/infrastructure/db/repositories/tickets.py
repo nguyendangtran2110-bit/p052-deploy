@@ -35,6 +35,8 @@ class TicketRepository:
         resident_id: str | None = None,
         status: str | None = None,
         source: str | None = None,
+        priority: str | None = None,
+        assigned_to_id: str | None = None,
         offset: int = 0,
         limit: int = 20,
     ) -> tuple[list[Ticket], int]:
@@ -45,6 +47,10 @@ class TicketRepository:
             filters.append(Ticket.status == status)
         if source:
             filters.append(Ticket.source == source)
+        if priority:
+            filters.append(Ticket.priority == priority)
+        if assigned_to_id:
+            filters.append(Ticket.assigned_to_id == assigned_to_id)
 
         statement = select(Ticket).where(*filters).order_by(Ticket.created_at.desc()).offset(offset).limit(limit)
         count_statement = select(func.count(Ticket.id)).where(*filters)

@@ -10,6 +10,11 @@ os.environ["APP_ENV"] = "test"
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["AUTO_CREATE_TABLES"] = "false"
 os.environ["KNOWLEDGE_STORAGE_DIR"] = tempfile.mkdtemp(prefix="onbxrd-handbooks-")
+os.environ["DEV_AUTH_ENABLED"] = "true"
+os.environ["JWT_SECRET_KEY"] = "test-jwt-secret-key-with-more-than-32-characters"
+os.environ["JWT_ISSUER"] = "onbxrd-test-api"
+os.environ["JWT_AUDIENCE"] = "onbxrd-test-clients"
+os.environ["MANAGEMENT_BOOTSTRAP_TOKEN"] = "test-management-bootstrap-token"
 
 from src.backend.infrastructure.db.models import Resident, ResidentUnit, Unit  # noqa: E402
 from src.backend.infrastructure.db.session import SessionFactory, drop_db, init_db  # noqa: E402
@@ -29,6 +34,29 @@ async def client():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+@pytest_asyncio.fixture
+async def admin_auth(client):
+    response = await client.post(
+        "/api/v1/auth/bootstrap-management",
+        headers={"X-Bootstrap-Token": "test-management-bootstrap-token"},
+        json={
+            "email": "admin@example.com",
+            "password": "AdminPassword123!",
+            "employee_code": "MGT-001",
+            "full_name": "Building Administrator",
+            "department": "Operations",
+        },
+    )
+    assert response.status_code == 201, response.text
+    data = response.json()
+    return {
+        "account": data["account"],
+        "headers": {"Authorization": f"Bearer {data['access_token']}"},
+        "access_token": data["access_token"],
+        "refresh_token": data["refresh_token"],
+    }
 
 
 @pytest_asyncio.fixture

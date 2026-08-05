@@ -48,6 +48,9 @@ class TicketSummaryResponse(BaseModel):
     submitted_at: datetime
     approved_at: datetime | None
     resolved_at: datetime | None
+    assigned_to_id: UUID | None
+    assigned_at: datetime | None
+    due_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
