@@ -62,6 +62,7 @@ out/
 # Codex planning artifacts
 docs/superpowers/
 AGENTS.md
+.impeccable
 
 # Test log file
 test_log.txt
