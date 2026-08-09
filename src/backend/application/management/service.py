@@ -1,16 +1,20 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.backend.application.management.contracts import UpdateManagementAccountCommand
+from src.backend.application.management.contracts import UpdateManagementAccountCommand, UpdateResidentCommand
 from src.backend.domain.common.auth import ActorContext
 from src.backend.domain.common.errors import AuthorizationError, ConflictError, NotFoundError
 from src.backend.domain.identity.enums import AccountStatus, ActorRole, ManagementRole
 from src.backend.domain.tickets.enums import TicketPriority, TicketStatus
 from src.backend.infrastructure.db.models import KnowledgeDocument, Resident, Ticket, Unit, UserAccount
-from src.backend.infrastructure.db.repositories import AccountRepository, RefreshSessionRepository
+from src.backend.infrastructure.db.repositories import (
+    AccountRepository,
+    RefreshSessionRepository,
+    ResidentRepository,
+)
 
 
 class ManagementService:
@@ -18,6 +22,7 @@ class ManagementService:
         self.session = session
         self.accounts = AccountRepository(session)
         self.refresh_sessions = RefreshSessionRepository(session)
+        self.residents = ResidentRepository(session)
 
     async def list_accounts(
         self,
@@ -92,6 +97,121 @@ class ManagementService:
         if updated is None:
             raise NotFoundError("Updated management account could not be reloaded")
         return updated
+
+    async def list_residents(
+        self,
+        actor: ActorContext,
+        *,
+        search: str | None,
+        is_active: bool | None,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[Resident], int]:
+        self._require_management(actor)
+        return await self.residents.list_for_management(
+            search=search,
+            is_active=is_active,
+            offset=offset,
+            limit=limit,
+        )
+
+    async def get_resident(self, resident_id: str, actor: ActorContext) -> Resident:
+        self._require_management(actor)
+        resident = await self.residents.get_for_management(resident_id)
+        if resident is None:
+            raise NotFoundError("Resident was not found")
+        return resident
+
+    async def update_resident(
+        self,
+        resident_id: str,
+        command: UpdateResidentCommand,
+        actor: ActorContext,
+    ) -> Resident:
+        self._require_manager_or_admin(actor)
+        resident = await self.residents.get_for_management(resident_id)
+        if resident is None:
+            raise NotFoundError("Resident was not found")
+
+        if "email" in command.changed_fields:
+            normalized_email = command.email.strip().lower() if command.email else None
+            if normalized_email:
+                existing = await self.session.scalar(
+                    select(Resident).where(Resident.email == normalized_email, Resident.id != resident.id)
+                )
+                if existing:
+                    raise ConflictError("A resident already exists for this email")
+            resident.email = normalized_email
+        if "phone" in command.changed_fields:
+            if command.phone:
+                existing = await self.session.scalar(
+                    select(Resident).where(Resident.phone == command.phone, Resident.id != resident.id)
+                )
+                if existing:
+                    raise ConflictError("A resident already exists for this phone number")
+            resident.phone = command.phone
+        if "full_name" in command.changed_fields and command.full_name:
+            resident.full_name = command.full_name.strip()
+        if "is_active" in command.changed_fields and command.is_active is not None:
+            resident.is_active = command.is_active
+
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise ConflictError("Resident profile conflicts with existing data") from exc
+        updated = await self.residents.get_for_management(resident.id)
+        if updated is None:
+            raise NotFoundError("Updated resident could not be reloaded")
+        return updated
+
+    async def delete_resident_account(self, resident_id: str, actor: ActorContext) -> None:
+        self._require_manager_or_admin(actor)
+        resident = await self.residents.get_for_management(resident_id)
+        if resident is None:
+            raise NotFoundError("Resident was not found")
+        if resident.account is None:
+            raise NotFoundError("Resident account was not found")
+        await self._delete_account(resident.account, actor)
+
+    async def delete_account(self, account_id: str, actor: ActorContext) -> None:
+        account = await self.accounts.get(account_id)
+        if account is None:
+            raise NotFoundError("Account was not found")
+        await self._delete_account(account, actor)
+
+    async def _delete_account(self, account: UserAccount, actor: ActorContext) -> None:
+        if account.role == ActorRole.RESIDENT.value:
+            self._require_manager_or_admin(actor)
+        elif account.role == ActorRole.MANAGEMENT.value:
+            self._require_admin(actor)
+            profile = account.management_profile
+            if profile is None:
+                raise ConflictError("Management profile is missing")
+            if account.id == actor.actor_id:
+                raise ConflictError("An administrator cannot delete their own account")
+            if (
+                profile.management_role == ManagementRole.ADMIN.value
+                and account.status == AccountStatus.ACTIVE.value
+                and await self.accounts.count_active_admins() <= 1
+            ):
+                raise ConflictError("At least one active management administrator is required")
+        else:
+            raise NotFoundError("Account was not found")
+
+        # Keep historical tickets valid even on SQLite deployments where foreign-key
+        # actions are not enabled at the connection level.
+        await self.session.execute(
+            update(Ticket)
+            .where(Ticket.assigned_to_id == account.id)
+            .values(assigned_to_id=None, assigned_at=None, due_at=None)
+        )
+        await self.accounts.delete(account)
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise ConflictError("Account could not be deleted because it is still referenced") from exc
 
     async def dashboard(self, actor: ActorContext) -> dict:
         if not actor.is_management:
@@ -170,3 +290,16 @@ class ManagementService:
     def _require_admin(actor: ActorContext) -> None:
         if not actor.is_management_admin:
             raise AuthorizationError("Management administrator permission is required")
+
+    @staticmethod
+    def _require_management(actor: ActorContext) -> None:
+        if not actor.is_management:
+            raise AuthorizationError("Management permission is required")
+
+    @staticmethod
+    def _require_manager_or_admin(actor: ActorContext) -> None:
+        if not actor.is_management or actor.management_role not in {
+            ManagementRole.ADMIN,
+            ManagementRole.MANAGER,
+        }:
+            raise AuthorizationError("Management manager permission is required")

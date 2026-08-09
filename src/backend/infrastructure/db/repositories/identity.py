@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -31,8 +31,18 @@ class AccountRepository:
         return await self.session.scalar(statement)
 
     async def get_by_resident(self, resident_id: str) -> UserAccount | None:
-        statement = select(UserAccount).where(UserAccount.resident_id == resident_id)
+        statement = (
+            select(UserAccount)
+            .options(selectinload(UserAccount.management_profile))
+            .where(UserAccount.resident_id == resident_id)
+        )
         return await self.session.scalar(statement)
+
+    async def delete(self, account: UserAccount) -> None:
+        # Access tokens are stateless, while refresh sessions must be removed explicitly
+        # so account deletion invalidates every persisted session on all database backends.
+        await self.session.execute(delete(RefreshSession).where(RefreshSession.account_id == account.id))
+        await self.session.delete(account)
 
     async def count_management(self) -> int:
         statement = select(func.count(UserAccount.id)).where(UserAccount.role == ActorRole.MANAGEMENT.value)

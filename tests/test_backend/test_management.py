@@ -99,3 +99,89 @@ async def test_admin_manages_staff_and_ticket_assignment(client, admin_auth):
     assert dashboard.json()["ticket_status_counts"]["submitted"] == 1
     assert disabled.status_code == 200
     assert disabled_access.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_manager_deletes_resident_account_and_admin_deletes_manager_account(client, admin_auth):
+    manager_created = await client.post(
+        "/api/v1/management/accounts",
+        headers=admin_auth["headers"],
+        json={
+            "email": "manager@example.com",
+            "password": "ManagerPassword123!",
+            "employee_code": "MGT-MANAGER-001",
+            "full_name": "Building Manager",
+            "management_role": "manager",
+        },
+    )
+    manager_id = manager_created.json()["id"]
+    manager_login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "manager@example.com", "password": "ManagerPassword123!"},
+    )
+    manager_headers = {"Authorization": f"Bearer {manager_login.json()['access_token']}"}
+
+    resident = await client.post(
+        "/api/v1/residents",
+        headers=admin_auth["headers"],
+        json={
+            "resident_code": "RES-DELETE-001",
+            "full_name": "Resident To Delete",
+            "email": "delete-resident@example.com",
+            "phone": "0900000099",
+        },
+    )
+    resident_id = resident.json()["id"]
+    resident_auth = await client.post(
+        "/api/v1/auth/register/resident",
+        json={
+            "resident_code": "RES-DELETE-001",
+            "email": "delete-resident@example.com",
+            "password": "ResidentPassword123!",
+        },
+    )
+    resident_headers = {"Authorization": f"Bearer {resident_auth.json()['access_token']}"}
+
+    resident_list = await client.get("/api/v1/management/residents", headers=manager_headers)
+    resident_detail = await client.get(f"/api/v1/management/residents/{resident_id}", headers=manager_headers)
+    manager_delete_management = await client.delete(
+        f"/api/v1/management/accounts/{manager_id}",
+        headers=manager_headers,
+    )
+    delete_resident_account = await client.delete(
+        f"/api/v1/management/residents/{resident_id}/account",
+        headers=manager_headers,
+    )
+    deleted_resident_access = await client.get("/api/v1/auth/me", headers=resident_headers)
+    resident_without_account = await client.get(
+        f"/api/v1/management/residents/{resident_id}", headers=manager_headers
+    )
+    dashboard = await client.get("/api/v1/management/dashboard", headers=manager_headers)
+    admin_delete_self = await client.delete(
+        f"/api/v1/management/accounts/{admin_auth['account']['id']}",
+        headers=admin_auth["headers"],
+    )
+    admin_delete_manager = await client.delete(
+        f"/api/v1/management/accounts/{manager_id}",
+        headers=admin_auth["headers"],
+    )
+    deleted_manager_access = await client.get("/api/v1/auth/me", headers=manager_headers)
+
+    assert manager_created.status_code == 201
+    assert resident.status_code == 201
+    assert resident_auth.status_code == 201
+    assert resident_list.status_code == 200
+    assert resident_list.json()["total"] == 1
+    assert resident_list.json()["items"][0]["account"]["email"] == "delete-resident@example.com"
+    assert resident_detail.status_code == 200
+    assert resident_detail.json()["units"] == []
+    assert manager_delete_management.status_code == 403
+    assert delete_resident_account.status_code == 204
+    assert deleted_resident_access.status_code == 401
+    assert resident_without_account.status_code == 200
+    assert resident_without_account.json()["account"] is None
+    assert dashboard.status_code == 200
+    assert dashboard.json()["active_residents"] == 1
+    assert admin_delete_self.status_code == 409
+    assert admin_delete_manager.status_code == 204
+    assert deleted_manager_access.status_code == 401

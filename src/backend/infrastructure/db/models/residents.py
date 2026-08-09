@@ -11,6 +11,7 @@ from src.backend.infrastructure.db.base import Base, TimestampMixin, UuidPrimary
 
 if TYPE_CHECKING:
     from src.backend.infrastructure.db.models.conversations import Conversation
+    from src.backend.infrastructure.db.models.identity import UserAccount
     from src.backend.infrastructure.db.models.tickets import Ticket
 
 
@@ -23,6 +24,7 @@ class Resident(UuidPrimaryKeyMixin, TimestampMixin, Base):
     phone: Mapped[str | None] = mapped_column(String(30), unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
+    account: Mapped[UserAccount | None] = relationship(back_populates="resident", uselist=False)
     unit_links: Mapped[list[ResidentUnit]] = relationship(back_populates="resident", cascade="all, delete-orphan")
     conversations: Mapped[list[Conversation]] = relationship(back_populates="resident")
     tickets: Mapped[list[Ticket]] = relationship(back_populates="resident")

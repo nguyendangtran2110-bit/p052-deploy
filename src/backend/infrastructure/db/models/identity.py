@@ -33,7 +33,7 @@ class UserAccount(UuidPrimaryKeyMixin, TimestampMixin, Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    resident: Mapped[Resident | None] = relationship()
+    resident: Mapped[Resident | None] = relationship(back_populates="account")
     management_profile: Mapped[ManagementProfile | None] = relationship(
         back_populates="account", cascade="all, delete-orphan", uselist=False
     )

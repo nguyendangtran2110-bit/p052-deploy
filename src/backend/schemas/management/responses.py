@@ -1,10 +1,23 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.backend.schemas.auth import AccountResponse
+from src.backend.schemas.residents import ResidentResponse, ResidentUnitSummary
 
 
 class ManagementAccountListResponse(BaseModel):
     items: list[AccountResponse]
+    total: int
+    offset: int
+    limit: int
+
+
+class ManagementResidentResponse(ResidentResponse):
+    account: AccountResponse | None = None
+    units: list[ResidentUnitSummary] = Field(default_factory=list)
+
+
+class ManagementResidentListResponse(BaseModel):
+    items: list[ManagementResidentResponse]
     total: int
     offset: int
     limit: int

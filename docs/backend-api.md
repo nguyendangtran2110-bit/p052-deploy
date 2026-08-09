@@ -48,6 +48,11 @@ rejected by production configuration.
 | `POST` | `/api/v1/management/accounts` | Admin creates a management account |
 | `GET` | `/api/v1/management/accounts` | Admin lists management accounts |
 | `PATCH` | `/api/v1/management/accounts/{id}` | Admin changes role/profile/account status |
+| `DELETE` | `/api/v1/management/accounts/{id}` | Manager/admin deletes a resident account; admin deletes a management account |
+| `GET` | `/api/v1/management/residents` | Management lists resident profiles and linked login accounts |
+| `GET` | `/api/v1/management/residents/{id}` | Management gets a resident profile, units and account status |
+| `PATCH` | `/api/v1/management/residents/{id}` | Manager/admin updates resident profile fields |
+| `DELETE` | `/api/v1/management/residents/{id}/account` | Manager/admin deletes only the resident login account |
 | `GET` | `/api/v1/management/dashboard` | Operational ticket/resident/knowledge counters |
 | `PATCH` | `/api/v1/management/tickets/{id}/assignment` | Assign/unassign a ticket and due date |
 | `POST` | `/api/v1/residents` | Management creates a resident |
@@ -65,9 +70,12 @@ rejected by production configuration.
 
 Send an `Idempotency-Key` header with form ticket requests. Chat requests use the `idempotency_key` body field because confirmation is part of the conversation command.
 
-Management roles are `admin`, `manager`, and `staff`. Admins manage accounts; managers and admins can assign
-any active management account; staff can only claim unassigned tickets for themselves. All management roles can
-process ticket status transitions and access the operational dashboard.
+Management roles are `admin`, `manager`, and `staff`. Admins manage management accounts; managers and admins can
+delete resident login accounts. Deleting a resident account preserves the resident profile, unit links, tickets,
+conversations and history. Only admins can delete management accounts, and the last active admin and the current
+admin account cannot be deleted. Managers and admins can assign any active management account; staff can only claim
+unassigned tickets for themselves. All management roles can process ticket status transitions and access the
+operational dashboard.
 
 ## Agent action contract
 

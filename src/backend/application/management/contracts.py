@@ -15,3 +15,12 @@ class UpdateManagementAccountCommand:
     management_role: ManagementRole | None = None
     project_code: str | None = None
     building: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateResidentCommand:
+    changed_fields: frozenset[str] = field(default_factory=frozenset)
+    full_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    is_active: bool | None = None
