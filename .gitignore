@@ -75,3 +75,5 @@ _bmad*
 .agent/skills
 AGENTS*
 .impeccable
+
+.pytest_cache
