@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # Cross-platform Python launcher for AI log hooks.
-# Tries python3 → python → py -3 on PATH; on Windows, falls back to common
-# Python install locations because Git Bash launched by some hooks gets a
-# stripped PATH that omits the Windows Python directory.
+# Tries the repository virtual environment first, then python3 → python → py -3
+# on PATH. On Windows, falls back to common Python install locations because
+# Git Bash launched by some hooks gets a stripped PATH.
 # Designed to be sourced or called as: bash scripts/_pyrun.sh <script> [args...]
 #
 # Exits 0 silently if no Python is found — hooks must never block the AI tool.
 set -u
 
-if command -v python3 >/dev/null 2>&1; then
+# Prefer the repository environment so hooks use the project's dependencies.
+ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if [ -x "$ROOT_DIR/.venv/bin/python" ]; then
+  PY="$ROOT_DIR/.venv/bin/python"
+elif [[ "$(uname -s)" =~ ^(MINGW|MSYS|CYGWIN) ]] && [ -x "$ROOT_DIR/.venv/Scripts/python.exe" ]; then
+  PY="$ROOT_DIR/.venv/Scripts/python.exe"
+elif command -v python3 >/dev/null 2>&1; then
   PY=python3
 elif command -v python >/dev/null 2>&1; then
   PY=python
