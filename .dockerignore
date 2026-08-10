@@ -14,3 +14,15 @@ eval/
 .dockerignore
 Dockerfile
 docker-compose.yml
+<<<<<<< Updated upstream
+=======
+test_log.txt
+.impeccable
+
+# Local agent team manifest
+agents_team.txt
+# Bmad cache files
+_bmad*
+.agents/skills
+.agent/skills
+>>>>>>> Stashed changes
