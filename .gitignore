@@ -55,10 +55,9 @@ out/
 *.pyc
 *.pyo
 
-# Agent tooling, skills, and generated logs
-.impeccable/
-AGENTS.md
-SKILL.md
+# AI logs — tracked structure, ignored content
+.ai-log/*.jsonl
+.ai-log/archive/
 docs/superpowers/
 
 # Test log file
@@ -67,4 +66,12 @@ test_log.txt
 # AI Log Hook smoke-test marker
 .codex-ai-log-hook-test
 
-# Codex Desktop auto-hook verification (no runtime effect)
+# Local agent team manifest
+agents_team.txt
+
+# Bmad cache files
+_bmad*
+.agents/skills
+.agent/skills
+AGENTS*
+.impeccable

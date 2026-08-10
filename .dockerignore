@@ -22,3 +22,8 @@ Dockerfile
 docker-compose.yml
 test_log.txt
 .impeccable
+# Bmad cache files
+_bmad*
+.agents/skills
+.agent/skills
+AGENTS*
