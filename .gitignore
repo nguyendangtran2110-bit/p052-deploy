@@ -55,15 +55,9 @@ out/
 *.pyc
 *.pyo
 
-<<<<<<< Updated upstream
 # AI logs — tracked structure, ignored content
 .ai-log/*.jsonl
 .ai-log/archive/
-=======
-# Agent tooling, skills, and generated logs
-.impeccable/
-AGENTS*
-SKILL*
 docs/superpowers/
 
 # Test log file
@@ -79,4 +73,4 @@ agents_team.txt
 _bmad*
 .agents/skills
 .agent/skills
->>>>>>> Stashed changes
+
