@@ -5,7 +5,7 @@
 ---
 
 ## 1. Executive Summary & Problem Statement
-**OnBxrd** is an intelligent virtual assistant designed to automate resident onboarding and post-handover customer care. Currently, this process is fragmented, highly manual, and paper-based, leading to poor resident experiences, delayed defect resolutions, and high operational overhead. MoveIn bridges this gap using Retrieval-Augmented Generation (RAG) and Human-in-the-Loop (HITL) workflows to provide seamless, accurate, 24/7 support.
+**OnBxrd** is an intelligent virtual assistant designed to automate resident onboarding and post-handover customer care. Currently, this process is fragmented, highly manual, and paper-based, leading to poor resident experiences, delayed defect resolutions, and high operational overhead. OnBxrd bridges this gap using Retrieval-Augmented Generation (RAG) and Human-in-the-Loop (HITL) workflows to provide seamless, accurate, 24/7 support.
 
 ## 2. Core Objectives & KPIs
 * **Accelerate Onboarding:** Reduce average resident onboarding duration by **40%**.
@@ -20,7 +20,7 @@
 * **Human-in-the-Loop (HITL):** A management dashboard allowing staff to review and approve critical AI commitments before they reach the resident.
 
 ## 4. Technical Architecture
-* **AI & Logic:** **GPT-4o-mini** (LLM Engine), **LlamaIndex** (RAG/Knowledge Retrieval), **LangGraph** (Stateful Agent Orchestration).
+* **AI & Logic:** **Qwen qwen3.6-plus** (LLM Engine), **text-embedding-v4** (Embedding Model), **ChromaDB** (Vector Database), **LlamaIndex** (RAG/Knowledge Retrieval), **LangGraph** (Stateful Agent Orchestration).
 * **System Stack:** **FastAPI** (Backend Service), **React** (Frontend/Dashboard UI), **PostgreSQL** (Database), **Render** (Cloud Infrastructure).
 
 ## 5. Scope & Risk Mitigation

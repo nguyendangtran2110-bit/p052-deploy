@@ -21,6 +21,7 @@ Env:
 import argparse
 import base64
 import hashlib
+import re
 import sys
 from pathlib import Path
 
@@ -77,6 +78,44 @@ def compute_file_hash(filepath: Path) -> str:
     return hasher.hexdigest()
 
 
+def evaluate_ocr_quality(text: str) -> dict:
+    """
+    Evaluate extracted page text for OCR quality issues (symbol noise, low word count, missing tables).
+    """
+    cleaned = (text or "").strip()
+    words = cleaned.split()
+    word_count = len(words)
+    warning_flags = []
+
+    noise_tokens = sum(1 for w in words if not any(c.isalnum() for c in w))
+    valid_words = word_count - noise_tokens
+
+    if valid_words < MIN_PDF_PAGE_WORDS:
+        warning_flags.append("LOW_WORD_COUNT")
+
+    total_chars = len(cleaned)
+    if total_chars > 0:
+        symbols = sum(1 for c in cleaned if not c.isalnum() and not c.isspace())
+        symbol_ratio = symbols / total_chars
+    else:
+        symbol_ratio = 1.0
+
+    if symbol_ratio > 0.25 or (word_count > 0 and noise_tokens / word_count > 0.20):
+        warning_flags.append("HIGH_SYMBOL_NOISE")
+
+    is_passed = len(warning_flags) == 0
+    confidence_score = max(0.0, 1.0 - (0.4 * len(warning_flags)) - (0.3 * min(1.0, symbol_ratio)))
+
+    return {
+        "is_passed": is_passed,
+        "confidence_score": round(confidence_score, 2),
+        "warning_flags": warning_flags,
+        "word_count": word_count,
+        "valid_words": valid_words,
+        "symbol_ratio": round(symbol_ratio, 2),
+    }
+
+
 def export_pdf_to_markdown(documents: list[Document], source_filepath: Path, output_dir: Path = PROCESSED_DATA_DIR) -> Path:
     """
     Save parsed PDF pages / OCR Markdown into an intermediate .md file
@@ -99,9 +138,11 @@ def export_pdf_to_markdown(documents: list[Document], source_filepath: Path, out
     for doc in documents:
         page_num = doc.metadata.get("page_number", 1)
         is_ocr = doc.metadata.get("is_ocr", False)
+        flags = doc.metadata.get("warning_flags", [])
         ocr_tag = " (Qwen OCR)" if is_ocr else ""
-        
-        md_lines.append(f"<!-- Page {page_num}{ocr_tag} -->")
+        audit_tag = f" [AUDIT_REQUIRED: {', '.join(flags)}]" if flags else ""
+
+        md_lines.append(f"<!-- Page {page_num}{ocr_tag}{audit_tag} -->")
         md_lines.append(doc.text or "")
         md_lines.append("")
 
@@ -212,6 +253,7 @@ def load_pdf_document_hybrid(filepath: Path, settings) -> list[Document]:
             else:
                 print(f"[ingest] Page {page_idx + 1} OCR returned empty response, keeping native text fallback.")
 
+        ocr_eval = evaluate_ocr_quality(final_text)
         doc_obj = Document(
             text=final_text,
             metadata={
@@ -219,6 +261,9 @@ def load_pdf_document_hybrid(filepath: Path, settings) -> list[Document]:
                 "file_path": str(filepath),
                 "page_number": page_idx + 1,
                 "is_ocr": is_ocr,
+                "ocr_confidence": ocr_eval["confidence_score"],
+                "warning_flags": ocr_eval["warning_flags"],
+                "needs_human_audit": not ocr_eval["is_passed"],
                 "version": "1.0",
                 "document_hash": doc_hash,
             },
@@ -268,6 +313,32 @@ def discover_target_files(file_path: str = None, dir_path: str = None) -> list[P
     return sorted(list(discovered), key=lambda x: x.name)
 
 
+def run_audit_scan(processed_dir: Path = PROCESSED_DATA_DIR) -> int:
+    """
+    Scan processed markdown files in data/processed/ for audit warning tags.
+    Returns the total number of flagged pages.
+    """
+    if not processed_dir.exists() or not processed_dir.is_dir():
+        print(f"[ingest] Audit Directory '{processed_dir}' does not exist.")
+        return 0
+
+    audit_pattern = re.compile(r"<!-- Page (\d+)(?: \([^)]+\))? \[AUDIT_REQUIRED: (.*?)\] -->")
+    flagged_pages = []
+
+    print("\n[ingest] === Audit Scan Summary ===")
+    for md_file in sorted(processed_dir.glob("*.md")):
+        content = md_file.read_text(encoding="utf-8")
+        matches = audit_pattern.findall(content)
+        if matches:
+            print(f"Document: {md_file.name}")
+            for page_num, flags in matches:
+                flagged_pages.append((md_file.name, page_num, flags))
+                print(f"  - Page {page_num}: [AUDIT_REQUIRED: {flags}]")
+
+    print(f"Total flagged pages needing human audit: {len(flagged_pages)}\n")
+    return len(flagged_pages)
+
+
 # ---------------------------------------------------------------------------
 # Main ingestion logic
 # ---------------------------------------------------------------------------
@@ -278,7 +349,13 @@ def run_ingestion(
     file_path: str = None,
     dir_path: str = None,
     export_md: bool = True,
+    export_only: bool = False,
+    audit: bool = False,
 ) -> None:
+    if audit:
+        run_audit_scan(PROCESSED_DATA_DIR)
+        return
+
     settings = get_settings()
     persist_dir = settings.chroma_persist_dir
 
@@ -369,6 +446,10 @@ def run_ingestion(
             raw_documents.extend(file_docs)
 
     print(f"[ingest] Loaded {len(raw_documents)} raw document page(s)/file(s) for processing.")
+
+    if export_only:
+        print("[ingest] EXPORT ONLY complete. Skipping vector store indexing.\n")
+        return
 
     # ------------------------------------------------------------------
     # 4. Heading-aware & Sentence chunking
@@ -476,6 +557,16 @@ if __name__ == "__main__":
         default=True,
         help="Automatically export parsed PDF / OCR output to Markdown files in data/processed/ (default: True).",
     )
+    parser.add_argument(
+        "--export-only",
+        action="store_true",
+        help="Export PDF/OCR output to Markdown in data/processed/ without indexing into vector store.",
+    )
+    parser.add_argument(
+        "--audit",
+        action="store_true",
+        help="Scan data/processed/ for documents with low-confidence OCR flags requiring human review.",
+    )
     args = parser.parse_args()
     run_ingestion(
         dry_run=args.dry_run,
@@ -483,6 +574,8 @@ if __name__ == "__main__":
         file_path=args.file,
         dir_path=args.dir,
         export_md=args.export_md,
+        export_only=args.export_only,
+        audit=args.audit,
     )
 
 
