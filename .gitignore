@@ -55,9 +55,9 @@ out/
 *.pyc
 *.pyo
 
-# AI logs — tracked structure, ignored content
-.ai-log/*.jsonl
-.ai-log/archive/
+# AI logs - retain only the directory placeholder
+.ai-log/*
+!.ai-log/.gitkeep
 docs/superpowers/
 
 # Test log file
