@@ -23,7 +23,7 @@ graph TD
 - Test luồng dữ liệu truyền qua các Node: `Router -> Retriever -> LLM Generator`.
 
 ### 1.3 Agent Quality Evaluation (Đánh giá Agent)
-- Đánh giá chất lượng RAG bằng khung RAGAS (xem báo cáo tại [eval/results/report.md](file:///d:/P-052/eval/results/report.md)).
+- Đánh giá chất lượng RAG bằng khung RAGAS (xem báo cáo tại [eval/results/report.md](../eval/results/report.md)).
 
 ---
 
