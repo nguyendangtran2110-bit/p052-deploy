@@ -1,4 +1,4 @@
-# Worklog — Team [Tên Team]
+# Worklog — Team OnBxrd
 
 > Ghi lại tất cả công việc đã làm theo ngày. Ai làm gì, kết quả gì.
 
@@ -8,11 +8,11 @@
 
 | Member | Task | Status | Output | Time |
 |--------|------|--------|--------|------|
-| Team | Formulate Data Ingestion architecture & plan | ✅ Done | [`ARCHITECTURE.md`](file:///c:/Users/truyk/OneDrive/Documents/P-052/ARCHITECTURE.md) | 1h |
-| Team | Build RAG Ingestion Pipeline (`ingest_handbook.py`) | ✅ Done | [`scripts/ingest_handbook.py`](file:///c:/Users/truyk/OneDrive/Documents/P-052/scripts/ingest_handbook.py) | 2h |
-| Team | Create RAG Retrieval Service (`rag.py`) | ✅ Done | [`src/services/rag.py`](file:///c:/Users/truyk/OneDrive/Documents/P-052/src/services/rag.py) | 1h |
-| Team | Wire LangGraph Agent Tool (`search_knowledge`) | ✅ Done | [`src/agents/tools/example_tool.py`](file:///c:/Users/truyk/OneDrive/Documents/P-052/src/agents/tools/example_tool.py) | 0.5h |
-| Team | Migrate to Qwen LLM (`qwen3.6-plus`) & Embeddings (`text-embedding-v4`) | ✅ Done | [`src/config.py`](file:///c:/Users/truyk/OneDrive/Documents/P-052/src/config.py), [`.env`](file:///c:/Users/truyk/OneDrive/Documents/P-052/.env) | 1h |
+| Team | Formulate Data Ingestion architecture & plan | ✅ Done | [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md) | 1h |
+| Team | Build RAG Ingestion Pipeline (`ingest_handbook.py`) | ✅ Done | [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py) | 2h |
+| Team | Create RAG Retrieval Service (`rag.py`) | ✅ Done | [`src/services/rag.py`](../src/services/rag.py) | 1h |
+| Team | Wire LangGraph Agent Tool (`search_knowledge`) | ✅ Done | [`src/agents/tools/example_tool.py`](../src/agents/tools/example_tool.py) | 0.5h |
+| Team | Migrate to Qwen LLM (`qwen3.6-plus`) & Embeddings (`text-embedding-v4`) | ✅ Done | [`src/config.py`](../src/config.py), [`.env`](../.env) | 1h |
 | Team | Resolve DashScope batch size limit & model metadata registration | ✅ Done | Fixed `embed_batch_size=10` & model dicts | 1h |
 | Team | Create & run unit test suite | ✅ Done | 21/21 RAG tests passed | 0.5h |
 
@@ -24,10 +24,10 @@
 
 | Member | Task | Status | Output | Time |
 |--------|------|--------|--------|------|
-| Team | Design Hybrid PDF OCR & Incremental Vector Store strategy | ✅ Done | [`work_summary_2026-08-07.md`](file:///c:/Users/truyk/OneDrive/Documents/P-052/work_summary_2026-08-07.md) | 0.5h |
-| Team | Implement PyMuPDF + Qwen3.6-Plus Hybrid PDF Loader & OCR Fallback | ✅ Done | [`scripts/ingest_handbook.py`](file:///c:/Users/truyk/OneDrive/Documents/P-052/scripts/ingest_handbook.py) | 1.5h |
-| Team | Upgrade vector store ingestion to Hash-based Incremental Upserting | ✅ Done | [`scripts/ingest_handbook.py`](file:///c:/Users/truyk/OneDrive/Documents/P-052/scripts/ingest_handbook.py) | 1h |
-| Team | Implement PDF-to-Markdown intermediate export (`export_pdf_to_markdown`) to `data/processed/` | ✅ Done | [`scripts/ingest_handbook.py`](file:///c:/Users/truyk/OneDrive/Documents/P-052/scripts/ingest_handbook.py) | 0.5h |
+| Team | Design Hybrid PDF OCR & Incremental Vector Store strategy | ✅ Done | `work_summary_2026-08-07.md` | 0.5h |
+| Team | Implement PyMuPDF + Qwen3.6-Plus Hybrid PDF Loader & OCR Fallback | ✅ Done | [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py) | 1.5h |
+| Team | Upgrade vector store ingestion to Hash-based Incremental Upserting | ✅ Done | [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py) | 1h |
+| Team | Implement PDF-to-Markdown intermediate export (`export_pdf_to_markdown`) to `data/processed/` | ✅ Done | [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py) | 0.5h |
 | Team | Live ingestion test on real handbook (`so-tay-phu-dong-sky-garden.pdf`) | ✅ Done | 130 nodes indexed into ChromaDB | 1h |
 | Team | Update & verify unit test suite (`tests/test_rag/`) | ✅ Done | 26/26 RAG unit tests passed (100% green) | 0.5h |
 
@@ -39,14 +39,14 @@
 
 | Member | Task | Status | Output | Time |
 |--------|------|--------|--------|------|
-| Team | Synchronize & Align Specs ([`Brief.md`](file:///c:/Users/truyk/OneDrive/Documents/P-052/docs/Brief.md), [`PRD.md`](file:///c:/Users/truyk/OneDrive/Documents/P-052/docs/PRD.md), [`WORKLOG.md`](file:///c:/Users/truyk/OneDrive/Documents/P-052/WORKLOG.md)) | ✅ Done | Aligned Qwen models, KPIs, & removed legacy MoveIn name | 0.5h |
-| Team | Implement OCR Quality Engine (`evaluate_ocr_quality()`) | ✅ Done | [`scripts/ingest_handbook.py`](file:///c:/Users/truyk/OneDrive/Documents/P-052/scripts/ingest_handbook.py) | 1h |
-| Team | Implement Markdown Audit Header Annotations (`export_pdf_to_markdown`) | ✅ Done | [`scripts/ingest_handbook.py`](file:///c:/Users/truyk/OneDrive/Documents/P-052/scripts/ingest_handbook.py) | 0.5h |
-| Team | Build 2-Stage HITL Audit CLI (`--export-only` & `--audit`) | ✅ Done | [`scripts/ingest_handbook.py`](file:///c:/Users/truyk/OneDrive/Documents/P-052/scripts/ingest_handbook.py) | 0.5h |
-| Team | Build Synthetic Scanned PDF Generator (`generate_sample_scanned_pdf.py`) | ✅ Done | [`data/raw/handbook_scanned_sample.pdf`](file:///c:/Users/truyk/OneDrive/Documents/P-052/data/raw/handbook_scanned_sample.pdf) | 0.5h |
+| Team | Synchronize & Align Specs ([`Brief.md`](Brief.md), [`PRD.md`](PRD.md), [`WORKLOG.md`](WORKLOG.md)) | ✅ Done | Aligned Qwen models, KPIs, & removed legacy MoveIn name | 0.5h |
+| Team | Implement OCR Quality Engine (`evaluate_ocr_quality()`) | ✅ Done | [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py) | 1h |
+| Team | Implement Markdown Audit Header Annotations (`export_pdf_to_markdown`) | ✅ Done | [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py) | 0.5h |
+| Team | Build 2-Stage HITL Audit CLI (`--export-only` & `--audit`) | ✅ Done | [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py) | 0.5h |
+| Team | Build Synthetic Scanned PDF Generator (`generate_sample_scanned_pdf.py`) | ✅ Done | [`data/raw/handbook_scanned_sample.pdf`](../data/raw/handbook_scanned_sample.pdf) | 0.5h |
 | Team | Expand unit test suite & verify | ✅ Done | 31/31 RAG unit tests passed (100% green) | 0.5h |
 
-**Tổng kết ngày:** Chi tiết xem tại [`work_summary_2026-08-10.md`](file:///c:/Users/truyk/OneDrive/Documents/P-052/work_summary_2026-08-10.md). Đã đồng bộ hóa toàn bộ tài liệu dự án với kiến trúc thực tế (Qwen `qwen3.6-plus`, `text-embedding-v4`, ChromaDB). Xây dựng hệ thống OCR Quality Gate tự động phát hiện lỗi nhiễu ký tự và thiếu từ; đính kèm header cảnh báo audit (`<!-- AUDIT_REQUIRED: ... -->`) vào file Markdown trung gian (`data/processed/`); hỗ trợ workflow HITL 2 giai đoạn thông qua tùy chọn CLI `--export-only` và `--audit`. Xây dựng bộ tạo PDF giả lập ảnh quét lỗi và kiểm thử thành công. Toàn bộ 31/31 unit tests đạt 100% green.
+**Tổng kết ngày:** Chi tiết xem tại `work_summary_2026-08-10.md`. Đã đồng bộ hóa toàn bộ tài liệu dự án với kiến trúc thực tế (Qwen `qwen3.6-plus`, `text-embedding-v4`, ChromaDB). Xây dựng hệ thống OCR Quality Gate tự động phát hiện lỗi nhiễu ký tự và thiếu từ; đính kèm header cảnh báo audit (`<!-- AUDIT_REQUIRED: ... -->`) vào file Markdown trung gian (`data/processed/`); hỗ trợ workflow HITL 2 giai đoạn thông qua tùy chọn CLI `--export-only` và `--audit`. Xây dựng bộ tạo PDF giả lập ảnh quét lỗi và kiểm thử thành công. Toàn bộ 31/31 unit tests đạt 100% green.
 
 ---
 
@@ -54,13 +54,13 @@
 
 | Member | Task | Status | Output | Time |
 |--------|------|--------|--------|------|
-| Nguyễn Minh Hiếu | Tái cấu trúc & hoàn thiện PRD (`PRD.md`) và Brief (`Brief.md`) | ✅ Done | [`docs/PRD.md`](file:///d:/P-052/docs/PRD.md), [`docs/Brief.md`](file:///d:/P-052/docs/Brief.md) | 1.5h |
-| Nguyễn Minh Hiếu | Mô-đun hóa kiến trúc hệ thống, bổ sung ADR-0001 -> ADR-0014 và Review documents | ✅ Done | [`docs/architecture/`](file:///d:/P-052/docs/architecture/) | 2h |
-| Nguyễn Minh Hiếu | Xây dựng bộ tài liệu kỹ thuật Frontend (Spec, Route Map, Component Map, Accessibility, State Matrix) | ✅ Done | [`docs/frontend/`](file:///d:/P-052/docs/frontend/) | 1.5h |
-| Nguyễn Minh Hiếu | Dọn dẹp tài liệu cũ (`DESIGN.md`, `PRODUCT.md`) & cập nhật environment configuration | ✅ Done | [`.gitignore`](file:///d:/P-052/.gitignore), [`.dockerignore`](file:///d:/P-052/.dockerignore) | 0.5h |
+| Nguyễn Minh Hiếu | Tái cấu trúc & hoàn thiện PRD (`PRD.md`) và Brief (`Brief.md`) | ✅ Done | [`PRD.md`](PRD.md), [`Brief.md`](Brief.md) | 1.5h |
+| Nguyễn Minh Hiếu | Mô-đun hóa kiến trúc hệ thống, bổ sung ADR-0001 -> ADR-0014 và Review documents | ✅ Done | [`architecture/`](architecture/) | 2h |
+| Nguyễn Minh Hiếu | Xây dựng bộ tài liệu kỹ thuật Frontend (Spec, Route Map, Component Map, Accessibility, State Matrix) | ✅ Done | [`frontend/`](frontend/) | 1.5h |
+| Nguyễn Minh Hiếu | Dọn dẹp tài liệu cũ (`DESIGN.md`, `PRODUCT.md`) & cập nhật environment configuration | ✅ Done | [`.gitignore`](../.gitignore), [`.dockerignore`](../.dockerignore) | 0.5h |
 | Nguyễn Minh Hiếu | Commit, Push branch `ender/develop` và cập nhật Pull Request #9 vào `main` với mô tả chi tiết | ✅ Done | [PR #9](https://github.com/AI20K-Build-Phase-Cohort-3/P-052/pull/9) | 0.5h |
 
-**Tổng kết ngày:** Đã tái cấu trúc toàn bộ tài liệu dự án bao gồm PRD, Brief, hệ thống kiến trúc mô-đun hóa (`docs/architecture/`), 14 ADRs, các tài liệu review và bộ chuẩn kỹ thuật Frontend (`docs/frontend/`). Đã dọn dẹp các file tài liệu gốc trùng lặp, đẩy toàn bộ thay đổi lên nhánh `ender/develop` và hoàn thiện Pull Request #9 hướng vào nhánh `main`.
+**Tổng kết ngày:** Đã tái cấu trúc toàn bộ tài liệu dự án bao gồm PRD, Brief, hệ thống kiến trúc mô-đun hóa (`architecture/`), 14 ADRs, các tài liệu review và bộ chuẩn kỹ thuật Frontend (`frontend/`). Đã dọn dẹp các file tài liệu gốc trùng lặp, đẩy toàn bộ thay đổi lên nhánh `ender/develop` và hoàn thiện Pull Request #9 hướng vào nhánh `main`.
 
 
 
