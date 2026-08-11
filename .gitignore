@@ -77,3 +77,6 @@ AGENTS*
 .impeccable
 
 .pytest_cache
+
+PRODUCT.md
+DESIGN.md
