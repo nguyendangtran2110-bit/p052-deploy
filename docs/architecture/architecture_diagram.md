@@ -1,38 +1,39 @@
-# Architecture Diagram
+# OnBxrd MVP Architecture Diagram
 
-## System Overview
-
-```mermaid
-graph TB
-    User([User]) --> UI[Frontend<br/>React/Next.js]
-    UI -->|REST API| API[FastAPI Backend]
-    API --> Agent[LangGraph Agent]
-    Agent --> LLM[LLM Service<br/>GPT-4o / Gemini]
-    Agent --> Tools[Agent Tools]
-    Tools --> DB[(Database)]
-    Agent --> VS[Vector Store<br/>ChromaDB]
-```
-
-## Agent Flow
+This compatibility diagram points to the authoritative architecture views. The detailed container view is in [`container-architecture.md`](container-architecture.md); trust boundaries are in [`system-context.md`](system-context.md).
 
 ```mermaid
-graph LR
-    START((Start)) --> Input[Parse Input]
-    Input --> Analyze[Analyze Query]
-    Analyze --> Decide{Need Tool?}
-    Decide -->|Yes| CallTool[Call Tool]
-    CallTool --> Analyze
-    Decide -->|No| Generate[Generate Response]
-    Generate --> END((End))
+flowchart LR
+    resident[Resident browser]
+    manager[Manager browser]
+    admin[Administrator browser]
+    edge[Same-origin HTTPS edge]
+    web[Next.js web client]
+    api[FastAPI modular monolith]
+    worker[Background worker]
+    db[(PostgreSQL)]
+    draft[Zero or one active draft per resident account]
+    rag[LangGraph + knowledge adapter]
+    chroma[(Chroma MVP index)]
+    registry[Resident/manager registry]
+    otp[OTP provider]
+    zalo[Zalo profile URL]
+
+    resident --> edge
+    manager --> edge
+    admin --> edge
+    edge --> web
+    edge -->|/api/*| api
+    api --> db
+    api --> draft
+    draft --> db
+    api --> rag
+    rag --> chroma
+    api --> registry
+    api --> otp
+    api -. returns validated URL .-> web
+    web -. opens profile .-> zalo
+    worker --> db
 ```
 
-## Component Details
-
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| Frontend | React/Next.js | User interface |
-| Backend | FastAPI | API server |
-| Agent | LangGraph | AI agent orchestration |
-| LLM | OpenAI/Gemini | Language model |
-| Database | PostgreSQL/SQLite | Data persistence |
-| Vector Store | ChromaDB | RAG / embeddings |
+The browser is untrusted. Web assets and `/api/*` share one public origin, while FastAPI remains the application boundary. PostgreSQL is the source of truth. The registry is a read/version dependency; OnBxrd owns local account claims. Zalo is an outbound URL handoff only.

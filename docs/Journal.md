@@ -1,31 +1,54 @@
-# Development Journal — Team OnBxrd (BDSO2O-10)
+# Weekly Journal — Team [Tên Team]
 
-> **Lưu ý:** File nhật ký chính của dự án được lưu tại root [/JOURNAL.md](file:///d:/P-052/JOURNAL.md) (Deliverable #8).
-> Vui lòng cập nhật thông tin theo từng tuần tại file [/JOURNAL.md](file:///d:/P-052/JOURNAL.md).
+> Ghi lại mỗi tuần: học được gì, khó khăn gì, quyết định gì, kế hoạch tiếp.
 
 ---
 
-## Mẫu Nhật Ký Theo Tuần (Weekly Journal Template)
+## Week 1: [Ngày bắt đầu] - [Ngày kết thúc]
 
-### Week 1: [Ngày bắt đầu] - [Ngày kết thúc]
+### Mục tiêu tuần này
+- [ ] [Mục tiêu 1]
+- [ ] [Mục tiêu 2]
+- [ ] [Mục tiêu 3]
 
-#### Mục tiêu tuần này
-- [ ] [Mục tiêu 1: Khởi tạo môi trường & template]
-- [ ] [Mục tiêu 2: Xây dựng Product Brief & Research]
+### Đã hoàn thành
+- [thành quả 1]
+- [thành quả 2]
 
-#### Đã hoàn thành
-- [Thành quả 1]
-- [Thành quả 2]
-
-#### Khó khăn & Giải pháp
+### Khó khăn & Giải pháp
 | Khó khăn | Giải pháp | Kết quả |
 |----------|-----------|---------|
-| [Mô tả] | [Cách xử lý] | [Output] |
+| [mô tả] | [cách xử lý] | [output] |
 
-#### Bài học
-- [Bài học 1]
-- [Bài học 2]
+### Bài học
+- [bài học 1]
+- [bài học 2]
 
-#### Kế hoạch tuần sau
-- [ ] [Task 1]
-- [ ] [Task 2]
+### Kế hoạch tuần sau
+- [ ] [task 1]
+- [ ] [task 2]
+
+---
+
+## Week 2: [Ngày bắt đầu] - [Ngày kết thúc]
+
+### Mục tiêu tuần này
+- [ ] [Mục tiêu 1]
+
+### Đã hoàn thành
+-
+
+### Khó khăn & Giải pháp
+| Khó khăn | Giải pháp | Kết quả |
+|----------|-----------|---------|
+| | | |
+
+### Bài học
+-
+
+### Kế hoạch tuần sau
+-
+
+---
+
+<!-- Tiếp tục copy block trên cho Week 3, 4, 5, 6 -->
