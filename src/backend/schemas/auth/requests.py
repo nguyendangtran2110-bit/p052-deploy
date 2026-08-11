@@ -3,12 +3,22 @@ from typing import Annotated
 from pydantic import BaseModel, EmailStr, Field, StringConstraints
 
 Password = Annotated[str, StringConstraints(min_length=12, max_length=128)]
+VerificationCode = Annotated[str, StringConstraints(pattern=r"^\d{6}$")]
 
 
 class ResidentRegistrationRequest(BaseModel):
     resident_code: str = Field(min_length=2, max_length=50)
     email: EmailStr
     password: Password
+
+
+class ResidentEmailRequest(BaseModel):
+    email: EmailStr
+
+
+class ResidentEmailVerificationRequest(BaseModel):
+    email: EmailStr
+    code: VerificationCode
 
 
 class ManagementBootstrapRequest(BaseModel):

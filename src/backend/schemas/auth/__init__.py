@@ -5,6 +5,8 @@ from src.backend.schemas.auth.requests import (
     ManagementBootstrapRequest,
     RefreshTokenRequest,
     ResetPasswordRequest,
+    ResidentEmailRequest,
+    ResidentEmailVerificationRequest,
     ResidentRegistrationRequest,
 )
 from src.backend.schemas.auth.responses import AccountResponse, ManagementProfileResponse, TokenResponse
@@ -17,6 +19,8 @@ __all__ = [
     "ManagementBootstrapRequest",
     "ManagementProfileResponse",
     "RefreshTokenRequest",
+    "ResidentEmailRequest",
+    "ResidentEmailVerificationRequest",
     "ResidentRegistrationRequest",
     "ResetPasswordRequest",
     "TokenResponse",

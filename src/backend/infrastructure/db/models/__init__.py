@@ -6,6 +6,7 @@ from src.backend.infrastructure.db.models.announcements import (
 )
 from src.backend.infrastructure.db.models.conversations import Conversation, Message
 from src.backend.infrastructure.db.models.identity import (
+    EmailVerificationToken,
     ManagementProfile,
     PasswordResetToken,
     RefreshSession,
@@ -21,6 +22,7 @@ __all__ = [
     "AnnouncementRead",
     "AnnouncementScope",
     "Conversation",
+    "EmailVerificationToken",
     "KnowledgeChunk",
     "KnowledgeDocument",
     "ManagementProfile",

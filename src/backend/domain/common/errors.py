@@ -40,3 +40,13 @@ class InvalidTransitionError(DomainError):
 class ConfigurationError(DomainError):
     status_code = 503
     code = "configuration_error"
+
+
+class InvalidVerificationCodeError(DomainError):
+    status_code = 400
+    code = "invalid_verification_code"
+
+
+class RateLimitError(DomainError):
+    status_code = 429
+    code = "rate_limited"

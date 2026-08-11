@@ -1,6 +1,12 @@
+from datetime import UTC, datetime, timedelta
+
 import jwt
 import pytest
+from sqlalchemy import update
 
+from src.backend.application.auth.service import AuthService
+from src.backend.infrastructure.db.models import EmailVerificationToken
+from src.backend.infrastructure.db.session import SessionFactory
 from src.backend.infrastructure.email import EmailService
 
 
@@ -54,7 +60,16 @@ async def test_bootstrap_creates_real_management_jwt_and_login(client):
 
 
 @pytest.mark.asyncio
-async def test_resident_registration_requires_preprovisioned_profile_and_bearer_wins(client, admin_auth):
+async def test_resident_registration_requires_email_verification_and_bearer_wins(
+    client, admin_auth, monkeypatch
+):
+    sent: dict[str, str] = {}
+
+    def capture_email(_service, recipient: str, raw_code: str) -> None:
+        sent["recipient"] = recipient
+        sent["code"] = raw_code
+
+    monkeypatch.setattr(EmailService, "send_email_verification_code", capture_email)
     resident = await client.post(
         "/api/v1/residents",
         headers=admin_auth["headers"],
@@ -76,21 +91,29 @@ async def test_resident_registration_requires_preprovisioned_profile_and_bearer_
         json={"unit_id": unit.json()["id"], "role": "owner", "is_primary": True},
     )
 
-    registered = await client.post(
-        "/api/v1/auth/register/resident",
+    registration_requested = await client.post(
+        "/api/v1/auth/register/request",
         json={
             "resident_code": "RES-JWT-001",
             "email": "minh.anh@example.com",
             "password": "ResidentPassword123!",
         },
     )
+    unverified_login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "minh.anh@example.com", "password": "ResidentPassword123!"},
+    )
     invalid_registration = await client.post(
-        "/api/v1/auth/register/resident",
+        "/api/v1/auth/register/request",
         json={
             "resident_code": "UNKNOWN",
             "email": "unknown@example.com",
             "password": "ResidentPassword123!",
         },
+    )
+    registered = await client.post(
+        "/api/v1/auth/register/verify-email",
+        json={"email": "minh.anh@example.com", "code": sent["code"]},
     )
     resident_headers = {
         "Authorization": f"Bearer {registered.json()['access_token']}",
@@ -100,8 +123,11 @@ async def test_resident_registration_requires_preprovisioned_profile_and_bearer_
     profile = await client.get("/api/v1/residents/me", headers=resident_headers)
     forbidden = await client.get("/api/v1/management/dashboard", headers=resident_headers)
 
+    assert registration_requested.status_code == 202
+    assert sent["recipient"] == "minh.anh@example.com"
+    assert unverified_login.status_code == 401
     assert registered.status_code == 201
-    assert invalid_registration.status_code == 403
+    assert invalid_registration.status_code == 202
     assert profile.status_code == 200
     assert profile.json()["resident_code"] == "RES-JWT-001"
     assert forbidden.status_code == 403
@@ -196,3 +222,106 @@ async def test_password_reset_sends_non_enumerating_email_and_revokes_tokens(cli
     assert old_access.status_code == 401
     assert new_login.status_code == 200
     assert reused.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_registration_verification_rejects_wrong_code_and_invalidates_old_code(client, admin_auth, monkeypatch):
+    sent: dict[str, str] = {}
+    codes = iter(("123456", "654321"))
+
+    def capture_email(_service, _recipient: str, raw_code: str) -> None:
+        sent.setdefault("first_code", raw_code)
+        sent["latest_code"] = raw_code
+
+    monkeypatch.setattr(EmailService, "send_email_verification_code", capture_email)
+    monkeypatch.setattr(AuthService, "_new_verification_code", staticmethod(lambda: next(codes)))
+    resident = await client.post(
+        "/api/v1/residents",
+        headers=admin_auth["headers"],
+        json={
+            "resident_code": "RES-VERIFY-001",
+            "full_name": "Verification Resident",
+            "email": "verify@example.com",
+        },
+    )
+    assert resident.status_code == 201
+
+    requested = await client.post(
+        "/api/v1/auth/register/request",
+        json={
+            "resident_code": "RES-VERIFY-001",
+            "email": "verify@example.com",
+            "password": "ResidentPassword123!",
+        },
+    )
+    assert requested.status_code == 202
+
+    wrong = await client.post(
+        "/api/v1/auth/register/verify-email",
+        json={"email": "verify@example.com", "code": "000000"},
+    )
+    assert wrong.status_code == 400
+
+    async with SessionFactory() as session:
+        await session.execute(
+            update(EmailVerificationToken)
+            .where(EmailVerificationToken.email == "verify@example.com")
+            .values(created_at=datetime.now(UTC) - timedelta(minutes=2))
+        )
+        await session.commit()
+
+    resent = await client.post(
+        "/api/v1/auth/register/resend-code",
+        json={"email": "verify@example.com"},
+    )
+    assert resent.status_code == 202
+    assert sent["latest_code"] != sent["first_code"]
+
+    old_code = await client.post(
+        "/api/v1/auth/register/verify-email",
+        json={"email": "verify@example.com", "code": sent["first_code"]},
+    )
+    verified = await client.post(
+        "/api/v1/auth/register/verify-email",
+        json={"email": "verify@example.com", "code": sent["latest_code"]},
+    )
+
+    assert old_code.status_code == 400
+    assert verified.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_registration_verification_locks_code_after_maximum_attempts(client, admin_auth, monkeypatch):
+    def capture_email(_service, _recipient: str, _raw_code: str) -> None:
+        return None
+
+    monkeypatch.setattr(EmailService, "send_email_verification_code", capture_email)
+    resident = await client.post(
+        "/api/v1/residents",
+        headers=admin_auth["headers"],
+        json={
+            "resident_code": "RES-VERIFY-002",
+            "full_name": "Attempt Resident",
+            "email": "attempt@example.com",
+        },
+    )
+    assert resident.status_code == 201
+    await client.post(
+        "/api/v1/auth/register/request",
+        json={
+            "resident_code": "RES-VERIFY-002",
+            "email": "attempt@example.com",
+            "password": "ResidentPassword123!",
+        },
+    )
+
+    responses = [
+        await client.post(
+            "/api/v1/auth/register/verify-email",
+            json={"email": "attempt@example.com", "code": "000000"},
+        )
+        for _ in range(5)
+    ]
+
+    assert [response.status_code for response in responses[:4]] == [400, 400, 400, 400]
+    assert responses[4].status_code == 429

@@ -2,6 +2,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from src.backend.infrastructure.email import EmailService
+
 
 @pytest.mark.asyncio
 async def test_management_account_defaults_to_manager(client, admin_auth):
@@ -21,7 +23,13 @@ async def test_management_account_defaults_to_manager(client, admin_auth):
 
 
 @pytest.mark.asyncio
-async def test_admin_manages_staff_and_ticket_assignment(client, admin_auth):
+async def test_admin_manages_staff_and_ticket_assignment(client, admin_auth, monkeypatch):
+    verification: dict[str, str] = {}
+
+    def capture_verification_email(_service, _recipient: str, raw_code: str) -> None:
+        verification["code"] = raw_code
+
+    monkeypatch.setattr(EmailService, "send_email_verification_code", capture_verification_email)
     staff_created = await client.post(
         "/api/v1/management/accounts",
         headers=admin_auth["headers"],
@@ -64,13 +72,17 @@ async def test_admin_manages_staff_and_ticket_assignment(client, admin_auth):
         headers=admin_auth["headers"],
         json={"unit_id": unit.json()["id"], "role": "owner", "is_primary": True},
     )
-    resident_auth = await client.post(
-        "/api/v1/auth/register/resident",
+    registration_requested = await client.post(
+        "/api/v1/auth/register/request",
         json={
             "resident_code": "RES-MGT-001",
             "email": "hoang@example.com",
             "password": "ResidentPassword123!",
         },
+    )
+    resident_auth = await client.post(
+        "/api/v1/auth/register/verify-email",
+        json={"email": "hoang@example.com", "code": verification["code"]},
     )
     ticket = await client.post(
         "/api/v1/tickets",
@@ -107,6 +119,8 @@ async def test_admin_manages_staff_and_ticket_assignment(client, admin_auth):
     assert accounts.status_code == 200
     assert accounts.json()["total"] == 2
     assert forbidden_accounts.status_code == 403
+    assert registration_requested.status_code == 202
+    assert resident_auth.status_code == 201
     assert assigned.status_code == 200
     assert assigned.json()["assigned_to_id"] == staff_id
     assert assigned.json()["events"][-1]["event_type"] == "ticket_assigned"
@@ -119,7 +133,13 @@ async def test_admin_manages_staff_and_ticket_assignment(client, admin_auth):
 
 
 @pytest.mark.asyncio
-async def test_manager_deletes_resident_account_and_admin_deletes_manager_account(client, admin_auth):
+async def test_manager_deletes_resident_account_and_admin_deletes_manager_account(client, admin_auth, monkeypatch):
+    verification: dict[str, str] = {}
+
+    def capture_verification_email(_service, _recipient: str, raw_code: str) -> None:
+        verification["code"] = raw_code
+
+    monkeypatch.setattr(EmailService, "send_email_verification_code", capture_verification_email)
     manager_created = await client.post(
         "/api/v1/management/accounts",
         headers=admin_auth["headers"],
@@ -149,13 +169,17 @@ async def test_manager_deletes_resident_account_and_admin_deletes_manager_accoun
         },
     )
     resident_id = resident.json()["id"]
-    resident_auth = await client.post(
-        "/api/v1/auth/register/resident",
+    registration_requested = await client.post(
+        "/api/v1/auth/register/request",
         json={
             "resident_code": "RES-DELETE-001",
             "email": "delete-resident@example.com",
             "password": "ResidentPassword123!",
         },
+    )
+    resident_auth = await client.post(
+        "/api/v1/auth/register/verify-email",
+        json={"email": "delete-resident@example.com", "code": verification["code"]},
     )
     resident_headers = {"Authorization": f"Bearer {resident_auth.json()['access_token']}"}
 
@@ -186,6 +210,7 @@ async def test_manager_deletes_resident_account_and_admin_deletes_manager_accoun
 
     assert manager_created.status_code == 201
     assert resident.status_code == 201
+    assert registration_requested.status_code == 202
     assert resident_auth.status_code == 201
     assert resident_list.status_code == 200
     assert resident_list.json()["total"] == 1

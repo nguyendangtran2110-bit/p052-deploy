@@ -32,6 +32,7 @@ class UserAccount(UuidPrimaryKeyMixin, TimestampMixin, Base):
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     resident: Mapped[Resident | None] = relationship(back_populates="account")
     management_profile: Mapped[ManagementProfile | None] = relationship(
@@ -100,3 +101,21 @@ class PasswordResetToken(UuidPrimaryKeyMixin, Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     account: Mapped[UserAccount] = relationship(back_populates="password_reset_tokens")
+
+
+class EmailVerificationToken(UuidPrimaryKeyMixin, Base):
+    __tablename__ = "email_verification_tokens"
+    __table_args__ = (Index("ix_email_verification_email_active", "email", "used_at", "expires_at"),)
+
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    request_ip: Mapped[str | None] = mapped_column(String(64), index=True)
+    resident_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("residents.id", ondelete="CASCADE"), index=True
+    )
+    resident_code: Mapped[str] = mapped_column(String(50))
+    password_hash: Mapped[str] = mapped_column(String(500))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)

@@ -28,6 +28,7 @@ class AccountResponse(BaseModel):
     status: AccountStatus
     resident_id: UUID | None
     last_login_at: datetime | None
+    email_verified_at: datetime | None
     created_at: datetime
     updated_at: datetime
     management_profile: ManagementProfileResponse | None = None

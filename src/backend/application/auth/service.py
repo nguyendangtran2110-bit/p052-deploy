@@ -2,7 +2,7 @@ import hmac
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import desc, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from src.backend.application.auth.contracts import (
     AuthResult,
     ClientContext,
+    EmailVerificationRequestResult,
     ManagementRegistrationCommand,
     PasswordResetRequestResult,
     ResidentRegistrationCommand,
@@ -21,11 +22,14 @@ from src.backend.domain.common.errors import (
     AuthorizationError,
     ConfigurationError,
     ConflictError,
+    InvalidVerificationCodeError,
     NotFoundError,
+    RateLimitError,
 )
 from src.backend.domain.identity.enums import AccountStatus, ActorRole, ManagementRole, TokenType
 from src.backend.infrastructure.db.base import new_uuid
 from src.backend.infrastructure.db.models import (
+    EmailVerificationToken,
     ManagementProfile,
     PasswordResetToken,
     RefreshSession,
@@ -49,31 +53,139 @@ class AuthService:
         self.refresh_sessions = RefreshSessionRepository(session)
         self.tokens = JwtTokenService(settings)
 
-    async def register_resident(
+    async def request_resident_registration(
         self,
         command: ResidentRegistrationCommand,
         client: ClientContext,
-    ) -> AuthResult:
+    ) -> EmailVerificationRequestResult | None:
         email = self._normalize_email(command.email)
+        resident_code = command.resident_code.strip()
         resident = await self.session.scalar(
             select(Resident).where(
-                Resident.resident_code == command.resident_code.strip(),
+                Resident.resident_code == resident_code,
                 func.lower(Resident.email) == email,
                 Resident.is_active.is_(True),
             )
         )
         if resident is None:
-            raise AuthorizationError("Resident profile does not match the registration information")
+            return None
         if await self.accounts.get_by_email(email) or await self.accounts.get_by_resident(resident.id):
+            return None
+
+        now = datetime.now(UTC)
+        await self._enforce_verification_send_limits(email, now, client.ip_address)
+        await self._invalidate_active_email_verifications(email, now)
+        raw_code = self._new_verification_code()
+        self.session.add(
+            EmailVerificationToken(
+                email=email,
+                request_ip=client.ip_address,
+                resident_id=resident.id,
+                resident_code=resident_code,
+                password_hash=hash_password(command.password),
+                token_hash=hash_token(raw_code),
+                expires_at=now + timedelta(minutes=self.settings.email_verification_token_minutes),
+            )
+        )
+        await self.session.commit()
+        return EmailVerificationRequestResult(email=email, raw_code=raw_code)
+
+    async def resend_resident_registration_code(
+        self, email: str, client: ClientContext
+    ) -> EmailVerificationRequestResult | None:
+        normalized_email = self._normalize_email(email)
+        token = await self.session.scalar(
+            select(EmailVerificationToken)
+            .where(EmailVerificationToken.email == normalized_email, EmailVerificationToken.used_at.is_(None))
+            .order_by(desc(EmailVerificationToken.created_at))
+            .limit(1)
+        )
+        if token is None:
+            return None
+
+        resident = await self.session.get(Resident, token.resident_id)
+        if (
+            resident is None
+            or not resident.is_active
+            or resident.email is None
+            or self._normalize_email(resident.email) != normalized_email
+            or await self.accounts.get_by_email(normalized_email)
+        ):
+            return None
+
+        now = datetime.now(UTC)
+        await self._enforce_verification_send_limits(normalized_email, now, client.ip_address)
+        await self._invalidate_active_email_verifications(normalized_email, now)
+        raw_code = self._new_verification_code()
+        self.session.add(
+            EmailVerificationToken(
+                email=normalized_email,
+                request_ip=client.ip_address,
+                resident_id=token.resident_id,
+                resident_code=token.resident_code,
+                password_hash=token.password_hash,
+                token_hash=hash_token(raw_code),
+                expires_at=now + timedelta(minutes=self.settings.email_verification_token_minutes),
+            )
+        )
+        await self.session.commit()
+        return EmailVerificationRequestResult(email=normalized_email, raw_code=raw_code)
+
+    async def verify_resident_email(self, email: str, code: str, client: ClientContext) -> AuthResult:
+        normalized_email = self._normalize_email(email)
+        token = await self.session.scalar(
+            select(EmailVerificationToken)
+            .where(EmailVerificationToken.email == normalized_email, EmailVerificationToken.used_at.is_(None))
+            .order_by(desc(EmailVerificationToken.created_at))
+            .limit(1)
+            .with_for_update()
+        )
+        if token is None:
+            raise InvalidVerificationCodeError("Verification code is invalid or expired")
+
+        now = datetime.now(UTC)
+        if self._as_utc(token.expires_at) <= now:
+            token.used_at = now
+            await self.session.commit()
+            raise InvalidVerificationCodeError("Verification code is invalid or expired")
+        if token.attempt_count >= self.settings.email_verification_max_attempts:
+            raise RateLimitError("Too many verification attempts")
+
+        if not hmac.compare_digest(token.token_hash, hash_token(code)):
+            token.attempt_count += 1
+            exhausted = token.attempt_count >= self.settings.email_verification_max_attempts
+            if exhausted:
+                token.used_at = now
+            await self.session.commit()
+            if exhausted:
+                raise RateLimitError("Too many verification attempts")
+            raise InvalidVerificationCodeError("Verification code is invalid or expired")
+
+        resident = await self.session.get(Resident, token.resident_id)
+        if (
+            resident is None
+            or not resident.is_active
+            or resident.email is None
+            or self._normalize_email(resident.email) != normalized_email
+            or resident.resident_code != token.resident_code
+        ):
+            token.used_at = now
+            await self.session.commit()
+            raise InvalidVerificationCodeError("Verification code is invalid or expired")
+        if await self.accounts.get_by_email(normalized_email) or await self.accounts.get_by_resident(resident.id):
+            token.used_at = now
+            await self.session.commit()
             raise ConflictError("An account already exists for this resident or email")
 
+        token.used_at = now
         account = UserAccount(
-            email=email,
-            password_hash=hash_password(command.password),
+            email=normalized_email,
+            password_hash=token.password_hash,
             role=ActorRole.RESIDENT.value,
             status=AccountStatus.ACTIVE.value,
             resident_id=resident.id,
-            password_changed_at=datetime.now(UTC),
+            password_changed_at=now,
+            email_verified_at=now,
         )
         await self._add_account(account)
         return await self._issue_and_commit(account, client)
@@ -139,6 +251,8 @@ class AuthService:
             raise AuthenticationError("Account is temporarily locked")
         if account.status != AccountStatus.ACTIVE.value:
             raise AuthenticationError("Account is disabled")
+        if account.role == ActorRole.RESIDENT.value and account.email_verified_at is None:
+            raise AuthenticationError("Email verification is required")
 
         if updated_hash:
             account.password_hash = updated_hash
@@ -293,12 +407,14 @@ class AuthService:
         if employee_exists:
             raise ConflictError("An account already exists for this employee code")
 
+        now = datetime.now(UTC)
         account = UserAccount(
             email=email,
             password_hash=hash_password(command.password),
             role=ActorRole.MANAGEMENT.value,
             status=AccountStatus.ACTIVE.value,
-            password_changed_at=datetime.now(UTC),
+            password_changed_at=now,
+            email_verified_at=now,
         )
         account.management_profile = ManagementProfile(
             employee_code=command.employee_code.strip(),
@@ -405,6 +521,49 @@ class AuthService:
     @staticmethod
     def _normalize_email(email: str) -> str:
         return email.strip().lower()
+
+    async def _enforce_verification_send_limits(
+        self, email: str, now: datetime, request_ip: str | None
+    ) -> None:
+        window_start = now - timedelta(minutes=self.settings.email_verification_window_minutes)
+        recent = list(
+            (
+                await self.session.scalars(
+                    select(EmailVerificationToken)
+                    .where(
+                        EmailVerificationToken.email == email,
+                        EmailVerificationToken.created_at >= window_start,
+                    )
+                    .order_by(desc(EmailVerificationToken.created_at))
+                )
+            ).all()
+        )
+        if recent:
+            latest_created_at = self._as_utc(recent[0].created_at)
+            if (now - latest_created_at).total_seconds() < self.settings.email_verification_resend_cooldown_seconds:
+                raise RateLimitError("Please wait before requesting another verification code")
+        if len(recent) >= self.settings.email_verification_max_sends:
+            raise RateLimitError("Too many verification codes requested")
+        if request_ip:
+            recent_ip_count = await self.session.scalar(
+                select(func.count(EmailVerificationToken.id)).where(
+                    EmailVerificationToken.request_ip == request_ip,
+                    EmailVerificationToken.created_at >= window_start,
+                )
+            )
+            if int(recent_ip_count or 0) >= self.settings.email_verification_max_ip_sends:
+                raise RateLimitError("Too many verification codes requested from this network")
+
+    async def _invalidate_active_email_verifications(self, email: str, now: datetime) -> None:
+        await self.session.execute(
+            update(EmailVerificationToken)
+            .where(EmailVerificationToken.email == email, EmailVerificationToken.used_at.is_(None))
+            .values(used_at=now)
+        )
+
+    @staticmethod
+    def _new_verification_code() -> str:
+        return f"{secrets.randbelow(1_000_000):06d}"
 
     @staticmethod
     def _required_string(payload: dict, claim: str) -> str:

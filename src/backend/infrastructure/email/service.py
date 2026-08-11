@@ -15,10 +15,6 @@ class EmailService:
         self.settings = settings
 
     def send_password_reset_email(self, recipient: str, raw_token: str) -> None:
-        if not self.settings.smtp_host or not self.settings.smtp_from_email:
-            logger.warning("SMTP is not configured; password reset email was not sent")
-            return
-
         reset_url = f"{self.settings.password_reset_url_base}?token={quote(raw_token)}"
         message = EmailMessage()
         message["Subject"] = "Reset your OnBxrd password"
@@ -29,6 +25,25 @@ class EmailService:
             f"Open this link within {self.settings.password_reset_token_minutes} minutes:\n{reset_url}\n\n"
             "If you did not request this, you can ignore this email."
         )
+        self._send(message, "password reset")
+
+    def send_email_verification_code(self, recipient: str, raw_code: str) -> None:
+        message = EmailMessage()
+        message["Subject"] = "Verify your OnBxrd email"
+        message["From"] = self.settings.smtp_from_email
+        message["To"] = recipient
+        message.set_content(
+            "Your OnBxrd email verification code is:\n\n"
+            f"{raw_code}\n\n"
+            f"This code expires in {self.settings.email_verification_token_minutes} minutes.\n"
+            "If you did not request an account, you can ignore this email."
+        )
+        self._send(message, "email verification")
+
+    def _send(self, message: EmailMessage, purpose: str) -> None:
+        if not self.settings.smtp_host or not self.settings.smtp_from_email:
+            logger.warning("SMTP is not configured; %s email was not sent", purpose)
+            return
 
         with smtplib.SMTP(self.settings.smtp_host, self.settings.smtp_port, timeout=15) as smtp:
             if self.settings.smtp_use_tls:

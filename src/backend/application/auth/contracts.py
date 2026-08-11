@@ -43,3 +43,9 @@ class AuthResult:
 class PasswordResetRequestResult:
     email: str
     raw_token: str
+
+
+@dataclass(frozen=True, slots=True)
+class EmailVerificationRequestResult:
+    email: str
+    raw_code: str

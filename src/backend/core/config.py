@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     management_bootstrap_token: str = ""
     password_reset_token_minutes: int = Field(default=15, ge=5, le=60)
     password_reset_url_base: str = "http://localhost:3000/reset-password"
+    email_verification_token_minutes: int = Field(default=10, ge=5, le=60)
+    email_verification_max_attempts: int = Field(default=5, ge=1, le=10)
+    email_verification_resend_cooldown_seconds: int = Field(default=60, ge=1, le=3600)
+    email_verification_max_sends: int = Field(default=3, ge=1, le=10)
+    email_verification_max_ip_sends: int = Field(default=10, ge=1, le=100)
+    email_verification_window_minutes: int = Field(default=15, ge=1, le=1440)
 
     # Email delivery. An empty SMTP host keeps local development functional; the
     # reset endpoint still returns a non-enumerating response in that mode.

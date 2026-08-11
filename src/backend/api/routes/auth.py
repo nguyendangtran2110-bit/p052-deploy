@@ -7,6 +7,7 @@ from src.backend.api.dependencies import require_authenticated
 from src.backend.application.auth.contracts import (
     AuthResult,
     ClientContext,
+    EmailVerificationRequestResult,
     ManagementRegistrationCommand,
     PasswordResetRequestResult,
     ResidentRegistrationCommand,
@@ -24,6 +25,8 @@ from src.backend.schemas.auth import (
     ManagementBootstrapRequest,
     RefreshTokenRequest,
     ResetPasswordRequest,
+    ResidentEmailRequest,
+    ResidentEmailVerificationRequest,
     ResidentRegistrationRequest,
     TokenResponse,
 )
@@ -31,14 +34,15 @@ from src.backend.schemas.auth import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/register/resident", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register_resident(
+@router.post("/register/request", status_code=status.HTTP_202_ACCEPTED)
+async def request_resident_registration(
     payload: ResidentRegistrationRequest,
+    background_tasks: BackgroundTasks,
     request: Request,
     session: AsyncSession = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
-) -> TokenResponse:
-    result = await AuthService(session, settings).register_resident(
+) -> dict[str, str]:
+    result = await AuthService(session, settings).request_resident_registration(
         ResidentRegistrationCommand(
             resident_code=payload.resident_code,
             email=str(payload.email),
@@ -46,7 +50,57 @@ async def register_resident(
         ),
         _client_context(request),
     )
+    _schedule_verification_email(result, background_tasks, settings)
+    return {"message": "If the registration information is valid, a verification code has been sent."}
+
+
+@router.post("/register/resend-code", status_code=status.HTTP_202_ACCEPTED)
+async def resend_resident_registration_code(
+    payload: ResidentEmailRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, str]:
+    result = await AuthService(session, settings).resend_resident_registration_code(
+        str(payload.email), _client_context(request)
+    )
+    _schedule_verification_email(result, background_tasks, settings)
+    return {"message": "If the registration request is valid, a new verification code has been sent."}
+
+
+@router.post("/register/verify-email", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def verify_resident_registration_email(
+    payload: ResidentEmailVerificationRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> TokenResponse:
+    result = await AuthService(session, settings).verify_resident_email(
+        str(payload.email), payload.code, _client_context(request)
+    )
     return _token_response(result)
+
+
+@router.post("/register/resident", status_code=status.HTTP_202_ACCEPTED, deprecated=True)
+async def legacy_resident_registration(
+    payload: ResidentRegistrationRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, str]:
+    """Compatibility alias for clients migrating to /register/request."""
+    result = await AuthService(session, settings).request_resident_registration(
+        ResidentRegistrationCommand(
+            resident_code=payload.resident_code,
+            email=str(payload.email),
+            password=payload.password,
+        ),
+        _client_context(request),
+    )
+    _schedule_verification_email(result, background_tasks, settings)
+    return {"message": "If the registration information is valid, a verification code has been sent."}
 
 
 @router.post("/bootstrap-management", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -179,3 +233,16 @@ def _token_response(result: AuthResult) -> TokenResponse:
         expires_in=result.expires_in,
         account=AccountResponse.model_validate(result.account),
     )
+
+
+def _schedule_verification_email(
+    result: EmailVerificationRequestResult | None,
+    background_tasks: BackgroundTasks,
+    settings: Settings,
+) -> None:
+    if isinstance(result, EmailVerificationRequestResult):
+        background_tasks.add_task(
+            EmailService(settings).send_email_verification_code,
+            result.email,
+            result.raw_code,
+        )
