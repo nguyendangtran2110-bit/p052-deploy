@@ -14,7 +14,7 @@ OnBxrD AI Agent is a stateful, source-grounded AI assistant that guides new resi
 
 - **Target user & use case**: New homeowners/residents right after unit handover, who need step-by-step onboarding guidance, answers about amenities/regulations, and a way to report and track defects; property management staff who must review and approve every commitment or ticket before it is created.
 - **Key differentiator & value proposition**: Unlike scattered manual processes (phone calls, Zalo, paper checklists), OnBxrD combines a stateful onboarding checklist (LangGraph), source-grounded Q&A (RAG over the resident handbook), and structured defect-ticket escalation — all gated by mandatory human approval (HITL) so management retains authority and accountability.
-- **Success definition & metrics**: Success means residents complete onboarding faster, defect requests are triaged and resolved accurately, and management spends less time on repetitive questions. Primary KPI: % of residents completing the onboarding checklist within the target window (initial target: 80% within 7 days of handover).
+- **Success definition & metrics**: Success means residents complete onboarding faster (target: 40% duration reduction), routine inquiries are automated (target: 70%+), defect tickets are triaged rapidly (target: < 15 mins routing), and policy Q&A maintains 0% hallucination rate via strict citations. Primary KPI: % of residents completing the onboarding checklist within the target window (initial target: 80% within 7 days of handover).
 
 **Strategic Alignment**
 - **Business objectives supported**: Improve post-sale customer experience; increase resident retention and referral rate; reduce management staff time spent on repetitive onboarding/Q&A tasks.
@@ -26,7 +26,7 @@ OnBxrD AI Agent is a stateful, source-grounded AI assistant that guides new resi
 - **Development effort estimate**: MVP buildable by a small cross-functional team in 6–8 weeks (pilot/hackathon-scale project).
 - **Timeline & key milestones**: Discovery & data prep (week 1) → Core agent + checklist flow (weeks 2–4) → Ticketing + HITL approval (weeks 4–5) → Testing, eval, and pilot launch (weeks 5-6).
 - **Team members & skills needed**: 1 backend engineer (FastAPI/Postgres), 1 frontend engineer (React), 1 AI/ML engineer (LLM orchestration, RAG, LangGraph), part-time product/design support.
-- **Budget & resource allocation**: Limited/pilot-stage budget; primary costs are LLM API usage (GPT-4o-mini), Render hosting, and engineering time — no dedicated infrastructure team assumed.
+- **Budget & resource allocation**: Limited/pilot-stage budget; primary costs are LLM API usage (Alibaba Qwen qwen3.6-plus / DashScope API), Render hosting, and engineering time — no dedicated infrastructure team assumed.
 
 ---
 
@@ -42,7 +42,7 @@ After a resident receives their unit, onboarding today spans multiple disconnect
 - **Competitive gap this addresses**: Most operators still rely on manual, multi-channel coordination with no structured, auditable escalation path — OnBxrd closes this gap with a single AI-driven, human-supervised workflow.
 
 **Success Criteria**
-- **Primary success metrics & targets**: % onboarding checklist completion (target 80% within 7 days); average onboarding completion time; % Q&A answers correctly source-grounded.
+- **Primary success metrics & targets**: % onboarding checklist completion (target 80% within 7 days); onboarding duration reduction (target 40%); routine inquiry automation rate (target 70%+); ticket triage time (target < 15 mins); % Q&A answers correctly source-grounded (0% hallucination on building policies).
 - **Secondary metrics to monitor**: Defect ticket resolution time and routing accuracy; HITL approval turnaround time; resident satisfaction score.
 - **User behavior changes expected**: Residents self-serve onboarding steps and routine questions through the agent instead of calling management directly.
 - **Business outcomes anticipated**: Higher referral rate, lower management support load, faster and more consistent defect resolution.
@@ -154,7 +154,7 @@ After a resident receives their unit, onboarding today spans multiple disconnect
 flowchart LR
   frontend["React frontend<br/>Resident App + Management Console"]
   backend["FastAPI backend"]
-  agent["LangGraph-orchestrated agent<br/>GPT-4o-mini"]
+  agent["LangGraph-orchestrated agent<br/>Qwen qwen3.6-plus"]
   rag["RAG layer<br/>LlamaIndex over handbook/regulations"]
   postgres["PostgreSQL<br/>residents, checklists, requests, approvals, tickets"]
   ticketing["External ticketing tool integration"]

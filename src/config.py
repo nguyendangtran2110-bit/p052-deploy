@@ -20,9 +20,13 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     cors_origins: str = "http://localhost:3000"
 
-    # LLM
+    # LLM & Embedding
+    qwen_api_key: str = ""
+    qwen_api_base: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
     openai_api_key: str = ""
-    model_name: str = "gpt-4o-mini"
+    openai_api_base: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+    model_name: str = "qwen3.6-plus"
+    embedding_model_name: str = "text-embedding-v4"
     llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
 
     # Database
