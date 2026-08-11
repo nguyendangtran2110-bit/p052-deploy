@@ -24,9 +24,11 @@ async def send_message(
         ChatCommand(
             message=request.message,
             conversation_id=str(request.conversation_id) if request.conversation_id else None,
+            ticket_id=str(request.ticket_id) if request.ticket_id else None,
             unit_id=str(request.unit_id) if request.unit_id else None,
             confirm_action=request.confirm_action,
             idempotency_key=request.idempotency_key,
+            attachment_ids=tuple(str(attachment_id) for attachment_id in request.attachment_ids),
         ),
         actor,
     )

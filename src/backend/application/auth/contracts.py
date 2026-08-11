@@ -37,3 +37,9 @@ class AuthResult:
     access_token: str
     refresh_token: str
     expires_in: int
+
+
+@dataclass(frozen=True, slots=True)
+class PasswordResetRequestResult:
+    email: str
+    raw_token: str

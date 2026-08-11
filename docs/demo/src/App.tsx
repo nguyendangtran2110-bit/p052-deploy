@@ -8,10 +8,11 @@ import {
   conciergeAnswer,
   issueKeywords,
   resident,
+  request,
   ticketCategories,
   type DemoTab,
-  type ZaloMessage,
-  zaloMessages,
+  type ChatMessage,
+  chatMessages,
 } from "./data";
 
 type TicketRole = "resident" | "management";
@@ -36,8 +37,8 @@ type DetectedIssue = {
 const tabLabels: Array<[DemoTab, string]> = [
   ["landing", "Landing"],
   ["onboarding", "Onboarding"],
-  ["zalo", "Demo Zalo chat"],
-  ["ticket", "Ticket"],
+  ["chat", "In-app resident chat"],
+  ["ticket", "Tickets"],
 ];
 
 function Logo() {
@@ -129,7 +130,7 @@ function LandingView({ navigate }: { navigate: (tab: DemoTab) => void }) {
             <div className="grid gap-2 pb-0 sm:grid-cols-3 sm:gap-3">
               {([
                 ["01", "Onboarding", "onboarding" as DemoTab],
-                ["02", "Demo Zalo chat", "zalo" as DemoTab],
+                ["02", "In-app resident chat", "chat" as DemoTab],
                 ["03", "Ticket flow", "ticket" as DemoTab],
               ] as Array<[string, string, DemoTab]>).map(([number, label, tab]) => (
                 <button key={tab} className="feature-row group" onClick={() => navigate(tab)} type="button">
@@ -146,11 +147,11 @@ function LandingView({ navigate }: { navigate: (tab: DemoTab) => void }) {
         <div className="section-intro">
           <p className="eyebrow">A connected resident journey</p>
           <h2 className="section-title">One conversation, every next step.</h2>
-          <p className="section-lede">Explore the three working surfaces behind the promise: guided onboarding, a Zalo signal layer, and a human-approved ticket flow.</p>
+          <p className="section-lede">Explore the three working surfaces behind the promise: guided onboarding, in-app resident chat, and a human-approved ticket flow.</p>
         </div>
         <div className="landing-route-grid">
           {capabilities.map((capability, index) => {
-            const tab: DemoTab = index === 0 ? "onboarding" : index === 1 ? "zalo" : "ticket";
+            const tab: DemoTab = index === 0 ? "onboarding" : index === 1 ? "chat" : "ticket";
             return <button key={capability.label} className="landing-route-card" onClick={() => navigate(tab)} type="button"><span className="capability-index">0{index + 1}</span><span className="capability-name">{capability.label}</span><span className="capability-description">{capability.description}</span><ArrowRight className="h-4 w-4 text-[#191919]/40" /></button>;
           })}
         </div>
@@ -174,7 +175,7 @@ function OnboardingView({ completedSteps, activeStep, setActiveStep, toggleStep,
   const current = checklist[activeStep] ?? checklist[0];
   return (
     <section className="app-view section-shell" id="onboarding">
-      <div className="view-heading"><div><p className="eyebrow">01 / Onboarding agent</p><h1 className="view-title">Một khởi đầu thật rõ ràng.</h1><p className="view-lede">Agent dẫn đường cho cư dân từ ngày nhận nhà đến khi mọi tiện ích và yêu cầu đầu tiên đã được xử lý.</p></div><button className="button-light" onClick={() => navigate("zalo")} type="button">Try Demo Zalo <ArrowRight className="inline h-4 w-4" /></button></div>
+      <div className="view-heading"><div><p className="eyebrow">01 / Onboarding agent</p><h1 className="view-title">Một khởi đầu thật rõ ràng.</h1><p className="view-lede">Agent dẫn đường cho cư dân từ ngày nhận nhà đến khi mọi tiện ích và yêu cầu đầu tiên đã được xử lý.</p></div><button className="button-light" onClick={() => navigate("chat")} type="button">Open resident chat <ArrowRight className="inline h-4 w-4" /></button></div>
       <div className="onboarding-grid">
         <article className="workspace-panel checklist-panel">
           <div className="panel-heading"><div><p className="panel-kicker">Checklist của cư dân</p><h3>{resident.name} · {resident.unit}</h3></div><span className="progress-number">{progress}%</span></div>
@@ -200,8 +201,8 @@ function OnboardingView({ completedSteps, activeStep, setActiveStep, toggleStep,
   );
 }
 
-function ZaloView({ messages, draft, setDraft, sendMessage, detectedIssue, dismissIssue, createTicket, navigate }: {
-  messages: ZaloMessage[];
+function ResidentChatView({ messages, draft, setDraft, sendMessage, detectedIssue, dismissIssue, createTicket, navigate }: {
+  messages: ChatMessage[];
   draft: string;
   setDraft: (value: string) => void;
   sendMessage: () => void;
@@ -212,15 +213,15 @@ function ZaloView({ messages, draft, setDraft, sendMessage, detectedIssue, dismi
 }) {
   const importantCount = messages.filter((message) => message.important).length;
   return (
-    <section className="app-view section-shell" id="zalo">
-      <div className="view-heading"><div><p className="eyebrow">02 / Zalo signal layer</p><h1 className="view-title">Không bỏ sót điều quan trọng.</h1><p className="view-lede">Agent đọc luồng chat đông đúc, gom những tín hiệu cần xử lý và đưa đúng vấn đề vào ticket.</p></div><div className="unread-badge"><strong>800</strong><span>tin nhắn chưa đọc</span></div></div>
-      <div className="zalo-grid">
-        <article className="workspace-panel zalo-chat-panel">
-          <div className="zalo-header"><div><p className="panel-kicker">Zalo group</p><h3>The River Residence · Cư dân</h3></div><span className="message-count">{messages.length} tin nhắn mock</span></div>
-          <div className="zalo-messages" aria-label="Danh sách tin nhắn Zalo">
-            {messages.map((message) => <div key={message.id} className={`zalo-message ${message.sender === "Cư dân" ? "zalo-message-resident" : "zalo-message-management"} ${message.important ? "zalo-message-important" : ""}`}><div className="zalo-message-meta"><strong>{message.sender}</strong><span>{message.time}</span></div><p>{message.text}</p>{message.important && <span className="issue-chip">Agent detected · {message.issueType}</span>}</div>)}
+    <section className="app-view section-shell" id="chat">
+      <div className="view-heading"><div><p className="eyebrow">02 / In-app resident chat</p><h1 className="view-title">Mọi câu hỏi, một ngữ cảnh.</h1><p className="view-lede">Resident hỏi handbook hoặc mô tả vấn đề ngay trong app; agent giữ lại ngữ cảnh và đề xuất ticket khi cần.</p></div><div className="unread-badge"><strong>{messages.length}</strong><span>tin nhắn trong thread</span></div></div>
+      <div className="resident-chat-grid">
+        <article className="workspace-panel resident-chat-panel">
+          <div className="resident-chat-header"><div><p className="panel-kicker">Resident conversation</p><h3>The River Residence · {resident.unit}</h3></div><span className="message-count">{messages.length} tin nhắn</span></div>
+          <div className="resident-chat-messages" aria-label="Danh sách tin nhắn trong app">
+            {messages.map((message) => <div key={message.id} className={`resident-chat-message ${message.sender === "Cư dân" ? "resident-chat-message-resident" : "resident-chat-message-management"} ${message.important ? "resident-chat-message-important" : ""}`}><div className="resident-chat-message-meta"><strong>{message.sender}</strong><span>{message.time}</span></div><p>{message.text}</p>{message.important && <span className="issue-chip">Agent detected · {message.issueType}</span>}</div>)}
           </div>
-          <div className="chat-input-wrap"><input aria-label="Nhắn tin Zalo" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") sendMessage(); }} placeholder="Nhập tin nhắn để agent phân loại..." /><button aria-label="Gửi tin nhắn Zalo" className="send-button" onClick={sendMessage} type="button"><ArrowRight className="h-4 w-4" /></button></div>
+          <div className="chat-input-wrap"><input aria-label="Nhắn tin cho resident agent" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") sendMessage(); }} placeholder="Hỏi handbook hoặc mô tả vấn đề..." /><button aria-label="Gửi tin nhắn" className="send-button" onClick={sendMessage} type="button"><ArrowRight className="h-4 w-4" /></button></div>
         </article>
         <aside className="workspace-panel signal-panel"><div className="panel-heading"><div><p className="panel-kicker">Agent summary</p><h3>Important signals</h3></div><span className="signal-count">{importantCount} nhóm vấn đề</span></div><p className="signal-intro">Rule-based agent đang quét các từ khóa: <strong>nước, điện, cháy, nứt, hỏng, mất mạng</strong>.</p><div className="signal-list">{agentSummary.map((signal) => <button key={signal.issueType} className="signal-item" onClick={() => setDraft(`${signal.issueType} tại căn ${resident.unit}, nhờ ban quản lý kiểm tra giúp.`)} type="button"><span className={`severity severity-${signal.severity === "Khẩn cấp" ? "urgent" : signal.severity === "Cao" ? "high" : "medium"}`}>{signal.severity}</span><span><strong>{signal.issueType}</strong><small>{signal.count} báo cáo · {signal.detail}</small></span><ArrowRight className="ml-auto h-4 w-4" /></button>)}</div><div className="signal-footer"><span>Last sweep</span><strong>Vừa xong · 09:58</strong></div><button className="button-dark w-full" onClick={() => navigate("ticket")} type="button">Mở ticket queue <ArrowRight className="inline h-4 w-4" /></button></aside>
       </div>
@@ -240,10 +241,47 @@ function TicketView({ role, setRole, draft, setDraft, status, submit, approve, n
   navigate: (tab: DemoTab) => void;
 }) {
   const update = (key: keyof TicketDraft, value: string) => setDraft({ ...draft, [key]: value });
+  const [selectedTicketId, setSelectedTicketId] = useState("draft-ticket");
+  const ticketItems = [
+    {
+      id: "draft-ticket",
+      code: "Đang soạn",
+      title: draft.category,
+      status: status === "Draft" ? "Chờ cư dân xác nhận" : status,
+      created: "Vừa cập nhật",
+      detail: draft.description || "Ticket được điền từ cuộc trò chuyện trong app.",
+    },
+    {
+      id: request.id,
+      code: request.id,
+      title: request.title,
+      status: request.scheduled,
+      created: request.created,
+      detail: "Đội kỹ thuật sẽ cập nhật tiến độ trong chính conversation này.",
+    },
+    {
+      id: "REQ-12318",
+      code: "REQ-12318",
+      title: "Đăng ký thẻ cư dân",
+      status: "Đã xử lý",
+      created: "Hôm qua",
+      detail: "Hồ sơ đã được ban quản lý xác nhận.",
+    },
+  ];
+  const selectedTicket = ticketItems.find((ticket) => ticket.id === selectedTicketId) ?? ticketItems[0];
   return (
     <section className="app-view section-shell" id="ticket">
-      <div className="view-heading"><div><p className="eyebrow">03 / Ticket workflow</p><h1 className="view-title">Một ticket rõ ràng, một người chịu trách nhiệm.</h1><p className="view-lede">Hai role trong cùng một flow demo: cư dân kiểm tra thông tin, quản lý duyệt trước khi hệ thống tạo ticket.</p></div><div className="role-switch" role="tablist" aria-label="Ticket role"><button className={role === "resident" ? "role-button-active" : ""} onClick={() => setRole("resident")} role="tab" aria-selected={role === "resident"} type="button">Cư dân</button><button className={role === "management" ? "role-button-active" : ""} onClick={() => setRole("management")} role="tab" aria-selected={role === "management"} type="button">Quản lý</button></div></div>
-      {role === "resident" ? <div className="ticket-grid"><article className="workspace-panel ticket-form-panel"><div className="panel-heading"><div><p className="panel-kicker">Resident verification</p><h3>Kiểm tra thông tin ticket</h3></div><span className={`status-label ${status === "Approved" ? "status-label-success" : ""}`}>{status}</span></div><div className="prefill-note">Agent đã điền sẵn từ tin nhắn Zalo. Bạn hãy kiểm tra lại trước khi submit.</div><div className="ticket-form"><label>Cư dân<input value={draft.resident} onChange={(event) => update("resident", event.target.value)} /></label><label>Căn hộ<input value={draft.unit} onChange={(event) => update("unit", event.target.value)} /></label><label>Nhóm vấn đề<select value={draft.category} onChange={(event) => update("category", event.target.value)}>{ticketCategories.map((category) => <option key={category}>{category}</option>)}</select></label><label>Priority<select value={draft.priority} onChange={(event) => update("priority", event.target.value)}><option>Cao</option><option>Trung bình</option><option>Thấp</option></select></label><label>Vị trí<input value={draft.location} onChange={(event) => update("location", event.target.value)} /></label><label className="field-wide">Mô tả vấn đề<textarea value={draft.description} onChange={(event) => update("description", event.target.value)} rows={4} /></label></div><div className="ticket-form-actions"><button className="button-light" onClick={() => navigate("zalo")} type="button">Quay lại Zalo</button><button className="button-dark" disabled={status === "Submitted" || status === "Approved"} onClick={submit} type="button">{status === "Draft" ? "Submit ticket" : `Đã ${status.toLowerCase()}`} <ArrowRight className="inline h-4 w-4" /></button></div></article><aside className="workspace-panel ticket-context-panel"><p className="panel-kicker">Agent context</p><h3>Vì sao ticket này được tạo?</h3><div className="context-quote">“{draft.description || "Tin nhắn mô tả vấn đề sẽ xuất hiện ở đây."}”</div><div className="context-row"><span>Nguồn</span><strong>{draft.source}</strong></div><div className="context-row"><span>Agent rule</span><strong>Keyword match</strong></div><div className="context-row"><span>Cam kết</span><strong>Chưa tạo ticket trước khi duyệt</strong></div></aside></div> : <div className="management-ticket-layout"><article className="workspace-panel management-queue-panel"><div className="panel-heading"><div><p className="panel-kicker">Management console</p><h3>Approval queue</h3></div><span className="queue-count">1 pending</span></div><div className="queue-ticket queue-ticket-active"><div><span className="status-label">{status === "Draft" ? "Pending approval" : status}</span><h4>{draft.category}</h4><p>{draft.resident} · {draft.unit}</p><small>{draft.description}</small></div><ArrowRight className="h-4 w-4" /></div><div className="queue-ticket"><div><span className="status-label status-label-success">Approved</span><h4>Đăng ký thẻ cư dân</h4><p>Trần Hải · B-0812</p></div><span className="text-xs text-[#191919]/45">Hôm qua</span></div></article><article className="workspace-panel approval-detail-panel"><p className="panel-kicker">Selected request</p><h3>Review before ticket creation</h3><dl className="approval-details"><div><dt>Resident</dt><dd>{draft.resident} · {draft.unit}</dd></div><div><dt>Classification</dt><dd>{draft.category} · Priority {draft.priority}</dd></div><div><dt>Source</dt><dd>{draft.source}</dd></div><div><dt>Description</dt><dd>{draft.description}</dd></div></dl><div className="approval-audit"><span>HITL gate</span><strong>Ticket chưa được tạo</strong><small>Approval action sẽ được lưu vào audit trail.</small></div><div className="approval-actions"><button className="button-light" onClick={() => setRole("resident")} type="button">Request edit</button><button className="button-dark" disabled={status === "Approved"} onClick={approve} type="button">{status === "Approved" ? "Approved" : "Approve & create"} <ArrowRight className="inline h-4 w-4" /></button></div></article></div>}
+      <div className="view-heading"><div><p className="eyebrow">03 / Ticket workflow</p><h1 className="view-title">Một ticket rõ ràng, một người chịu trách nhiệm.</h1><p className="view-lede">Cư dân xem danh sách ticket, mở conversation riêng và theo dõi trạng thái; quản lý duyệt ticket trong queue.</p></div><div className="role-switch" role="tablist" aria-label="Ticket role"><button className={role === "resident" ? "role-button-active" : ""} onClick={() => setRole("resident")} role="tab" aria-selected={role === "resident"} type="button">Cư dân</button><button className={role === "management" ? "role-button-active" : ""} onClick={() => setRole("management")} role="tab" aria-selected={role === "management"} type="button">Quản lý</button></div></div>
+      {role === "resident" ? <div className="ticket-grid ticket-resident-layout">
+        <aside className="workspace-panel ticket-list-panel">
+          <div className="panel-heading"><div><p className="panel-kicker">My tickets</p><h3>Yêu cầu của tôi</h3></div><span className="queue-count">{ticketItems.length}</span></div>
+          <div className="ticket-list">
+            {ticketItems.map((ticket) => <button key={ticket.id} className={`ticket-list-item ${selectedTicket.id === ticket.id ? "ticket-list-item-active" : ""}`} onClick={() => setSelectedTicketId(ticket.id)} type="button"><span className="ticket-list-item-top"><strong>{ticket.code}</strong><span className="status-label">{ticket.status}</span></span><span className="ticket-list-item-title">{ticket.title}</span><small>{ticket.created}</small></button>)}
+          </div>
+        </aside>
+        <article className="workspace-panel ticket-form-panel"><div className="panel-heading"><div><p className="panel-kicker">Resident verification</p><h3>Kiểm tra thông tin ticket</h3></div><span className={`status-label ${status === "Approved" ? "status-label-success" : ""}`}>{status}</span></div><div className="prefill-note">Agent đã điền sẵn từ cuộc trò chuyện trong app. Bạn hãy kiểm tra lại trước khi submit.</div><div className="ticket-form"><label>Cư dân<input value={draft.resident} onChange={(event) => update("resident", event.target.value)} /></label><label>Căn hộ<input value={draft.unit} onChange={(event) => update("unit", event.target.value)} /></label><label>Nhóm vấn đề<select value={draft.category} onChange={(event) => update("category", event.target.value)}>{ticketCategories.map((category) => <option key={category}>{category}</option>)}</select></label><label>Priority<select value={draft.priority} onChange={(event) => update("priority", event.target.value)}><option>Cao</option><option>Trung bình</option><option>Thấp</option></select></label><label>Vị trí<input value={draft.location} onChange={(event) => update("location", event.target.value)} /></label><label className="field-wide">Mô tả vấn đề<textarea value={draft.description} onChange={(event) => update("description", event.target.value)} rows={4} /></label></div><div className="ticket-form-actions"><button className="button-light" onClick={() => navigate("chat")} type="button">Quay lại cuộc trò chuyện</button><button className="button-dark" disabled={status === "Submitted" || status === "Approved"} onClick={submit} type="button">{status === "Draft" ? "Submit ticket" : `Đã ${status.toLowerCase()}`} <ArrowRight className="inline h-4 w-4" /></button></div></article>
+        <aside className="workspace-panel ticket-context-panel"><p className="panel-kicker">Ticket conversation</p><h3>{selectedTicket.title}</h3><div className="ticket-thread-meta"><span>{selectedTicket.code}</span><strong>{selectedTicket.status}</strong></div><div className="chat-thread"><div className="chat-bubble chat-bubble-user">{selectedTicket.id === "draft-ticket" ? (draft.description || "Thông tin vấn đề sẽ xuất hiện ở đây.") : `Tôi muốn theo dõi yêu cầu ${selectedTicket.code}.`}</div><div className="chat-bubble chat-bubble-agent">Ticket đang ở trạng thái <strong>{selectedTicket.status}</strong>. Mọi cập nhật sẽ xuất hiện trong chính conversation này.</div><div className="chat-bubble chat-bubble-agent">{selectedTicket.detail}</div></div><div className="context-row"><span>Nguồn</span><strong>{selectedTicket.id === "draft-ticket" ? draft.source : "Ticket conversation"}</strong></div><div className="context-row"><span>Ngữ cảnh</span><strong>Được giữ riêng cho ticket này</strong></div></aside>
+      </div> : <div className="management-ticket-layout"><article className="workspace-panel management-queue-panel"><div className="panel-heading"><div><p className="panel-kicker">Management console</p><h3>Approval queue</h3></div><span className="queue-count">1 pending</span></div><div className="queue-ticket queue-ticket-active"><div><span className="status-label">{status === "Draft" ? "Pending approval" : status}</span><h4>{draft.category}</h4><p>{draft.resident} · {draft.unit}</p><small>{draft.description}</small></div><ArrowRight className="h-4 w-4" /></div><div className="queue-ticket"><div><span className="status-label status-label-success">Approved</span><h4>Đăng ký thẻ cư dân</h4><p>Trần Hải · B-0812</p></div><span className="text-xs text-[#191919]/45">Hôm qua</span></div></article><article className="workspace-panel approval-detail-panel"><p className="panel-kicker">Selected request</p><h3>Review before ticket creation</h3><dl className="approval-details"><div><dt>Resident</dt><dd>{draft.resident} · {draft.unit}</dd></div><div><dt>Classification</dt><dd>{draft.category} · Priority {draft.priority}</dd></div><div><dt>Source</dt><dd>{draft.source}</dd></div><div><dt>Description</dt><dd>{draft.description}</dd></div></dl><div className="approval-audit"><span>HITL gate</span><strong>Ticket chưa được tạo</strong><small>Approval action sẽ được lưu vào audit trail.</small></div><div className="approval-actions"><button className="button-light" onClick={() => setRole("resident")} type="button">Request edit</button><button className="button-dark" disabled={status === "Approved"} onClick={approve} type="button">{status === "Approved" ? "Approved" : "Approve & create"} <ArrowRight className="inline h-4 w-4" /></button></div></article></div>}
     </section>
   );
 }
@@ -256,12 +294,12 @@ export default function App() {
   const [completedSteps, setCompletedSteps] = useState<string[]>(["welcome"]);
   const [activeStep, setActiveStep] = useState(0);
   const [onboardingChatDraft, setOnboardingChatDraft] = useState("");
-  const [zaloMessagesState, setZaloMessagesState] = useState<ZaloMessage[]>(zaloMessages);
-  const [zaloDraft, setZaloDraft] = useState("");
+  const [chatMessagesState, setChatMessagesState] = useState<ChatMessage[]>(chatMessages);
+  const [chatDraft, setChatDraft] = useState("");
   const [detectedIssue, setDetectedIssue] = useState<DetectedIssue | null>(null);
   const [ticketRole, setTicketRole] = useState<TicketRole>("resident");
   const [ticketStatus, setTicketStatus] = useState<TicketStatus>("Draft");
-  const [ticketDraft, setTicketDraft] = useState<TicketDraft>({ resident: resident.name, unit: resident.unit, category: "Cấp thoát nước", priority: "Cao", location: "Căn A-1204 · Khu vực bếp", description: "", source: "Zalo group · Rule-based agent" });
+  const [ticketDraft, setTicketDraft] = useState<TicketDraft>({ resident: resident.name, unit: resident.unit, category: "Cấp thoát nước", priority: "Cao", location: "Căn A-1204 · Khu vực bếp", description: "", source: "In-app resident chat · Agent classification" });
 
   useEffect(() => {
     const syncFromHash = () => {
@@ -280,27 +318,27 @@ export default function App() {
 
   const toggleStep = (id: string) => setCompletedSteps((current) => current.includes(id) ? current.filter((step) => step !== id) : [...current, id]);
   const sendOnboardingChat = () => setOnboardingChatDraft("");
-  const sendZaloMessage = () => {
-    const text = zaloDraft.trim();
+  const sendChatMessage = () => {
+    const text = chatDraft.trim();
     if (!text) return;
-    setZaloMessagesState((current) => [...current, { id: Date.now(), sender: "Cư dân", text, time: "Vừa xong", important: Boolean(detectIssue(text)), issueType: detectIssue(text)?.category }]);
+    setChatMessagesState((current) => [...current, { id: Date.now(), sender: "Cư dân", text, time: "Vừa xong", important: Boolean(detectIssue(text)), issueType: detectIssue(text)?.category }]);
     const issue = detectIssue(text);
-    setZaloDraft("");
+    setChatDraft("");
     if (issue) setDetectedIssue(issue);
   };
   const createTicketFromIssue = () => {
     if (!detectedIssue) return;
-    setTicketDraft((current) => ({ ...current, category: detectedIssue.category, description: detectedIssue.sourceText, priority: detectedIssue.category.includes("An toàn") ? "Cao" : "Trung bình", source: "Demo Zalo chat · Agent keyword detection" }));
+    setTicketDraft((current) => ({ ...current, category: detectedIssue.category, description: detectedIssue.sourceText, priority: detectedIssue.category.includes("An toàn") ? "Cao" : "Trung bình", source: "In-app resident chat · Agent keyword detection" }));
     setDetectedIssue(null);
     navigate("ticket");
   };
 
   const content = useMemo(() => {
     if (activeTab === "onboarding") return <OnboardingView completedSteps={completedSteps} activeStep={activeStep} setActiveStep={setActiveStep} toggleStep={toggleStep} chatDraft={onboardingChatDraft} setChatDraft={setOnboardingChatDraft} sendChat={sendOnboardingChat} navigate={navigate} />;
-    if (activeTab === "zalo") return <ZaloView messages={zaloMessagesState} draft={zaloDraft} setDraft={setZaloDraft} sendMessage={sendZaloMessage} detectedIssue={detectedIssue} dismissIssue={() => setDetectedIssue(null)} createTicket={createTicketFromIssue} navigate={navigate} />;
+    if (activeTab === "chat") return <ResidentChatView messages={chatMessagesState} draft={chatDraft} setDraft={setChatDraft} sendMessage={sendChatMessage} detectedIssue={detectedIssue} dismissIssue={() => setDetectedIssue(null)} createTicket={createTicketFromIssue} navigate={navigate} />;
     if (activeTab === "ticket") return <TicketView role={ticketRole} setRole={setTicketRole} draft={ticketDraft} setDraft={setTicketDraft} status={ticketStatus} submit={() => setTicketStatus("Submitted")} approve={() => setTicketStatus("Approved")} navigate={navigate} />;
     return <LandingView navigate={navigate} />;
-  }, [activeTab, activeStep, completedSteps, detectedIssue, onboardingChatDraft, ticketDraft, ticketRole, ticketStatus, zaloDraft, zaloMessagesState]);
+  }, [activeTab, activeStep, completedSteps, detectedIssue, onboardingChatDraft, ticketDraft, ticketRole, ticketStatus, chatDraft, chatMessagesState]);
 
   return <main className="min-h-screen overflow-x-hidden bg-white text-[#191919]"><AppNav activeTab={activeTab} navigate={navigate} />{content}</main>;
 }

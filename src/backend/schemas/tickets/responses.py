@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.backend.domain.conversations.enums import ConversationHandoffStatus
 from src.backend.domain.tickets.enums import TicketPriority, TicketSource, TicketStatus
 
 
@@ -37,7 +38,10 @@ class TicketSummaryResponse(BaseModel):
     ticket_code: str
     resident_id: UUID
     unit_id: UUID
-    conversation_id: UUID | None
+    conversation_id: UUID
+    handoff_status: ConversationHandoffStatus
+    assigned_manager_id: str | None
+    conversation_version: int
     source: TicketSource
     status: TicketStatus
     category: str

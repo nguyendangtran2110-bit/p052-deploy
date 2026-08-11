@@ -15,3 +15,4 @@ class CreateTicketCommand:
     source: TicketSource
     conversation_id: str | None = None
     idempotency_key: str | None = None
+    attachment_ids: tuple[str, ...] = ()

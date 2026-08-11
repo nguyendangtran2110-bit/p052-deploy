@@ -40,6 +40,9 @@ class UserAccount(UuidPrimaryKeyMixin, TimestampMixin, Base):
     refresh_sessions: Mapped[list[RefreshSession]] = relationship(
         back_populates="account", cascade="all, delete-orphan"
     )
+    password_reset_tokens: Mapped[list[PasswordResetToken]] = relationship(
+        back_populates="account", cascade="all, delete-orphan"
+    )
 
 
 class ManagementProfile(TimestampMixin, Base):
@@ -84,3 +87,16 @@ class RefreshSession(UuidPrimaryKeyMixin, Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     account: Mapped[UserAccount] = relationship(back_populates="refresh_sessions")
+
+
+class PasswordResetToken(UuidPrimaryKeyMixin, Base):
+    __tablename__ = "password_reset_tokens"
+    __table_args__ = (Index("ix_password_reset_token_account_active", "account_id", "used_at", "expires_at"),)
+
+    account_id: Mapped[str] = mapped_column(String(36), ForeignKey("user_accounts.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    account: Mapped[UserAccount] = relationship(back_populates="password_reset_tokens")

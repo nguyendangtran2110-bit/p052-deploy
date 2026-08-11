@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.backend.api.dependencies import require_authenticated
@@ -8,18 +8,22 @@ from src.backend.application.auth.contracts import (
     AuthResult,
     ClientContext,
     ManagementRegistrationCommand,
+    PasswordResetRequestResult,
     ResidentRegistrationCommand,
 )
 from src.backend.application.auth.service import AuthService
 from src.backend.core.config import Settings, get_settings
 from src.backend.domain.common.auth import ActorContext
 from src.backend.infrastructure.db.session import get_db_session
+from src.backend.infrastructure.email import EmailService
 from src.backend.schemas.auth import (
     AccountResponse,
     ChangePasswordRequest,
+    ForgotPasswordRequest,
     LoginRequest,
     ManagementBootstrapRequest,
     RefreshTokenRequest,
+    ResetPasswordRequest,
     ResidentRegistrationRequest,
     TokenResponse,
 )
@@ -121,6 +125,33 @@ async def change_password(
     settings: Settings = Depends(get_settings),
 ) -> Response:
     await AuthService(session, settings).change_password(actor, payload.current_password, payload.new_password)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, str]:
+    result = await AuthService(session, settings).request_password_reset(str(payload.email))
+    if isinstance(result, PasswordResetRequestResult):
+        background_tasks.add_task(
+            EmailService(settings).send_password_reset_email,
+            result.email,
+            result.raw_token,
+        )
+    return {"message": "If an active account matches this email, a password reset link will be sent."}
+
+
+@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_password(
+    payload: ResetPasswordRequest,
+    session: AsyncSession = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> Response:
+    await AuthService(session, settings).reset_password(payload.token, payload.new_password)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

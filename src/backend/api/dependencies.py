@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Query
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,16 +23,21 @@ def get_agent_runtime() -> AgentRuntime:
 
 async def get_actor_context(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    access_token: Annotated[str | None, Query(alias="access_token", include_in_schema=False)] = None,
     x_actor_role: Annotated[str | None, Header(alias="X-Actor-Role")] = None,
     x_actor_id: Annotated[str | None, Header(alias="X-Actor-Id")] = None,
     x_resident_id: Annotated[str | None, Header(alias="X-Resident-Id")] = None,
+    x_management_role: Annotated[str | None, Header(alias="X-Management-Role")] = None,
     session: AsyncSession = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> ActorContext:
-    if credentials is not None:
-        if credentials.scheme.lower() != "bearer":
+    if credentials is not None or access_token:
+        bearer_token = credentials.credentials if credentials is not None else access_token
+        if bearer_token is None:
             raise AuthenticationError("Bearer authentication is required")
-        return await AuthService(session, settings).authenticate_access_token(credentials.credentials)
+        if credentials is not None and credentials.scheme.lower() != "bearer":
+            raise AuthenticationError("Bearer authentication is required")
+        return await AuthService(session, settings).authenticate_access_token(bearer_token)
 
     if not settings.dev_auth_enabled:
         return ActorContext(role=ActorRole.ANONYMOUS)
@@ -51,10 +56,16 @@ async def get_actor_context(
         return ActorContext(role=role, actor_id=x_actor_id or x_resident_id, resident_id=x_resident_id)
 
     if role is ActorRole.MANAGEMENT:
+        management_role = ManagementRole.ADMIN
+        if x_management_role:
+            try:
+                management_role = ManagementRole(x_management_role.lower())
+            except ValueError as exc:
+                raise AuthenticationError("X-Management-Role is invalid") from exc
         return ActorContext(
             role=role,
             actor_id=x_actor_id or "local-management",
-            management_role=ManagementRole.ADMIN,
+            management_role=management_role,
         )
 
     return ActorContext(role=ActorRole.ANONYMOUS)

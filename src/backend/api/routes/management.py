@@ -6,14 +6,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.backend.api.dependencies import require_management, require_management_admin
 from src.backend.application.auth.contracts import ManagementRegistrationCommand
 from src.backend.application.auth.service import AuthService
+from src.backend.application.conversations.service import ConversationService
 from src.backend.application.management.contracts import UpdateManagementAccountCommand, UpdateResidentCommand
 from src.backend.application.management.service import ManagementService
 from src.backend.application.tickets.service import TicketService
 from src.backend.core.config import Settings, get_settings
 from src.backend.domain.common.auth import ActorContext
+from src.backend.domain.conversations.enums import ConversationHandoffStatus
 from src.backend.domain.identity.enums import AccountStatus, ManagementRole
 from src.backend.infrastructure.db.session import get_db_session
 from src.backend.schemas.auth import AccountResponse
+from src.backend.schemas.conversations import (
+    ConversationAssignmentResponse,
+    ConversationHandoffResponse,
+    ConversationListResponse,
+    ConversationMessageResponse,
+    ConversationSummaryResponse,
+    ManagementConversationHandbackRequest,
+    ManagementConversationMessageRequest,
+    ManagementConversationTakeoverRequest,
+)
 from src.backend.schemas.management import (
     ManagementAccountCreateRequest,
     ManagementAccountListResponse,
@@ -42,6 +54,47 @@ def _resident_response(resident) -> ManagementResidentResponse:
             )
             for link in resident.unit_links
         ],
+    )
+
+
+def _conversation_handoff_response(conversation, message) -> ConversationHandoffResponse:
+    return ConversationHandoffResponse(
+        conversation_id=conversation.id,
+        handoff_status=conversation.handoff_status,
+        handoff_requested_at=conversation.handoff_requested_at,
+        assigned_manager_id=conversation.assigned_manager_id,
+        conversation_version=conversation.conversation_version,
+        message=_conversation_message_response(conversation, message),
+    )
+
+
+def _conversation_assignment_response(conversation, message=None) -> ConversationAssignmentResponse:
+    return ConversationAssignmentResponse(
+        conversation_id=conversation.id,
+        handoff_status=conversation.handoff_status,
+        assigned_manager_id=conversation.assigned_manager_id,
+        conversation_version=conversation.conversation_version,
+        message=_conversation_message_response(conversation, message) if message else None,
+    )
+
+
+def _conversation_message_response(conversation, message, attachment_ids=None) -> ConversationMessageResponse:
+    resolved_attachment_ids = (
+        list(attachment_ids)
+        if attachment_ids is not None
+        else [attachment.id for attachment in message.__dict__.get("attachments", [])]
+    )
+    return ConversationMessageResponse(
+        id=message.id,
+        role=message.role,
+        author_id=message.author_id,
+        content=message.content,
+        intent=message.intent,
+        citations=message.citations,
+        action_payload=message.action_payload,
+        attachment_ids=resolved_attachment_ids,
+        created_at=message.created_at,
+        conversation_version=conversation.conversation_version,
     )
 
 
@@ -204,6 +257,150 @@ async def get_management_dashboard(
 ) -> ManagementDashboardResponse:
     data = await ManagementService(session).dashboard(actor)
     return ManagementDashboardResponse.model_validate(data)
+
+
+@router.get("/conversations/handoffs", response_model=ConversationListResponse)
+async def list_conversation_handoffs(
+    handoff_status: ConversationHandoffStatus = ConversationHandoffStatus.WAITING_MANAGEMENT,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+    actor: ActorContext = Depends(require_management),
+    session: AsyncSession = Depends(get_db_session),
+) -> ConversationListResponse:
+    conversations, total = await ConversationService(session).list_handoffs(
+        actor,
+        handoff_status=handoff_status,
+        offset=offset,
+        limit=limit,
+    )
+    return ConversationListResponse(
+        items=[
+            ConversationSummaryResponse(
+                conversation_id=conversation.id,
+                resident_id=conversation.resident_id,
+                unit_id=conversation.unit_id,
+                status=conversation.status,
+                handoff_status=conversation.handoff_status,
+                handoff_requested_at=conversation.handoff_requested_at,
+                assigned_manager_id=conversation.assigned_manager_id,
+                conversation_version=conversation.conversation_version,
+                last_message_at=conversation.last_message_at,
+                ticket_id=conversation.ticket.id if conversation.ticket else None,
+                ticket_code=conversation.ticket.ticket_code if conversation.ticket else None,
+            )
+            for conversation in conversations
+        ],
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
+
+
+@router.post("/conversations/{conversation_id}/takeover", response_model=ConversationAssignmentResponse)
+async def take_over_conversation(
+    conversation_id: UUID,
+    payload: ManagementConversationTakeoverRequest,
+    actor: ActorContext = Depends(require_management),
+    session: AsyncSession = Depends(get_db_session),
+) -> ConversationAssignmentResponse:
+    conversation, message = await ConversationService(session).take_over(
+        str(conversation_id),
+        actor,
+        expected_version=payload.conversation_version,
+        note=payload.note,
+    )
+    return _conversation_assignment_response(conversation, message)
+
+
+@router.post("/conversations/{conversation_id}/messages", response_model=ConversationMessageResponse)
+async def send_management_conversation_message(
+    conversation_id: UUID,
+    payload: ManagementConversationMessageRequest,
+    actor: ActorContext = Depends(require_management),
+    session: AsyncSession = Depends(get_db_session),
+) -> ConversationMessageResponse:
+    _conversation, message = await ConversationService(session).add_management_message(
+        str(conversation_id),
+        payload.message,
+        actor,
+        expected_version=payload.conversation_version,
+        attachment_ids=tuple(str(attachment_id) for attachment_id in payload.attachment_ids),
+    )
+    return _conversation_message_response(_conversation, message, payload.attachment_ids)
+
+
+@router.post(
+    "/conversations/{conversation_id}/handoff-to-bot",
+    response_model=ConversationHandoffResponse,
+)
+async def handoff_conversation_to_bot(
+    conversation_id: UUID,
+    payload: ManagementConversationHandbackRequest | None = None,
+    actor: ActorContext = Depends(require_management),
+    session: AsyncSession = Depends(get_db_session),
+) -> ConversationHandoffResponse:
+    conversation, message = await ConversationService(session).handoff_to_bot(
+        str(conversation_id),
+        actor,
+        expected_version=payload.conversation_version if payload else None,
+        note=payload.note if payload else None,
+    )
+    return _conversation_handoff_response(conversation, message)
+
+
+@router.post("/tickets/{ticket_id}/conversation/takeover", response_model=ConversationAssignmentResponse)
+async def take_over_ticket_conversation(
+    ticket_id: UUID,
+    payload: ManagementConversationTakeoverRequest,
+    actor: ActorContext = Depends(require_management),
+    session: AsyncSession = Depends(get_db_session),
+) -> ConversationAssignmentResponse:
+    _ticket, conversation = await TicketService(session).get_conversation(str(ticket_id), actor)
+    conversation, message = await ConversationService(session).take_over(
+        conversation.id,
+        actor,
+        expected_version=payload.conversation_version,
+        note=payload.note,
+    )
+    return _conversation_assignment_response(conversation, message)
+
+
+@router.post(
+    "/tickets/{ticket_id}/conversation/handoff-to-bot",
+    response_model=ConversationHandoffResponse,
+)
+async def handoff_ticket_conversation_to_bot(
+    ticket_id: UUID,
+    payload: ManagementConversationHandbackRequest | None = None,
+    actor: ActorContext = Depends(require_management),
+    session: AsyncSession = Depends(get_db_session),
+) -> ConversationHandoffResponse:
+    _ticket, conversation = await TicketService(session).get_conversation(str(ticket_id), actor)
+    conversation, message = await ConversationService(session).handoff_to_bot(
+        conversation.id,
+        actor,
+        expected_version=payload.conversation_version if payload else None,
+        note=payload.note if payload else None,
+    )
+    return _conversation_handoff_response(conversation, message)
+
+
+@router.post("/tickets/{ticket_id}/conversation/messages", response_model=ConversationMessageResponse)
+async def send_management_ticket_message(
+    ticket_id: UUID,
+    payload: ManagementConversationMessageRequest,
+    actor: ActorContext = Depends(require_management),
+    session: AsyncSession = Depends(get_db_session),
+) -> ConversationMessageResponse:
+    _ticket, conversation = await TicketService(session).get_conversation(str(ticket_id), actor)
+    _conversation, message = await ConversationService(session).add_management_message(
+        conversation.id,
+        payload.message,
+        actor,
+        expected_version=payload.conversation_version,
+        attachment_ids=tuple(str(attachment_id) for attachment_id in payload.attachment_ids),
+    )
+    return _conversation_message_response(_conversation, message, payload.attachment_ids)
 
 
 @router.patch("/tickets/{ticket_id}/assignment", response_model=TicketResponse)

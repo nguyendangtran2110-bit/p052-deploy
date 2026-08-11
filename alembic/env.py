@@ -15,6 +15,7 @@ from src.backend.infrastructure.db.models import (  # noqa: F401
     KnowledgeDocument,
     ManagementProfile,
     Message,
+    PasswordResetToken,
     RefreshSession,
     Resident,
     ResidentUnit,

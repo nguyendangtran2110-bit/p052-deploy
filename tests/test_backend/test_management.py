@@ -185,3 +185,67 @@ async def test_manager_deletes_resident_account_and_admin_deletes_manager_accoun
     assert admin_delete_self.status_code == 409
     assert admin_delete_manager.status_code == 204
     assert deleted_manager_access.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_management_searches_and_updates_resident_profile(client, admin_auth):
+    first = await client.post(
+        "/api/v1/residents",
+        headers=admin_auth["headers"],
+        json={
+            "resident_code": "RES-SEARCH-001",
+            "full_name": "Tran Thi Mot",
+            "email": "search-one@example.com",
+            "phone": "0900000011",
+        },
+    )
+    second = await client.post(
+        "/api/v1/residents",
+        headers=admin_auth["headers"],
+        json={
+            "resident_code": "RES-SEARCH-002",
+            "full_name": "Tran Thi Hai",
+            "email": "search-two@example.com",
+            "phone": "0900000012",
+        },
+    )
+    first_id = first.json()["id"]
+
+    search_by_code = await client.get(
+        "/api/v1/management/residents",
+        params={"search": "RES-SEARCH-002"},
+        headers=admin_auth["headers"],
+    )
+    update = await client.patch(
+        f"/api/v1/management/residents/{first_id}",
+        headers=admin_auth["headers"],
+        json={
+            "full_name": "Tran Thi Mot Updated",
+            "phone": "0900000091",
+            "is_active": False,
+        },
+    )
+    search_by_updated_name = await client.get(
+        "/api/v1/management/residents",
+        params={"search": "Updated"},
+        headers=admin_auth["headers"],
+    )
+    search_inactive = await client.get(
+        "/api/v1/management/residents",
+        params={"is_active": "false"},
+        headers=admin_auth["headers"],
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert search_by_code.status_code == 200
+    assert search_by_code.json()["total"] == 1
+    assert search_by_code.json()["items"][0]["resident_code"] == "RES-SEARCH-002"
+    assert update.status_code == 200
+    assert update.json()["full_name"] == "Tran Thi Mot Updated"
+    assert update.json()["phone"] == "0900000091"
+    assert update.json()["is_active"] is False
+    assert search_by_updated_name.json()["total"] == 1
+    assert search_by_updated_name.json()["items"][0]["id"] == first_id
+    assert search_inactive.json()["total"] == 1
+    assert search_inactive.json()["items"][0]["id"] == first_id

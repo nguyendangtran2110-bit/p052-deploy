@@ -7,9 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.backend.application.management.contracts import UpdateManagementAccountCommand, UpdateResidentCommand
 from src.backend.domain.common.auth import ActorContext
 from src.backend.domain.common.errors import AuthorizationError, ConflictError, NotFoundError
+from src.backend.domain.conversations.enums import ConversationHandoffStatus
 from src.backend.domain.identity.enums import AccountStatus, ActorRole, ManagementRole
 from src.backend.domain.tickets.enums import TicketPriority, TicketStatus
-from src.backend.infrastructure.db.models import KnowledgeDocument, Resident, Ticket, Unit, UserAccount
+from src.backend.infrastructure.db.models import Conversation, KnowledgeDocument, Resident, Ticket, Unit, UserAccount
 from src.backend.infrastructure.db.repositories import (
     AccountRepository,
     RefreshSessionRepository,
@@ -205,6 +206,16 @@ class ManagementService:
             update(Ticket)
             .where(Ticket.assigned_to_id == account.id)
             .values(assigned_to_id=None, assigned_at=None, due_at=None)
+        )
+        await self.session.execute(
+            update(Conversation)
+            .where(Conversation.assigned_manager_id == account.id)
+            .values(
+                assigned_manager_id=None,
+                conversation_version=Conversation.conversation_version + 1,
+                handoff_status=ConversationHandoffStatus.WAITING_MANAGEMENT.value,
+                handoff_requested_at=datetime.now(UTC),
+            )
         )
         await self.accounts.delete(account)
         try:

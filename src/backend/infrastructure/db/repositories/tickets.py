@@ -2,7 +2,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.backend.infrastructure.db.models import Ticket
+from src.backend.infrastructure.db.models import Conversation, Message, Ticket
 
 
 class TicketRepository:
@@ -16,7 +16,11 @@ class TicketRepository:
     async def get(self, ticket_id: str) -> Ticket | None:
         statement = (
             select(Ticket)
-            .options(selectinload(Ticket.events), selectinload(Ticket.attachments))
+            .options(
+                selectinload(Ticket.events),
+                selectinload(Ticket.attachments),
+                selectinload(Ticket.conversation).selectinload(Conversation.messages).selectinload(Message.attachments),
+            )
             .where(Ticket.id == ticket_id)
         )
         return await self.session.scalar(statement)
@@ -24,7 +28,11 @@ class TicketRepository:
     async def get_by_idempotency_key(self, resident_id: str, key: str) -> Ticket | None:
         statement = (
             select(Ticket)
-            .options(selectinload(Ticket.events), selectinload(Ticket.attachments))
+            .options(
+                selectinload(Ticket.events),
+                selectinload(Ticket.attachments),
+                selectinload(Ticket.conversation).selectinload(Conversation.messages).selectinload(Message.attachments),
+            )
             .where(Ticket.resident_id == resident_id, Ticket.idempotency_key == key)
         )
         return await self.session.scalar(statement)
@@ -37,6 +45,7 @@ class TicketRepository:
         source: str | None = None,
         priority: str | None = None,
         assigned_to_id: str | None = None,
+        handoff_status: str | None = None,
         offset: int = 0,
         limit: int = 20,
     ) -> tuple[list[Ticket], int]:
@@ -51,9 +60,21 @@ class TicketRepository:
             filters.append(Ticket.priority == priority)
         if assigned_to_id:
             filters.append(Ticket.assigned_to_id == assigned_to_id)
+        if handoff_status:
+            filters.append(Conversation.handoff_status == handoff_status)
 
-        statement = select(Ticket).where(*filters).order_by(Ticket.created_at.desc()).offset(offset).limit(limit)
+        statement = (
+            select(Ticket)
+            .options(selectinload(Ticket.conversation))
+            .where(*filters)
+            .order_by(Ticket.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
         count_statement = select(func.count(Ticket.id)).where(*filters)
+        if handoff_status:
+            statement = statement.join(Ticket.conversation)
+            count_statement = count_statement.join(Ticket.conversation)
         items = list((await self.session.scalars(statement)).all())
         total = int((await self.session.scalar(count_statement)) or 0)
         return items, total

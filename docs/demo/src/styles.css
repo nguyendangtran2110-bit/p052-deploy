@@ -70,20 +70,20 @@ button { cursor: pointer; }
 .unread-badge { display: inline-flex; flex-direction: column; align-items: flex-end; border-left: 1px solid #cfcfcf; padding-left: 1.2rem; }
 .unread-badge strong { font-family: "P22 Mackinac W01 Book", Georgia, serif; font-size: 3.4rem; font-weight: 400; line-height: 0.9; letter-spacing: -0.06em; }
 .unread-badge span { margin-top: 0.5rem; color: rgba(25, 25, 25, 0.5); font-size: 0.68rem; }
-.zalo-grid { display: grid; grid-template-columns: 1.18fr 0.82fr; gap: 1rem; max-width: 70rem; margin: 0 auto; }
-.zalo-chat-panel { display: flex; min-height: 690px; flex-direction: column; }
-.zalo-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #dedede; padding-bottom: 1rem; }
-.zalo-header h3, .signal-panel h3 { margin-top: 0.45rem; font-size: 1rem; font-weight: 500; }
+.resident-chat-grid { display: grid; grid-template-columns: 1.18fr 0.82fr; gap: 1rem; max-width: 70rem; margin: 0 auto; }
+.resident-chat-panel { display: flex; min-height: 690px; flex-direction: column; }
+.resident-chat-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #dedede; padding-bottom: 1rem; }
+.resident-chat-header h3, .signal-panel h3 { margin-top: 0.45rem; font-size: 1rem; font-weight: 500; }
 .message-count, .signal-count, .queue-count { color: rgba(25, 25, 25, 0.45); font-size: 0.65rem; }
-.zalo-messages { display: flex; flex: 1; flex-direction: column; gap: 0.55rem; overflow-y: auto; padding: 1.2rem 0.2rem 1.2rem 0; }
-.zalo-message { max-width: 84%; border: 1px solid transparent; padding: 0.62rem 0.72rem; }
-.zalo-message-resident { align-self: flex-start; background: #fff; }
-.zalo-message-management { align-self: flex-end; background: #f0f0f0; }
-.zalo-message-important { border-color: #c7d9c8; background: #f5fbf5; }
-.zalo-message-meta { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.28rem; }
-.zalo-message-meta strong { font-size: 0.64rem; font-weight: 600; }
-.zalo-message-meta span { color: rgba(25, 25, 25, 0.4); font-size: 0.58rem; }
-.zalo-message p { color: rgba(25, 25, 25, 0.7); font-size: 0.74rem; line-height: 1.45; }
+.resident-chat-messages { display: flex; flex: 1; flex-direction: column; gap: 0.55rem; overflow-y: auto; padding: 1.2rem 0.2rem 1.2rem 0; }
+.resident-chat-message { max-width: 84%; border: 1px solid transparent; padding: 0.62rem 0.72rem; }
+.resident-chat-message-resident { align-self: flex-start; background: #fff; }
+.resident-chat-message-management { align-self: flex-end; background: #f0f0f0; }
+.resident-chat-message-important { border-color: #c7d9c8; background: #f5fbf5; }
+.resident-chat-message-meta { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.28rem; }
+.resident-chat-message-meta strong { font-size: 0.64rem; font-weight: 600; }
+.resident-chat-message-meta span { color: rgba(25, 25, 25, 0.4); font-size: 0.58rem; }
+.resident-chat-message p { color: rgba(25, 25, 25, 0.7); font-size: 0.74rem; line-height: 1.45; }
 .issue-chip { display: inline-block; margin-top: 0.45rem; color: #417048; font-size: 0.58rem; font-weight: 600; }
 .signal-panel { display: flex; min-height: 690px; flex-direction: column; }
 .signal-intro { margin-top: 1rem; color: rgba(25, 25, 25, 0.6); font-size: 0.75rem; line-height: 1.55; }
@@ -110,7 +110,19 @@ button { cursor: pointer; }
 .role-switch button:hover { color: #191919; }
 .role-switch .role-button-active { background: #191919; color: #fff; }
 .ticket-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 1rem; max-width: 70rem; margin: 0 auto; }
-.ticket-form-panel, .ticket-context-panel, .management-queue-panel, .approval-detail-panel { min-height: 570px; }
+.ticket-resident-layout { grid-template-columns: 0.7fr 1.15fr 0.85fr; }
+.ticket-form-panel, .ticket-context-panel, .ticket-list-panel, .management-queue-panel, .approval-detail-panel { min-height: 570px; }
+.ticket-list-panel { display: flex; flex-direction: column; }
+.ticket-list { display: grid; gap: 0.45rem; margin-top: 1.3rem; }
+.ticket-list-item { display: grid; gap: 0.5rem; border: 1px solid transparent; border-bottom-color: #ddd; padding: 0.8rem 0.55rem; text-align: left; }
+.ticket-list-item:hover, .ticket-list-item-active { border-color: #d5d5d5; background: #fff; }
+.ticket-list-item-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.ticket-list-item-top strong { color: rgba(25, 25, 25, 0.5); font-size: 0.62rem; font-weight: 600; }
+.ticket-list-item-top .status-label { flex-shrink: 0; padding: 0.22rem 0.3rem; font-size: 0.52rem; }
+.ticket-list-item-title { font-size: 0.76rem; font-weight: 500; line-height: 1.35; }
+.ticket-list-item small { color: rgba(25, 25, 25, 0.45); font-size: 0.6rem; }
+.ticket-thread-meta { display: flex; justify-content: space-between; gap: 1rem; margin-top: 0.8rem; border-bottom: 1px solid #ddd; padding-bottom: 0.8rem; color: rgba(25, 25, 25, 0.48); font-size: 0.62rem; }
+.ticket-thread-meta strong { color: #191919; font-weight: 500; }
 .prefill-note { margin-top: 1.15rem; border-left: 2px solid #191919; background: #fff; padding: 0.75rem 0.9rem; color: rgba(25, 25, 25, 0.58); font-size: 0.7rem; line-height: 1.5; }
 .ticket-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.4rem; }
 .ticket-form label { display: grid; gap: 0.35rem; color: rgba(25, 25, 25, 0.5); font-size: 0.66rem; }
@@ -230,8 +242,8 @@ button { cursor: pointer; }
   .workflow-layout { gap: 3rem; }
   .workflow-detail { border-left: 0; border-top: 1px solid #c7c7c7; padding: 2rem 0 0; }
   .contact-section { align-items: start; }
-  .onboarding-grid, .zalo-grid, .ticket-grid, .management-ticket-layout { grid-template-columns: 1fr; }
-  .checklist-panel, .onboarding-chat-panel, .summary-panel, .zalo-chat-panel, .signal-panel, .ticket-form-panel, .ticket-context-panel, .management-queue-panel, .approval-detail-panel { min-height: auto; }
+  .onboarding-grid, .resident-chat-grid, .ticket-grid, .management-ticket-layout { grid-template-columns: 1fr; }
+  .checklist-panel, .onboarding-chat-panel, .summary-panel, .resident-chat-panel, .signal-panel, .ticket-form-panel, .ticket-context-panel, .ticket-list-panel, .management-queue-panel, .approval-detail-panel { min-height: auto; }
 }
 
 @media (max-width: 640px) {
@@ -261,8 +273,8 @@ button { cursor: pointer; }
   .ticket-form-actions button, .management-ticket-layout .approval-actions button { width: 100%; }
   .landing-route-grid { grid-template-columns: 1fr; }
   .landing-route-card { grid-template-columns: auto 1fr auto; }
-  .zalo-message { max-width: 94%; }
-  .zalo-chat-panel, .signal-panel { padding: 1rem; }
+  .resident-chat-message { max-width: 94%; }
+  .resident-chat-panel, .signal-panel { padding: 1rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

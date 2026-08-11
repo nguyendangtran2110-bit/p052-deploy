@@ -1,14 +1,17 @@
 import hmac
+import secrets
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.backend.application.auth.contracts import (
     AuthResult,
     ClientContext,
     ManagementRegistrationCommand,
+    PasswordResetRequestResult,
     ResidentRegistrationCommand,
 )
 from src.backend.core.config import Settings
@@ -22,7 +25,13 @@ from src.backend.domain.common.errors import (
 )
 from src.backend.domain.identity.enums import AccountStatus, ActorRole, ManagementRole, TokenType
 from src.backend.infrastructure.db.base import new_uuid
-from src.backend.infrastructure.db.models import ManagementProfile, RefreshSession, Resident, UserAccount
+from src.backend.infrastructure.db.models import (
+    ManagementProfile,
+    PasswordResetToken,
+    RefreshSession,
+    Resident,
+    UserAccount,
+)
 from src.backend.infrastructure.db.repositories import AccountRepository, RefreshSessionRepository
 from src.backend.infrastructure.security import (
     JwtTokenService,
@@ -195,6 +204,55 @@ class AuthService:
             raise ConflictError("New password must be different from the current password")
 
         now = datetime.now(UTC)
+        account.password_hash = hash_password(new_password)
+        account.password_changed_at = now
+        account.token_version += 1
+        await self.refresh_sessions.revoke_all(account.id, now)
+        await self.session.commit()
+
+    async def request_password_reset(self, email: str) -> PasswordResetRequestResult | None:
+        account = await self.accounts.get_by_email(self._normalize_email(email))
+        if account is None or account.status != AccountStatus.ACTIVE.value:
+            return None
+
+        now = datetime.now(UTC)
+        await self.session.execute(
+            PasswordResetToken.__table__.update()
+            .where(
+                PasswordResetToken.account_id == account.id,
+                PasswordResetToken.used_at.is_(None),
+            )
+            .values(used_at=now)
+        )
+        raw_token = secrets.token_urlsafe(32)
+        self.session.add(
+            PasswordResetToken(
+                account_id=account.id,
+                token_hash=hash_token(raw_token),
+                expires_at=now + timedelta(minutes=self.settings.password_reset_token_minutes),
+            )
+        )
+        await self.session.commit()
+        return PasswordResetRequestResult(email=account.email, raw_token=raw_token)
+
+    async def reset_password(self, raw_token: str, new_password: str) -> None:
+        now = datetime.now(UTC)
+        token = await self.session.scalar(
+            select(PasswordResetToken)
+            .options(selectinload(PasswordResetToken.account).selectinload(UserAccount.management_profile))
+            .where(
+                PasswordResetToken.token_hash == hash_token(raw_token),
+                PasswordResetToken.used_at.is_(None),
+            )
+            .with_for_update()
+        )
+        if token is None or self._as_utc(token.expires_at) <= now:
+            raise AuthenticationError("Password reset token is invalid or expired")
+        account = token.account
+        if account.status != AccountStatus.ACTIVE.value:
+            raise AuthenticationError("Account is disabled")
+
+        token.used_at = now
         account.password_hash = hash_password(new_password)
         account.password_changed_at = now
         account.token_version += 1

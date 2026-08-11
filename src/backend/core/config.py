@@ -34,6 +34,29 @@ class Settings(BaseSettings):
     auth_max_failed_attempts: int = Field(default=5, ge=1, le=20)
     auth_lockout_minutes: int = Field(default=15, ge=1, le=1440)
     management_bootstrap_token: str = ""
+    password_reset_token_minutes: int = Field(default=15, ge=5, le=60)
+    password_reset_url_base: str = "http://localhost:3000/reset-password"
+
+    # Email delivery. An empty SMTP host keeps local development functional; the
+    # reset endpoint still returns a non-enumerating response in that mode.
+    smtp_host: str = ""
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_use_tls: bool = True
+
+    # Private S3 attachment storage.
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    aws_region: str = ""
+    aws_s3_bucket_name: str = ""
+    aws_s3_endpoint_url: str = ""
+    s3_presigned_url_expire_seconds: int = Field(default=900, ge=60, le=86400)
+    attachment_allowed_mime_types: str = (
+        "application/pdf,image/jpeg,image/png,image/webp,text/plain,"
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
 
     # LLM
     openai_api_key: str = ""
@@ -53,6 +76,10 @@ class Settings(BaseSettings):
     @property
     def allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def allowed_attachment_mime_types(self) -> set[str]:
+        return {mime.strip().lower() for mime in self.attachment_allowed_mime_types.split(",") if mime.strip()}
 
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":

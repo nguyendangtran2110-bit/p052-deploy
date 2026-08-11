@@ -10,9 +10,11 @@ class AgentRuntime(Protocol):
 class ChatCommand:
     message: str
     conversation_id: str | None = None
+    ticket_id: str | None = None
     unit_id: str | None = None
     confirm_action: bool = False
     idempotency_key: str | None = None
+    attachment_ids: tuple[str, ...] = ()
 
 
 @dataclass(slots=True)

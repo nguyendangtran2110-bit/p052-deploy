@@ -1,6 +1,8 @@
 import jwt
 import pytest
 
+from src.backend.infrastructure.email import EmailService
+
 
 def bootstrap_payload() -> dict:
     return {
@@ -151,3 +153,46 @@ async def test_change_password_revokes_existing_tokens(client, admin_auth):
     assert old_access.status_code == 401
     assert old_login.status_code == 401
     assert new_login.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_password_reset_sends_non_enumerating_email_and_revokes_tokens(client, admin_auth, monkeypatch):
+    sent: dict[str, str] = {}
+
+    def capture_email(_service, recipient: str, raw_token: str) -> None:
+        sent["recipient"] = recipient
+        sent["token"] = raw_token
+
+    monkeypatch.setattr(EmailService, "send_password_reset_email", capture_email)
+    requested = await client.post(
+        "/api/v1/auth/forgot-password",
+        json={"email": "ADMIN@example.com"},
+    )
+    unknown = await client.post(
+        "/api/v1/auth/forgot-password",
+        json={"email": "missing@example.com"},
+    )
+
+    assert requested.status_code == 202
+    assert unknown.status_code == 202
+    assert requested.json() == unknown.json()
+    assert sent["recipient"] == "admin@example.com"
+
+    reset = await client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": sent["token"], "new_password": "ResetAdminPassword789!"},
+    )
+    old_access = await client.get("/api/v1/auth/me", headers=admin_auth["headers"])
+    new_login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "admin@example.com", "password": "ResetAdminPassword789!"},
+    )
+    reused = await client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": sent["token"], "new_password": "AnotherPassword789!"},
+    )
+
+    assert reset.status_code == 204
+    assert old_access.status_code == 401
+    assert new_login.status_code == 200
+    assert reused.status_code == 401

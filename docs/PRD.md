@@ -13,7 +13,7 @@
 OnBxrD AI Agent is a stateful, source-grounded AI assistant that guides new residents through personalized post-handover onboarding — from utility activation to defect reporting — while giving management full human-in-the-loop control.
 
 - **Target user & use case**: New homeowners/residents right after unit handover, who need step-by-step onboarding guidance, answers about amenities/regulations, and a way to report and track defects; property management staff who must review and approve every commitment or ticket before it is created.
-- **Key differentiator & value proposition**: Unlike scattered manual processes (phone calls, Zalo, paper checklists), OnBxrD combines a stateful onboarding checklist (LangGraph), source-grounded Q&A (RAG over the resident handbook), and structured defect-ticket escalation — all gated by mandatory human approval (HITL) so management retains authority and accountability.
+- **Key differentiator & value proposition**: Unlike scattered manual processes (phone calls, paper checklists, separate channels), OnBxrD combines a stateful onboarding checklist (LangGraph), source-grounded Q&A (RAG over the resident handbook), and structured defect-ticket escalation — all gated by mandatory human approval (HITL) so management retains authority and accountability.
 - **Success definition & metrics**: Success means residents complete onboarding faster, defect requests are triaged and resolved accurately, and management spends less time on repetitive questions. Primary KPI: % of residents completing the onboarding checklist within the target window (initial target: 80% within 7 days of handover).
 
 **Strategic Alignment**
@@ -320,8 +320,8 @@ The static demo in `docs/demo` exposes four tabbed surfaces that make the Phase 
 
 - **Landing**: Boomerang positioning and direct links into the working surfaces. Booking, purchasing, and unrelated conversion actions are intentionally excluded from the demo.
 - **Onboarding**: A resident checklist with step-by-step agent guidance, grounded answers with source references, and a resident context summary.
-- **Demo Zalo chat**: A Vietnamese mock group containing 30 messages and an `800 tin nhắn chưa đọc` signal. The rule-based demo agent detects `nước`, `điện`, `cháy`, `nứt`, `hỏng`, and `mất mạng`, summarizes important signals, and offers to create a ticket.
-- **Ticket**: A role switch between **Cư dân** and **Quản lý**. Resident fields are prefilled from the detected Zalo issue and require verification before submission. Management reviews the structured request and must approve it before the demo marks the ticket as created.
+- **In-app chat**: A resident conversation inside the OnBxrD app for handbook Q&A and maintenance issue intake. The agent detects ticket intent, collects the structured fields, and asks for confirmation before creating a ticket.
+- **Ticket**: A resident ticket workspace with a dedicated one-to-one conversation. The resident reviews the structured request before submission, then sees status events and follow-up messages in the same ticket thread.
 
 The demo uses React state and mock data only. It represents the same authorization boundary required in production: agent classification may prepare a request, but ticket creation remains gated by human approval.
 

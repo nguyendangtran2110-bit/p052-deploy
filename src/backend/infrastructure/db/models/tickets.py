@@ -16,11 +16,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.backend.domain.conversations.enums import ConversationHandoffStatus
 from src.backend.domain.tickets.enums import TicketPriority, TicketSource, TicketStatus
 from src.backend.infrastructure.db.base import Base, TimestampMixin, UuidPrimaryKeyMixin, utc_now
 
 if TYPE_CHECKING:
-    from src.backend.infrastructure.db.models.conversations import Conversation
+    from src.backend.infrastructure.db.models.conversations import Conversation, Message
     from src.backend.infrastructure.db.models.identity import UserAccount
     from src.backend.infrastructure.db.models.residents import Resident, Unit
 
@@ -38,13 +39,14 @@ class Ticket(UuidPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_ticket_resident_status", "resident_id", "status"),
         Index("ix_ticket_unit_status", "unit_id", "status"),
         Index("ix_ticket_assignee_status", "assigned_to_id", "status"),
+        Index("uq_ticket_conversation_id", "conversation_id", unique=True),
     )
 
     ticket_code: Mapped[str] = mapped_column(String(40), unique=True, index=True)
     resident_id: Mapped[str] = mapped_column(String(36), ForeignKey("residents.id"), index=True)
     unit_id: Mapped[str] = mapped_column(String(36), ForeignKey("units.id"), index=True)
-    conversation_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("conversations.id", ondelete="SET NULL"), index=True
+    conversation_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=False
     )
     source: Mapped[str] = mapped_column(String(20), default=TicketSource.FORM.value, nullable=False)
     status: Mapped[str] = mapped_column(String(30), default=TicketStatus.SUBMITTED.value, index=True, nullable=False)
@@ -65,12 +67,26 @@ class Ticket(UuidPrimaryKeyMixin, TimestampMixin, Base):
 
     resident: Mapped[Resident] = relationship(back_populates="tickets")
     unit: Mapped[Unit] = relationship(back_populates="tickets")
-    conversation: Mapped[Conversation | None] = relationship(back_populates="tickets")
+    conversation: Mapped[Conversation] = relationship(back_populates="ticket", uselist=False)
     assignee: Mapped[UserAccount | None] = relationship()
     events: Mapped[list[TicketEvent]] = relationship(
         back_populates="ticket", cascade="all, delete-orphan", order_by="TicketEvent.created_at"
     )
     attachments: Mapped[list[TicketAttachment]] = relationship(back_populates="ticket", cascade="all, delete-orphan")
+
+    @property
+    def handoff_status(self) -> str:
+        if self.conversation is None:
+            return ConversationHandoffStatus.BOT_ACTIVE.value
+        return self.conversation.handoff_status
+
+    @property
+    def assigned_manager_id(self) -> str | None:
+        return self.conversation.assigned_manager_id if self.conversation else None
+
+    @property
+    def conversation_version(self) -> int:
+        return self.conversation.conversation_version if self.conversation else 0
 
 
 class TicketEvent(UuidPrimaryKeyMixin, Base):
@@ -98,11 +114,18 @@ class TicketEvent(UuidPrimaryKeyMixin, Base):
 class TicketAttachment(UuidPrimaryKeyMixin, Base):
     __tablename__ = "ticket_attachments"
 
-    ticket_id: Mapped[str] = mapped_column(String(36), ForeignKey("tickets.id", ondelete="CASCADE"), index=True)
+    uploader_id: Mapped[str] = mapped_column(String(100), index=True)
+    ticket_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("tickets.id", ondelete="CASCADE"), index=True
+    )
+    message_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("messages.id", ondelete="SET NULL"), index=True
+    )
     filename: Mapped[str] = mapped_column(String(255))
     storage_path: Mapped[str] = mapped_column(String(500))
     mime_type: Mapped[str | None] = mapped_column(String(100))
     size_bytes: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
-    ticket: Mapped[Ticket] = relationship(back_populates="attachments")
+    ticket: Mapped[Ticket | None] = relationship(back_populates="attachments")
+    message: Mapped[Message | None] = relationship(back_populates="attachments")

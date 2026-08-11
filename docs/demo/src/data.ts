@@ -1,12 +1,11 @@
 export type ViewMode = "resident" | "management";
-export type DemoTab = "landing" | "onboarding" | "zalo" | "ticket";
+export type DemoTab = "landing" | "onboarding" | "chat" | "ticket";
 
 export const resident = {
   name: "Nguyễn Minh Anh",
   unit: "A-1204",
   project: "The River Residence",
   handover: "12/06/2026",
-  zaloId: "minhanh_1204",
 };
 
 export const checklist = [
@@ -32,7 +31,7 @@ export const request = {
 };
 
 export const workflowSteps = [
-  { id: "engage", number: "01", title: "Tiếp nhận", detail: "Gặp cư dân ở nơi họ đang trò chuyện, từ app đến Zalo." },
+  { id: "engage", number: "01", title: "Tiếp nhận", detail: "Gặp cư dân ngay trong app và giữ lại ngữ cảnh cần thiết." },
   { id: "understand", number: "02", title: "Thấu hiểu", detail: "Nhận diện ý định và giữ lại ngữ cảnh cần thiết." },
   { id: "act", number: "03", title: "Hành động", detail: "Chuẩn bị tác vụ có cấu trúc để đội vận hành phê duyệt." },
   { id: "delight", number: "04", title: "Cập nhật", detail: "Thông báo rõ ràng để cư dân luôn biết bước tiếp theo." },
@@ -41,11 +40,11 @@ export const workflowSteps = [
 
 export const capabilities = [
   { label: "Conversational", description: "AI hiểu ngữ cảnh, trả lời tự nhiên và hướng dẫn cư dân từng bước." },
-  { label: "Connected", description: "Checklist, Zalo, ticket và đội vận hành được nối trong một luồng." },
+  { label: "Connected", description: "Checklist, chatbot, ticket và đội vận hành được nối trong một luồng." },
   { label: "Compliant", description: "Mọi cam kết và ticket đều có phân loại, người duyệt và lịch sử rõ ràng." },
 ];
 
-export type ZaloMessage = {
+export type ChatMessage = {
   id: number;
   sender: "Cư dân" | "Ban quản lý";
   text: string;
@@ -54,7 +53,7 @@ export type ZaloMessage = {
   issueType?: string;
 };
 
-export const zaloMessages: ZaloMessage[] = [
+export const chatMessages: ChatMessage[] = [
   { id: 1, sender: "Cư dân", text: "Anh chị ơi cuối tuần này hồ bơi mở đến mấy giờ vậy ạ?", time: "08:14" },
   { id: 2, sender: "Ban quản lý", text: "Hồ bơi mở từ 06:00 đến 21:00 mỗi ngày, riêng thứ Hai bảo trì đến 14:00 nhé anh/chị.", time: "08:16" },
   { id: 3, sender: "Cư dân", text: "Có ai biết tối nay khu BBQ còn chỗ không ạ?", time: "08:18" },
