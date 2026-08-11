@@ -3,6 +3,8 @@ import operator
 
 from langchain_core.tools import tool
 
+from src.services.rag import query_handbook
+
 # Safe operator mapping for calculator
 _SAFE_OPERATORS = {
     ast.Add: operator.add,
@@ -19,16 +21,22 @@ _SAFE_OPERATORS = {
 
 @tool
 def search_knowledge(query: str) -> str:
-    """Tìm kiếm thông tin trong knowledge base.
+    """Search the resident handbook for rules, policies, and building guidelines.
+
+    Use this tool whenever a resident asks about:
+    - Utility activation (electricity, water, internet)
+    - Move-in / move-out procedures and rules
+    - Parking permits and parking regulations
+    - Quiet hours and community/building rules
+    - Defect reporting and warranty procedures
 
     Args:
-        query: Câu hỏi cần tìm kiếm
+        query: The resident's question in any language.
 
     Returns:
-        Kết quả tìm kiếm
+        A grounded answer drawn from the official resident handbook.
     """
-    # TODO: Implement actual search logic (e.g., RAG with vector store)
-    return f"Kết quả tìm kiếm cho: {query}"
+    return query_handbook(query)
 
 
 @tool

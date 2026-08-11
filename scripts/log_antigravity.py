@@ -223,6 +223,7 @@ def iter_user_inputs(brain_dirs: list[Path], cutoff: datetime | None,
                 continue
 
             with open(transcript, encoding="utf-8") as f:
+                current_msg = None
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -231,31 +232,42 @@ def iter_user_inputs(brain_dirs: list[Path], cutoff: datetime | None,
                         entry = json.loads(line)
                     except json.JSONDecodeError:
                         continue
-                    if (entry.get("type") != "USER_INPUT"
-                            or entry.get("source") != "USER_EXPLICIT"):
-                        continue
+                    
+                    etype = entry.get("type")
+                    if etype == "USER_INPUT" and entry.get("source") == "USER_EXPLICIT":
+                        if current_msg:
+                            yield current_msg
+                            current_msg = None
 
-                    ts = entry.get("created_at") or ""
-                    if cutoff and ts:
-                        try:
-                            ts_dt = datetime.fromisoformat(
-                                ts.replace("Z", "+00:00")
-                            )
-                            if ts_dt < cutoff:
-                                continue
-                        except ValueError:
-                            pass
+                        ts = entry.get("created_at") or ""
+                        if cutoff and ts:
+                            try:
+                                ts_dt = datetime.fromisoformat(
+                                    ts.replace("Z", "+00:00")
+                                )
+                                if ts_dt < cutoff:
+                                    continue
+                            except ValueError:
+                                pass
 
-                    text = extract_user_prompt(entry.get("content", ""))
-                    if len(text) < 2:
-                        continue
+                        text = extract_user_prompt(entry.get("content", ""))
+                        if len(text) < 2:
+                            continue
 
-                    yield {
-                        "conv_id": conv_dir.name,
-                        "step_index": int(entry.get("step_index", 0)),
-                        "timestamp": ts,
-                        "text": text,
-                    }
+                        current_msg = {
+                            "conv_id": conv_dir.name,
+                            "step_index": int(entry.get("step_index", 0)),
+                            "timestamp": ts,
+                            "text": text,
+                            "response": "",
+                        }
+                    elif etype == "PLANNER_RESPONSE" and current_msg is not None:
+                        content = entry.get("content", "").strip()
+                        if content:
+                            current_msg["response"] = content
+
+                if current_msg:
+                    yield current_msg
 
 
 # ---------------------------------------------------------------------------
@@ -287,7 +299,7 @@ def build_entry(msg: dict, repo: str, branch: str, commit: str,
         "commit": commit,
         "student": student,
         "prompt": msg["text"],
-        "response_summary": "",
+        "response_summary": f"[Antigravity] {msg['response'][:500]}" if msg.get("response") else f"[Antigravity] {msg['text'][:500]}",
     }
 
 
