@@ -1,36 +1,43 @@
-graph TD
-    Landing["<b>Landing</b><br/>Boomerang product entry"]
-    Onboarding["<b>Onboarding tab</b><br/>Step-by-step checklist + chatbot"]
-    Zalo["<b>Demo Zalo chat</b><br/>30 Vietnamese mock messages"]
-    Summary["<b>Agent summary</b><br/>Important signals + 800 unread"]
-    Detect["<b>Rule-based detection</b><br/>nước · điện · cháy · nứt · hỏng"]
-    Prompt["<b>Create ticket prompt</b><br/>Resident confirms"]
-    Ticket["<b>Ticket tab</b><br/>Resident / Management role"]
-    Verify["<b>Resident verify</b><br/>Prefilled fields + submit"]
-    Queue["<b>Management queue</b><br/>Review classification + priority"]
-    HITL["<b>HITL approval</b><br/>Approve / reject"]
-    Status["<b>Ticket status</b><br/>Submitted → Approved → In progress → Resolved"]
+flowchart TD
+    Login[Login or register] --> Role{Role}
+    Role --> ResidentHome[Resident home]
+    Role --> ManagerHome[Manager home]
+    Role --> AdminHome[Administrator home]
 
-    Landing --> Onboarding
-    Landing --> Zalo
-    Landing --> Ticket
-    Onboarding --> Ticket
-    Zalo --> Summary
-    Zalo --> Detect
-    Detect --> Prompt
-    Prompt -->|Có| Ticket
-    Prompt -->|Để sau| Zalo
-    Ticket --> Verify
-    Ticket --> Queue
-    Verify --> Queue
-    Queue --> HITL
-    HITL --> Status
+    ResidentHome --> Onboarding[Onboarding plan]
+    ResidentHome --> Benefits[Benefits]
+    ResidentHome --> Chat[Building assistant]
+    ResidentHome --> NewTicket[New ticket]
+    ResidentHome --> TicketHistory[Ticket history]
+    ResidentHome --> Notifications[Notifications]
+    ResidentHome --> Profile[Resident profile]
 
-    classDef marketing fill:#F7F5F0,stroke:#D1D5DB,stroke-width:1px,color:#2D3748;
-    class Landing marketing;
-    classDef resident fill:#E6F6F4,stroke:#A3E4D7,stroke-width:1px,color:#166534;
-    class Onboarding,Zalo,Verify resident;
-    classDef agent fill:#F4F3F3,stroke:#D1D5DB,stroke-width:1px,color:#374151;
-    class Summary,Detect,Prompt agent;
-    classDef management fill:#FDF2F0,stroke:#FADBD8,stroke-width:1px,color:#991B1B;
-    class Ticket,Queue,HITL,Status management;
+    Chat --> ChatIntent{New-ticket intent?}
+    ChatIntent -->|No / continue| TicketWorkspace[Persistent account ticket draft]
+    ChatIntent -->|Yes| DraftStart[Start account draft]
+    NewTicket --> DraftStart
+    DraftStart --> ExistingDraft{Existing draft?}
+    ExistingDraft -->|No| TicketWorkspace
+    ExistingDraft -->|Resume| TicketWorkspace
+    ExistingDraft -->|Confirm atomic replace| TicketWorkspace
+    TicketWorkspace --> Review[Review ticket]
+    Review --> Submit[Resident submits]
+    Submit --> Pending[Pending]
+
+    ManagerHome --> ScopedQueue[Scope-filtered queue]
+    ManagerHome --> ManagerOnboarding[Scope-filtered onboarding]
+    ManagerHome --> Compose[Compose notification]
+    ScopedQueue --> Detail[Full ticket detail]
+    Detail --> Resolving[Open detail: Resolving]
+    Detail --> Zalo[Zalo]
+    Detail --> Notify[Notify composer]
+    Notify --> NotifyPreview[Preview resident audience]
+    NotifyPreview --> NotifySend[Explicit send]
+    Detail --> ResolveConfirm[Confirm Resolved]
+    Detail --> DenyConfirm[Confirm Denied + explanation]
+    Resolving --> ResolveConfirm
+    Resolving --> DenyConfirm
+    ResolveConfirm --> Resolved[Resolved]
+    DenyConfirm --> Denied[Denied]
+
+    AdminHome --> AccountAdmin[Invite, deactivate, restore, correct]
