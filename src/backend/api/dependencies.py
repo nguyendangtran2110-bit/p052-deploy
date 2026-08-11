@@ -83,6 +83,12 @@ def require_management(actor: ActorContext = Depends(get_actor_context)) -> Acto
     return actor
 
 
+def require_manager_or_admin(actor: ActorContext = Depends(get_actor_context)) -> ActorContext:
+    if not actor.is_management or actor.management_role not in {ManagementRole.MANAGER, ManagementRole.ADMIN}:
+        raise AuthorizationError("Manager or administrator permission is required")
+    return actor
+
+
 def require_management_admin(actor: ActorContext = Depends(get_actor_context)) -> ActorContext:
     if not actor.is_management_admin:
         raise AuthorizationError("Management administrator permission is required")

@@ -4,6 +4,23 @@ import pytest
 
 
 @pytest.mark.asyncio
+async def test_management_account_defaults_to_manager(client, admin_auth):
+    created = await client.post(
+        "/api/v1/management/accounts",
+        headers=admin_auth["headers"],
+        json={
+            "email": "default-manager@example.com",
+            "password": "DefaultManagerPassword123!",
+            "employee_code": "MGT-DEFAULT-001",
+            "full_name": "Default Manager",
+        },
+    )
+
+    assert created.status_code == 201
+    assert created.json()["management_profile"]["management_role"] == "manager"
+
+
+@pytest.mark.asyncio
 async def test_admin_manages_staff_and_ticket_assignment(client, admin_auth):
     staff_created = await client.post(
         "/api/v1/management/accounts",

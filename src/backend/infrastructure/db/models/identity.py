@@ -63,7 +63,7 @@ class ManagementProfile(TimestampMixin, Base):
     department: Mapped[str | None] = mapped_column(String(100), index=True)
     job_title: Mapped[str | None] = mapped_column(String(100))
     management_role: Mapped[str] = mapped_column(
-        String(20), default=ManagementRole.STAFF.value, index=True, nullable=False
+        String(20), default=ManagementRole.MANAGER.value, index=True, nullable=False
     )
     project_code: Mapped[str | None] = mapped_column(String(50), index=True)
     building: Mapped[str | None] = mapped_column(String(100), index=True)

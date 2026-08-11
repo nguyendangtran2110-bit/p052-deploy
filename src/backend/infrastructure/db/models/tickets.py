@@ -21,6 +21,7 @@ from src.backend.domain.tickets.enums import TicketPriority, TicketSource, Ticke
 from src.backend.infrastructure.db.base import Base, TimestampMixin, UuidPrimaryKeyMixin, utc_now
 
 if TYPE_CHECKING:
+    from src.backend.infrastructure.db.models.announcements import Announcement
     from src.backend.infrastructure.db.models.conversations import Conversation, Message
     from src.backend.infrastructure.db.models.identity import UserAccount
     from src.backend.infrastructure.db.models.residents import Resident, Unit
@@ -121,6 +122,9 @@ class TicketAttachment(UuidPrimaryKeyMixin, Base):
     message_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("messages.id", ondelete="SET NULL"), index=True
     )
+    announcement_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("announcements.id", ondelete="CASCADE"), index=True
+    )
     filename: Mapped[str] = mapped_column(String(255))
     storage_path: Mapped[str] = mapped_column(String(500))
     mime_type: Mapped[str | None] = mapped_column(String(100))
@@ -129,3 +133,4 @@ class TicketAttachment(UuidPrimaryKeyMixin, Base):
 
     ticket: Mapped[Ticket | None] = relationship(back_populates="attachments")
     message: Mapped[Message | None] = relationship(back_populates="attachments")
+    announcement: Mapped[Announcement | None] = relationship(back_populates="attachments")

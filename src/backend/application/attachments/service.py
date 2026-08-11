@@ -6,7 +6,9 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.backend.application.announcements.access import resident_visibility_filters
 from src.backend.core.config import Settings
+from src.backend.domain.announcements.enums import AnnouncementStatus
 from src.backend.domain.common.auth import ActorContext
 from src.backend.domain.common.errors import (
     AuthenticationError,
@@ -15,8 +17,9 @@ from src.backend.domain.common.errors import (
     NotFoundError,
     ValidationError,
 )
-from src.backend.domain.identity.enums import ActorRole
-from src.backend.infrastructure.db.models import Message, Ticket, TicketAttachment
+from src.backend.domain.identity.enums import ActorRole, ManagementRole
+from src.backend.infrastructure.db.base import utc_now
+from src.backend.infrastructure.db.models import Announcement, Message, Ticket, TicketAttachment
 from src.backend.infrastructure.storage import S3Storage
 
 
@@ -33,6 +36,7 @@ class AttachmentService:
         mime_type: str,
         size_bytes: int,
         ticket_id: str | None,
+        announcement_id: str | None = None,
         actor: ActorContext,
     ) -> tuple[TicketAttachment, str]:
         self._require_authenticated(actor)
@@ -45,11 +49,19 @@ class AttachmentService:
             raise ValidationError(f"Attachment size must be between 1 and {self.settings.max_upload_bytes} bytes")
 
         normalized_ticket_id = str(ticket_id) if ticket_id else None
+        normalized_announcement_id = str(announcement_id) if announcement_id else None
+        if normalized_ticket_id and normalized_announcement_id:
+            raise ValidationError("Attachment cannot be linked to both a ticket and an announcement")
         if normalized_ticket_id:
             ticket = await self.session.get(Ticket, normalized_ticket_id)
             if ticket is None:
                 raise NotFoundError("Ticket was not found")
             self._authorize_ticket(ticket, actor)
+        if normalized_announcement_id:
+            announcement = await self.session.get(Announcement, normalized_announcement_id)
+            if announcement is None:
+                raise NotFoundError("Announcement was not found")
+            self._authorize_announcement(announcement, actor)
 
         uploader_id = actor.actor_id or actor.resident_id
         if not uploader_id:
@@ -61,6 +73,7 @@ class AttachmentService:
         attachment = TicketAttachment(
             uploader_id=uploader_id,
             ticket_id=normalized_ticket_id,
+            announcement_id=normalized_announcement_id,
             filename=safe_filename,
             storage_path=object_key,
             mime_type=normalized_mime,
@@ -96,7 +109,32 @@ class AttachmentService:
             await self._authorize_attachment(attachment, actor)
             if attachment.ticket_id not in {None, ticket_id}:
                 raise ConflictError("Attachment is already linked to another ticket")
+            if attachment.announcement_id is not None:
+                raise ConflictError("Attachment is already linked to an announcement")
             attachment.ticket_id = ticket_id
+
+    async def attach_to_announcement(
+        self,
+        attachment_ids: list[str] | tuple[str, ...],
+        announcement_id: str,
+        actor: ActorContext,
+    ) -> None:
+        if not attachment_ids:
+            return
+        announcement = await self.session.get(Announcement, announcement_id)
+        if announcement is None:
+            raise NotFoundError("Announcement was not found")
+        self._authorize_announcement(announcement, actor)
+        attachments = await self._get_many(attachment_ids)
+        if len(attachments) != len(set(attachment_ids)):
+            raise NotFoundError("One or more attachments were not found")
+        for attachment in attachments:
+            await self._authorize_attachment(attachment, actor)
+            if attachment.announcement_id not in {None, announcement_id}:
+                raise ConflictError("Attachment is already linked to another announcement")
+            if attachment.ticket_id is not None or attachment.message_id is not None:
+                raise ConflictError("Attachment is already linked to another ticket or message")
+            attachment.announcement_id = announcement_id
 
     async def attach_to_message(
         self,
@@ -120,6 +158,8 @@ class AttachmentService:
                 raise ConflictError("Attachment is already linked to another message")
             if ticket_id and attachment.ticket_id not in {None, ticket_id}:
                 raise ConflictError("Attachment is already linked to another ticket")
+            if attachment.announcement_id is not None:
+                raise ConflictError("Attachment is already linked to an announcement")
             attachment.message_id = message_id
             if ticket_id:
                 attachment.ticket_id = ticket_id
@@ -141,7 +181,23 @@ class AttachmentService:
             ticket = await self.session.get(Ticket, attachment.ticket_id)
             if ticket and actor.role is ActorRole.RESIDENT and ticket.resident_id == actor.resident_id:
                 return
+        if attachment.announcement_id and actor.role is ActorRole.RESIDENT and actor.resident_id:
+            statement = select(Announcement.id).where(
+                Announcement.id == attachment.announcement_id,
+                *resident_visibility_filters(actor.resident_id, utc_now()),
+            )
+            if await self.session.scalar(statement) is not None:
+                return
         raise AuthorizationError("Actor cannot access this attachment")
+
+    @staticmethod
+    def _authorize_announcement(announcement: Announcement, actor: ActorContext) -> None:
+        if not actor.is_management or actor.management_role not in {ManagementRole.MANAGER, ManagementRole.ADMIN}:
+            raise AuthorizationError("Manager or administrator permission is required for announcement attachments")
+        if announcement.status != AnnouncementStatus.DRAFT.value:
+            raise ConflictError("Only draft announcements can receive attachments")
+        if actor.management_role is not ManagementRole.ADMIN and announcement.author_id != actor.actor_id:
+            raise AuthorizationError("Manager can only modify announcements they created")
 
     @staticmethod
     def _authorize_ticket(ticket: Ticket, actor: ActorContext) -> None:

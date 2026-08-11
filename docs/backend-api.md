@@ -76,6 +76,18 @@ rejected by production configuration.
 | `POST` | `/api/v1/tickets/{id}/messages` | Ask the chatbot or add context inside that ticket conversation |
 | `PATCH` | `/api/v1/tickets/{id}/status` | Apply an allowed status transition |
 | `POST` | `/api/v1/chat/messages` | General handbook Q&A or chatbot ticket flow; accepts `ticket_id` for ticket context |
+| `GET` | `/api/v1/announcements` | Resident announcement list; supports `unread_only`, `type`, `priority`, `offset`, `limit` |
+| `GET` | `/api/v1/announcements/{id}` | Resident announcement detail; opening it records a read event |
+| `POST` | `/api/v1/announcements/{id}/read` | Idempotently mark a visible announcement as read |
+| `GET` | `/api/v1/announcements/unread-count` | Resident unread announcement count |
+| `POST` | `/api/v1/management/announcements` | Manager/admin creates a draft announcement |
+| `GET` | `/api/v1/management/announcements` | Manager/admin lists announcement drafts and published history |
+| `GET` | `/api/v1/management/announcements/{id}` | Manager/admin detail with audit events |
+| `PATCH` | `/api/v1/management/announcements/{id}` | Edit a draft with optimistic `version` |
+| `POST` | `/api/v1/management/announcements/{id}/publish` | Publish a draft with optimistic `version` |
+| `POST` | `/api/v1/management/announcements/{id}/archive` | Archive a published announcement with optimistic `version` |
+| `DELETE` | `/api/v1/management/announcements/{id}` | Physically delete a draft only |
+| `GET` | `/api/v1/management/announcements/{id}/statistics` | Eligible, read and unread resident counts |
 | `POST` | `/api/v1/attachments/presign` | Create attachment metadata and a presigned private-S3 PUT URL |
 | `GET` | `/api/v1/attachments/{id}/download` | Create a presigned private-S3 GET URL after authorization |
 | `GET` | `/api/v1/realtime/stream` | Authenticated SSE stream for conversation/ticket events |
@@ -105,12 +117,15 @@ confirmation is part of the conversation command.
 
 Attachment upload is deliberately a two-step client flow: call `POST /attachments/presign`, PUT the bytes directly
 to the returned S3 URL with the returned MIME type, then include the returned `id` in `attachment_ids` on a ticket
-or message request. There is no complete/checksum endpoint in the MVP. The bucket remains private; downloads also
-use short-lived presigned URLs. Pending metadata can be linked later to one ticket and/or one conversation message.
+or message/announcement request. There is no complete/checksum endpoint in the MVP. The bucket remains private;
+downloads also use short-lived presigned URLs. Pending metadata can be linked later to one ticket, conversation
+message, or announcement.
 
 `GET /realtime/stream` is an authenticated Server-Sent Events stream. It emits `conversation.message.created`,
 `conversation.handoff.changed`, `conversation.assignment.changed`, `ticket.created`, `ticket.status.changed`, and
-`ticket.assignment.changed`. REST remains the source for history and CRUD; SSE only pushes committed changes. The
+`ticket.assignment.changed`, `announcement.published`, `announcement.updated`, `announcement.archived`, and
+`announcement.read`. Announcement events contain only IDs and metadata; the client refetches the authorized
+announcement list/detail. REST remains the source for history and CRUD; SSE only pushes committed changes. The
 current deployment uses an in-memory single-process connection manager, so a browser should reconnect and reload the
 conversation/ticket history after a disconnect. Native `EventSource` clients can pass the short-lived access JWT as
 `?access_token=...`; clients using `fetch` streaming can use the normal `Authorization` header.

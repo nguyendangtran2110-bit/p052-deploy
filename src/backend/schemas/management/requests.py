@@ -17,7 +17,7 @@ class ManagementAccountCreateRequest(BaseModel):
     phone: str | None = Field(default=None, max_length=30)
     department: str | None = Field(default=None, max_length=100)
     job_title: str | None = Field(default=None, max_length=100)
-    management_role: ManagementRole = ManagementRole.STAFF
+    management_role: ManagementRole = ManagementRole.MANAGER
     project_code: str | None = Field(default=None, max_length=50)
     building: str | None = Field(default=None, max_length=100)
 

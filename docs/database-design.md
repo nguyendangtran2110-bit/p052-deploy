@@ -24,6 +24,12 @@ erDiagram
     CONVERSATIONS ||--|| TICKETS : threads
     TICKETS ||--o{ TICKET_EVENTS : audits
     TICKETS ||--o{ TICKET_ATTACHMENTS : includes
+    USER_ACCOUNTS ||--o{ ANNOUNCEMENTS : authors
+    ANNOUNCEMENTS ||--o{ ANNOUNCEMENT_SCOPES : targets
+    ANNOUNCEMENTS ||--o{ ANNOUNCEMENT_READS : tracks
+    ANNOUNCEMENTS ||--o{ ANNOUNCEMENT_EVENTS : audits
+    ANNOUNCEMENTS ||--o{ TICKET_ATTACHMENTS : includes
+    RESIDENTS ||--o{ ANNOUNCEMENT_READS : reads
     KNOWLEDGE_DOCUMENTS ||--o{ KNOWLEDGE_CHUNKS : splits
 ```
 
@@ -42,7 +48,11 @@ erDiagram
 | `messages` | Lich su user/assistant/management/system, author id, citation va structured action | Khong luu chain-of-thought/internal analysis |
 | `tickets` | Yeu cau tu form hoac chatbot | Conversation bat buoc va unique 1-1, unique `(resident_id, idempotency_key)`, assignee va due date |
 | `ticket_events` | Audit log bat bien cua ticket | Luu actor, trang thai cu/moi va comment |
-| `ticket_attachments` | Metadata file dinh kem | `uploader_id`, private S3 object key, co the pending truoc khi gan vao ticket/message |
+| `ticket_attachments` | Metadata file dinh kem cho ticket/message/announcement | `uploader_id`, private S3 object key, co the pending truoc khi gan vao mot parent |
+| `announcements` | Noi dung do management phat hanh | Status `draft/published/archived`, version optimistic locking, expiry va author |
+| `announcement_scopes` | Audience cua announcement | `all_residents`, `project`, `building`, `unit`; mot announcement co the co nhieu scope |
+| `announcement_reads` | Lazy read tracking cua resident | Unique `(announcement_id, resident_id)`; chi tao row khi resident doc |
+| `announcement_events` | Audit log cua announcement | Luu create/update/publish/archive actor va status transition |
 | `knowledge_documents` | Metadata handbook/regulation | SHA-256 unique, co version va pham vi toa nha |
 | `knowledge_chunks` | Doan van ban cho retrieval | Unique `(document_id, chunk_index)`, embedding dung pgvector |
 
@@ -105,3 +115,14 @@ resident-unit, required fields, transition va idempotency truoc khi persist.
 - Header `X-Actor-*` chi la adapter test khi `DEV_AUTH_ENABLED=true` va bi tat mac dinh.
 - Realtime khong co bang notification/outbox o MVP: SSE dung `asyncio.Queue` trong process; database van luu message/ticket
   history de client dong bo lai sau khi reconnect.
+
+## Announcements
+
+Announcements la module doc lap voi ticket. Management tao announcement o `draft`, gan mot hoac nhieu audience
+scope, sau do publish de resident co the xem. Resident chi thay announcement neu status la `published`, da den
+`published_at`, chua het `expires_at`, va co unit/project phu hop voi scope. Mo detail se tao lazy read row; endpoint
+`POST /api/v1/announcements/{id}/read` la idempotent.
+
+Announcement khong co conversation rieng trong MVP. Neu resident can hoi them, frontend co the mo chatbot hoac tao
+ticket va prefill tieu de/context tu announcement. SSE chi gui announcement id va metadata toi resident thuoc audience;
+client refetch qua REST de lay noi dung da duoc authorize.

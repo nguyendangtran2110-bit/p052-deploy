@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from src.backend.infrastructure.db.models import Conversation, Message, Ticket
+from src.backend.infrastructure.db.models import Announcement, Conversation, Message, Ticket
 
 
 @dataclass(slots=True)
@@ -139,6 +139,30 @@ def publish_ticket_event(ticket: Ticket, event: str, data: dict[str, Any] | None
                 **(data or {}),
             },
         )
+
+
+def publish_announcement_event(
+    event: str,
+    announcement: Announcement,
+    *,
+    resident_ids: list[str] | tuple[str, ...] | set[str] = (),
+    include_management: bool = True,
+    data: dict[str, Any] | None = None,
+) -> None:
+    keys = {key for resident_id in resident_ids if (key := resident_realtime_key(resident_id))}
+    if include_management:
+        keys.update(management_realtime_keys())
+    if not keys:
+        return
+    payload = {
+        "announcement_id": announcement.id,
+        "announcement_code": announcement.announcement_code,
+        "event": event,
+        "status": announcement.status,
+        "published_at": _isoformat(announcement.published_at) if announcement.published_at else None,
+        **(data or {}),
+    }
+    realtime_manager.publish(keys, event, payload)
 
 
 def _conversation_keys(resident_id: str | None, *, include_management: bool) -> set[str]:

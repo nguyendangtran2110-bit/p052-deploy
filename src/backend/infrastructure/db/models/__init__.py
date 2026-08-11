@@ -1,3 +1,9 @@
+from src.backend.infrastructure.db.models.announcements import (
+    Announcement,
+    AnnouncementEvent,
+    AnnouncementRead,
+    AnnouncementScope,
+)
 from src.backend.infrastructure.db.models.conversations import Conversation, Message
 from src.backend.infrastructure.db.models.identity import (
     ManagementProfile,
@@ -10,6 +16,10 @@ from src.backend.infrastructure.db.models.residents import Resident, ResidentUni
 from src.backend.infrastructure.db.models.tickets import Ticket, TicketAttachment, TicketEvent
 
 __all__ = [
+    "Announcement",
+    "AnnouncementEvent",
+    "AnnouncementRead",
+    "AnnouncementScope",
     "Conversation",
     "KnowledgeChunk",
     "KnowledgeDocument",

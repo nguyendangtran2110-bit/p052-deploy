@@ -8,6 +8,7 @@ backend/
 |   `-- routes/                 # HTTP transport; one file per small feature
 |-- application/
 |   |-- auth/                   # Registration, login and token rotation
+|   |-- announcements/          # Announcement publishing, audience and read tracking
 |   |-- chat/                   # Chat orchestration and agent contract
 |   |-- knowledge/              # Handbook upload/indexing use cases
 |   |-- management/             # Staff accounts and operational dashboard
@@ -16,6 +17,7 @@ backend/
 |-- core/                       # Configuration and technical cross-cutting code
 |-- domain/
 |   |-- common/                 # Actor context and shared domain errors
+|   |-- announcements/
 |   |-- conversations/
 |   |-- identity/
 |   |-- knowledge/
@@ -28,6 +30,7 @@ backend/
 |   `-- security/               # Argon2 password hashing and JWT codec
 `-- schemas/
     |-- auth/
+    |-- announcements/
     |-- chat/
     |-- knowledge/
     |-- management/

@@ -23,7 +23,7 @@ class ManagementRegistrationCommand:
     password: str
     employee_code: str
     full_name: str
-    management_role: ManagementRole = ManagementRole.STAFF
+    management_role: ManagementRole = ManagementRole.MANAGER
     phone: str | None = None
     department: str | None = None
     job_title: str | None = None

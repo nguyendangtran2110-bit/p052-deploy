@@ -10,6 +10,10 @@ from alembic import context
 from src.backend.core.config import get_settings
 from src.backend.infrastructure.db.base import Base
 from src.backend.infrastructure.db.models import (  # noqa: F401
+    Announcement,
+    AnnouncementEvent,
+    AnnouncementRead,
+    AnnouncementScope,
     Conversation,
     KnowledgeChunk,
     KnowledgeDocument,
