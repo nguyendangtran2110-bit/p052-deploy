@@ -64,3 +64,7 @@ docs/superpowers/
 
 # Test log file
 test_log.txt
+
+frontend_spec.md
+frontend_error_spec.md
+frontend_backend_connect_spec.md
