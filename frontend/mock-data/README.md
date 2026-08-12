@@ -5,18 +5,47 @@ This directory documents the frontend-first mock contract. It should contain onl
 ## Goals
 
 - Let frontend stories run before every backend endpoint is integrated.
-- Exercise loading, empty, failure, conflict, retry, session, scope, and responsive states deterministically.
+- Exercise loading, empty, failure, conflict, retry, session, scope, desktop layout, and zoom/reflow states deterministically.
 - Keep mock and integrated builds on the same relative `/api/v1` request paths.
 - Detect frontend drift from the backend contract early.
 
 ## Authority
 
-1. [`../../architecture/api-contracts.md`](../../architecture/api-contracts.md)
+1. [`../../docs/architecture/api-contracts.md`](../../docs/architecture/api-contracts.md)
 2. Generated or validated backend OpenAPI schemas
-3. [`../FRONTEND-SPEC.md`](../FRONTEND-SPEC.md) for frontend state behavior
+3. [`../../docs/frontend/FRONTEND-SPEC.md`](../../docs/frontend/FRONTEND-SPEC.md) for frontend state behavior
 4. Mock fixtures in this directory
 
 Mock fixtures must not become an independent backend schema source.
+
+This file and all JSON fixtures in this directory are subordinate supporting implementation context. If they conflict with the PRD, architecture spine, approved ADRs, API contracts, or canonical `docs/frontend/*` specifications, the higher-authority artifact wins.
+
+## Committed Fixture Files
+
+The current frontend demonstration loads these files through static JSON imports:
+
+| File | Fixture content |
+|---|---|
+| `accounts.json` | Three synthetic Resident identities and three synthetic Manager identities |
+| `tickets.json` | Stable submitted tickets and exact Resident ownership |
+| `residents.json` | Resident directory and onboarding-summary rows |
+| `notifications.json` | Account audiences and optional related-ticket references |
+| `resident-content.json` | Resident onboarding steps and benefits |
+| `assistant-scenarios.json` | Untrusted assistant response templates only |
+
+`src/mock/data.ts` validates domain fixtures before exporting them. It rejects malformed shapes, unknown enum values, duplicate identifiers, invalid timestamps, broken references, and location/scope inconsistencies with fixture-path-only errors. `src/lib/mock-llm.ts` validates assistant scenarios, selects triggers in code, resolves only controlled placeholders, and passes every rendered result through the same untrusted-output sanitizer used for model-shaped data.
+
+JSON files contain content, never behavior. Authorization filters and the immutable account, ticket-ownership/location, and notification-audience allowlists in `src/mock/demo-scope-policy.ts`, plus state transitions, draft defaults, idempotency, assistant trigger selection, output sanitization, and security policy remain in TypeScript. Fixture scope fields are display inputs that must exactly match that code-owned policy.
+
+## Editing Workflow
+
+1. Edit only the relevant JSON fixture and keep all data obviously synthetic.
+2. Preserve stable identities, credentials, ownership, and relationship fields unless an approved specification explicitly changes them.
+3. Do not add executable markup, runtime URLs, filesystem paths, authorization rules, state-machine logic, or privileged assistant instructions.
+4. Run `npm run typecheck`, `npm run lint`, and `npm test` from `frontend/`.
+5. Treat a fixture validation error as a schema or relationship defect; do not weaken the validator to admit invalid data.
+
+These fixtures are bundled locally. The application must never fetch them from a user-controlled URL or read them from a runtime-selected filesystem path.
 
 ## Tooling Boundary
 
@@ -34,6 +63,8 @@ The Developer may use MSW or an equivalent HTTP-boundary mocking tool. The selec
 - Never place passwords, OTP values used outside local test scenarios, session cookies, provider secrets, or CSRF secrets in committed fixtures.
 - Ticket and notification content should be realistic enough to test wrapping, overflow, and Vietnamese diacritics without containing real reports.
 - Raw mock request logging must redact password, OTP, contact, draft, ticket, and notification content in the same way expected from production diagnostics.
+- The committed demo passphrases are synthetic UI test values, not real credentials, and must never be reused outside this repository.
+- Assistant fixture content is untrusted input even though it is committed locally; it cannot grant authority or request privileged actions.
 
 ## Fixture Shape Rules
 
@@ -65,6 +96,20 @@ Suggested scenario identifiers are stable test labels, not product API fields.
 | `auth.registration.otp_expired` | `422 otp_expired` |
 | `auth.registration.attempts_exhausted` | `423 otp_attempts_exhausted` |
 | `auth.registration.provider_unavailable` | `502 dependency_unavailable` |
+
+### Theme and preference UX
+
+These are frontend scenario states layered over the authoritative profile contract; they are not new API fields or endpoints.
+
+| Scenario | Result |
+|---|---|
+| `theme.first_visit.light` | No saved hint; device preference resolves Light |
+| `theme.first_visit.dark` | No saved hint; device preference resolves Dark |
+| `theme.hint_profile_match` | Pre-paint hint matches authenticated profile theme; no reconciliation flash |
+| `theme.hint_profile_mismatch` | Pre-paint hint differs; profile wins after `/auth/me` without losing focus/page state |
+| `theme.preference_save_failed` | Selected appearance remains locally visible; durable message says account preference was not saved |
+| `theme.corrupt_hint` | Invalid local hint ignored; device preference then Light fallback applies safely |
+| `theme.reduced_motion_switch` | Theme changes immediately or with opacity-only <=80ms and preserves component state |
 
 ### Resident onboarding and benefits
 
@@ -213,5 +258,6 @@ Do not create MVP frontend fixtures, pages, navigation, or handlers solely for a
 - Draft conflict, generation-gone, and ambiguous submit scenarios are deterministic.
 - Manager open/state conflicts and scope purge are deterministic.
 - Notification preview/send retries and stale preview are deterministic.
+- Theme initialization, authenticated reconciliation, save failure, and reduced-motion switching are deterministic without inventing a new backend contract.
 - Fixtures contain only synthetic data.
 - Mock and integrated modes use the same URL and TypeScript contract surface.

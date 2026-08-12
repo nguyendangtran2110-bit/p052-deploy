@@ -23,7 +23,7 @@ The spine has a sound modular-monolith core and strong ticket/scope invariants, 
 - The session-only ticket workspace is consistent with the approved transient-data behavior and keeps authoritative profile data server-side.
 - The ticket state command separates side-effect-free queue reads from the automatic full-detail transition and protects terminal transitions with optimistic concurrency.
 - The Zalo boundary is honest and safe: local validation only, no remote existence check, no delivery claims, and no provider credential dependency.
-- Trust boundaries, logging redaction, database migrations, health checks, rollback shape, and WCAG/responsive constraints are materially better than the current prototype.
+- Trust boundaries, logging redaction, database migrations, health checks, rollback shape, and WCAG/desktop-layout constraints are materially better than the current prototype.
 
 ## Critical Findings
 
@@ -216,7 +216,7 @@ Record a verified compatibility envelope and pin reproducible dependencies at im
 | Deferred items are safe | **Fail** | Manager-registry maintenance currently defers authorization freshness. Other explicitly deferred product topics are safe for MVP architecture. |
 | Named technology current/verified | **Partial** | Technology families are current, but versions/runtime/database compatibility are absent from the artifacts. |
 | Brownfield ratification | **Partial** | The code migration assessment is accurate, but active repository product/docs still contradict the architecture. |
-| Product capability coverage | **Partial** | Ticket/auth/Zalo/responsiveness are well covered; onboarding definition lifecycle, admin-created account activation, notification campaigns, and manager-visible data are incomplete. |
+| Product capability coverage | **Partial** | Ticket/auth/Zalo/desktop layout are well covered; onboarding definition lifecycle, admin-created account activation, notification campaigns, and manager-visible data are incomplete. |
 | Operational/environmental envelope | **Partial** | Environments, health, migrations, backup, and rollback are present; session origin, worker delivery, and singleton Chroma deployment are unresolved. |
 
 ## Blockers Before Architecture Approval

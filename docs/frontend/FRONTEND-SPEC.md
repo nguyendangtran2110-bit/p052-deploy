@@ -5,6 +5,7 @@
 - **Primary language:** Vietnamese
 - **Required accessibility level:** WCAG 2.2 AA
 - **Application architecture:** TypeScript Next.js 16.3.x / React 19.2.x web client
+- **Viewport scope:** Desktop-first; minimum product-supported viewport is 1024 CSS px at 100% browser zoom
 
 ## 1. Authority and Purpose
 
@@ -21,11 +22,16 @@ For request and response schemas, error codes, idempotency, and authorization be
 
 Supporting implementation references:
 
+- [`README.md`](README.md): Developer entry point, exact reading order, implementation sequence, and non-reinterpretation rules
 - [`ROUTE-MAP.md`](ROUTE-MAP.md): route ownership, access, navigation, and page/API mapping
 - [`STATE-MATRIX.md`](STATE-MATRIX.md): required page and concurrency states
 - [`COMPONENT-MAP.md`](COMPONENT-MAP.md): reusable component and state-owner boundaries
-- [`ACCESSIBILITY.md`](ACCESSIBILITY.md): WCAG, keyboard, focus, announcements, and responsive accessibility
-- [`mock-data/README.md`](mock-data/README.md): mock API and scenario strategy
+- [`ACCESSIBILITY.md`](ACCESSIBILITY.md): WCAG, keyboard, focus, announcements, desktop viewport, and zoom/reflow accessibility
+- [`../../frontend/mock-data/README.md`](../../frontend/mock-data/README.md): mock API and scenario strategy
+- [`design/DESIGN.md`](design/DESIGN.md): final Light/Dark visual tokens, typography, density, shape, elevation, iconography, and motion
+- [`design/EXPERIENCE.md`](design/EXPERIENCE.md): final interaction, navigation, workflow, and theme-switching behavior
+- [`design/COMPONENT-SYSTEM.md`](design/COMPONENT-SYSTEM.md): implementation-ready primitive and domain component contracts
+- [`design/SCREEN-MAP.md`](design/SCREEN-MAP.md): page-by-page visual/state handoff for all 18 routes
 
 ## 2. Approved MVP Scope
 
@@ -36,7 +42,7 @@ The MVP frontend contains 18 user-facing pages:
 - 7 manager pages
 - 0 administrator pages
 
-Administrator product requirements and backend contracts remain authoritative future scope, but the MVP frontend must not expose administrator routes, navigation, dashboards, or responsive requirements.
+Administrator product requirements and backend contracts remain authoritative future scope, but the MVP frontend must not expose administrator routes, navigation, dashboards, or layout requirements.
 
 ### Explicit frontend non-goals
 
@@ -49,6 +55,7 @@ Administrator product requirements and backend contracts remain authoritative fu
 - Live Zalo messaging, Zalo API access, profile-existence checks, profile-ownership verification, or delivery/read claims
 - Anonymous or browser-local persistent ticket drafts
 - Client-side role, scope, ticket-state, or audience authority
+- Mobile or tablet-specific UX/UI, navigation, compact data representations, touch/virtual-keyboard optimization, or product acceptance testing below 1024 CSS px at 100% browser zoom
 
 ## 3. Approved Page and Route Inventory
 
@@ -85,19 +92,19 @@ No separate pages are created for registration OTP, recovery OTP, ticket review,
 
 ### Resident shell
 
-- Mobile-first and usable from 360 CSS px.
+- Desktop-first and product-supported from 1024 CSS px at 100% browser zoom.
 - Primary navigation exposes Onboarding, Benefits, Assistant, Tickets, Notifications, and Profile.
 - `New ticket` is a prominent intent action that enters `/resident/tickets/new` and follows the active-draft rules.
-- On small screens, navigation may use a bottom bar or compact menu, but every destination remains keyboard and screen-reader reachable without hover.
+- Navigation uses a desktop top bar, side rail, or an equivalently persistent pattern; every destination remains keyboard and screen-reader reachable without hover.
 - `/resident` redirects to `/resident/onboarding` unless implementation evidence supports a more useful contract-backed landing without adding a page.
 
 ### Manager shell
 
-- Desktop-first at 1024 CSS px and above, responsive to 360 CSS px.
+- Desktop-first and product-supported from 1024 CSS px at 100% browser zoom.
 - Primary navigation exposes Work home, Residents, Onboarding, Tickets, Notifications, and Profile.
 - `/manager` redirects to `/manager/dashboard`.
 - The dashboard is a navigational work home, not an analytics surface. It may show direct links and limited recent items already returned by approved list contracts. It must not imply complete totals when only a cursor page has been loaded.
-- At compact widths, dense rows become cards or responsive rows without hiding required fields or actions.
+- Dense operational data uses desktop tables or deliberate master-detail layouts without hiding required fields or actions in the supported desktop range.
 
 ### Navigation behavior
 
@@ -159,7 +166,7 @@ The frontend must not let the user choose an unmatched verification destination 
 
 - Show only backend-returned applicable benefits.
 - Each item presents eligibility, conditions, operating information, and how to use it.
-- Benefit details use an inline expansion or responsive drawer rather than a required detail route.
+- Benefit details use an inline expansion or desktop drawer rather than a required detail route.
 - Do not expose editing, governance, or unsupported benefit-use tracking.
 
 ### Building assistant
@@ -322,7 +329,7 @@ Never auto-merge, force-overwrite, or silently retry a conflicting patch. If ano
 
 ### Ticket Notify
 
-- Open a responsive composer drawer or dialog from ticket detail.
+- Open a desktop composer drawer or dialog from ticket detail.
 - The audience is server-derived from the ticket resident and cannot be edited by the manager.
 - Collect trimmed non-empty Subject and Content.
 - Request a ticket-specific preview and show the audience summary and recipient count.
@@ -332,7 +339,7 @@ Never auto-merge, force-overwrite, or silently retry a conflicting patch. If ano
 
 ### Generic notification composer
 
-- Lives within `/manager/notifications` as a page mode or responsive subview.
+- Lives within `/manager/notifications` as a page mode or desktop subview.
 - Supports the approved audience kinds: Building, Floor, Unit, or selected in-scope Residents.
 - Whole-building targeting is offered only when the backend-confirmed scope grants `ALL_FLOORS` for that building.
 - The frontend never treats its audience controls as authorization.
@@ -405,32 +412,32 @@ Rules:
 
 Detailed page states are defined in [`STATE-MATRIX.md`](STATE-MATRIX.md).
 
-## 12. Responsive Behavior
+## 12. Desktop Layout Behavior
 
-### Breakpoints and reflow
+### Supported desktop widths and reflow
 
-- Minimum product-supported viewport: 360 CSS px.
-- Mobile: 360-767 px.
-- Tablet/compact manager: 768-1023 px.
-- Desktop: 1024-1279 px.
-- Wide desktop: 1280 px and above.
-- WCAG reflow testing additionally covers 320 CSS px equivalent content width at 400% zoom.
+- Resident and manager UX/UI are desktop-first.
+- Minimum product-supported viewport: 1024 CSS px at 100% browser zoom.
+- Standard desktop: 1024-1279 px.
+- Wide desktop: 1280-1439 px.
+- Extra-wide desktop: 1440 px and above.
+- Mobile and tablet UX/UI, alternate compact navigation, and product acceptance testing below 1024 CSS px at 100% zoom are out of scope.
+- WCAG reflow testing additionally covers 320 CSS px equivalent content width at 400% desktop zoom; this accessibility requirement does not imply mobile support.
 
 ### Resident behavior
 
-- Single-column primary task flow on mobile.
-- Read-only resident context and editable ticket fields remain visually distinct without requiring side-by-side layout.
+- Use one dominant desktop task column with an optional contextual side rail when it improves review.
+- Read-only resident context and editable ticket fields remain visually distinct.
 - Draft save state stays close to the editor and remains readable without covering controls.
-- Conflict comparison stacks by field on mobile.
-- Dialogs that cannot fit comfortably become full-height sheets while preserving dialog semantics and focus management.
+- Conflict comparison is organized per field and remains operable through desktop zoom/reflow.
+- Dialogs remain constrained, scrollable desktop modals or drawers while preserving semantics and focus management.
 
 ### Manager behavior
 
 - Multi-column work layouts are allowed at 1024 px and above.
-- Secondary panels collapse at 768-1023 px without hiding primary actions.
-- At 360-767 px, queue and detail are stacked routes/views rather than a compressed split pane.
-- Tables become cards or responsive rows; all required data and actions remain available.
-- Filters use an accessible compact panel or drawer and show active filters outside the drawer.
+- Queue, detail, and composer surfaces may use desktop split panes, tables, drawers, and dialogs.
+- Mobile card conversions and phone-specific stacked-route variants are not required.
+- Filters use an accessible desktop panel, popover, or drawer and show active filters outside the control.
 - Manager terminal, Zalo, and Notify actions remain reachable without horizontal scrolling.
 
 ## 13. Accessibility and Keyboard Contract
@@ -440,7 +447,7 @@ WCAG 2.2 AA is binding and overrides conflicting optional visual tokens or legac
 - Set document language to Vietnamese for the default experience and update it only when actual localized content changes language.
 - Provide skip navigation, semantic landmarks, one clear page-level heading, and logical heading order.
 - All actions work with keyboard alone and have visible focus.
-- Touch targets meet WCAG 2.2 target-size expectations or use documented exceptions.
+- Pointer targets meet WCAG 2.2 target-size expectations or use documented exceptions.
 - Status is never communicated by color alone.
 - Dialogs are labeled, trap focus, close through an explicit control and Escape when safe, and return focus to their trigger.
 - Live regions announce OTP delivery, validation summaries, draft save outcomes, draft conflicts, ticket open/transition results, notification preview/send outcomes, and scope loss.
@@ -449,7 +456,7 @@ WCAG 2.2 AA is binding and overrides conflicting optional visual tokens or legac
 - Preserve content and function at 200% browser zoom and 400% reflow testing.
 - Theme changes preserve text, non-text, focus-indicator, and status contrast.
 
-The existing `DESIGN.md` primary button token pairs white text with light Signal Teal. That pairing must not be implemented where it fails WCAG contrast. Use an accessible token pairing, such as dark Navy text on Signal Teal, while preserving the approved visual direction.
+Use the exact foreground pairings in `design/DESIGN.md` for chromatic actions and statuses. Do not assume white text is valid on every Light or Dark theme token; accessibility tests validate the rendered semantic pairing.
 
 Detailed focus and announcement requirements are in [`ACCESSIBILITY.md`](ACCESSIBILITY.md).
 
@@ -462,7 +469,7 @@ Required reusable groups:
 - Page header, section header, breadcrumbs/back navigation, skip link
 - Form field, password field, OTP input, error summary, help/error message
 - Loading skeleton, empty state, inline error, retry panel, durable success panel
-- Accessible dialog, confirmation dialog, responsive drawer/sheet
+- Accessible dialog, confirmation dialog, desktop drawer/panel
 - Status badge with text and programmatic label
 - Cursor-pagination controls and scoped filter panel
 - Notification list/item/read control
@@ -478,21 +485,24 @@ See [`COMPONENT-MAP.md`](COMPONENT-MAP.md) for detailed ownership.
 
 ## 15. Design System and Token Requirements
 
-- Treat the current root `DESIGN.md` as visual direction, subordinate to the PRD, architecture, and WCAG requirements.
+- Treat [`design/DESIGN.md`](design/DESIGN.md) as the canonical visual direction, subordinate to the PRD, architecture, contracts, and WCAG requirements.
 - Product name is OnBxrd; legacy MoveIn naming is prohibited.
-- Preserve the dark operations-cockpit direction, sparse signal color, flat tonal hierarchy, compact operational density, and explicit human-control emphasis.
+- Implement the Quiet Signal identity: mineral canvas, Lagoon primary, Harbor secondary, Ember accent, solid tonal hierarchy, Be Vietnam Pro, precise borders, Resident comfort, Manager density, and explicit human-control emphasis.
 - Do not copy legacy wireframe approval states, role switcher, analytics/reporting cards, attachments, or obsolete ticket lifecycle.
-- Define semantic tokens rather than using raw colors in feature components: surface, text, muted text, border, focus, primary action, destructive action, warning, success, and each ticket state.
-- Provide light/dark theme behavior only to the extent approved by profile preferences and supported tokens. Every theme must meet the same accessibility contract.
+- Implement all semantic tokens defined in `design/DESIGN.md`; feature components must not use raw palette values for meaning.
+- Light and Dark are first-class themes. Every surface, text, border, focus, primary, secondary, accent, success, warning, danger, info, interactive, loading, selected, disabled, destructive, status, and urgency state must be complete and accessible in both themes.
+- First visit follows the device preference and falls back to Light. Authenticated profile preference wins after `/auth/me`; a non-sensitive local hint may prevent flash-of-wrong-theme before reconciliation.
 - Typography must support Vietnamese diacritics across all required weights.
 - Icons require text labels or accessible names and cannot be the sole carrier of status.
-- Motion is restrained and task-supporting; reduced-motion disables non-essential transitions.
+- Use the shared motion tokens for page, section, card/list, overlay, validation, save/status, loading-to-content, notification-read, ticket lifecycle, assistant, and theme transitions. Motion remains low-amplitude and task-supporting even though it is used broadly.
+- Reduced motion removes transform, spring, stagger, shimmer, pulse, and ambient cycles while preserving state meaning and usability.
+- Do not animate protected-data purge, authorization redirect, factual counters, focus movement, Zalo navigation, or repeated autosave/error events.
 
 ## 16. Frontend/API Responsibility Boundary
 
 ### Frontend owns
 
-- Presentation and responsive layout
+- Presentation and desktop layout
 - Navigation and route convenience guards
 - Accessible forms, dialogs, focus, keyboard operation, and announcements
 - Unsaved in-memory draft buffer
@@ -540,7 +550,7 @@ Each page uses the API surfaces listed in [`ROUTE-MAP.md`](ROUTE-MAP.md). Cross-
 - Mock data must be obviously synthetic and contain no real contact data, credentials, tokens, resident identifiers, or raw Zalo links copied from production.
 - Do not mock Zalo profile existence or delivery because the product has no such contract.
 
-See [`mock-data/README.md`](mock-data/README.md).
+See [`../../frontend/mock-data/README.md`](../../frontend/mock-data/README.md).
 
 ## 19. Frontend Testing Expectations
 
@@ -554,7 +564,7 @@ See [`mock-data/README.md`](mock-data/README.md).
 - Assistant proposal provenance and replacement review
 - Submission idempotency-key derivation against contract fixtures
 - Role navigation and administrator-route absence
-- Responsive table/card data parity
+- Desktop table/detail data parity
 
 ### Integration tests with mock API
 
@@ -571,7 +581,7 @@ See [`mock-data/README.md`](mock-data/README.md).
 
 ### End-to-end and accessibility tests
 
-- Core workflows at 360, 768, 1024, and 1280 CSS px
+- Core workflows at 1024, 1280, and 1440 CSS px at 100% browser zoom
 - Keyboard-only completion of registration, resident ticket submission, manager terminal action, and notification send
 - Automated accessibility scans plus manual screen-reader and focus verification
 - 200% zoom and 400%/320 CSS px equivalent reflow
@@ -598,9 +608,10 @@ The Developer may choose, within the approved architecture and this specificatio
 - Component-library and form-library implementation details
 - Query/cache library and generated API-client tooling
 - Folder/module naming below the approved route and feature boundaries
-- Exact responsive navigation component
+- Exact desktop navigation component
 - Exact inline-versus-drawer treatment where both are allowed and accessibility is preserved
-- Icon set, skeleton styling, and restrained transition timings
+- Icon library and CSS implementation technique within the canonical icon/touch-target rules
+- Skeleton implementation and exact timings within the canonical motion tokens
 - Mock HTTP tooling and test runner integrations
 - Internal state-machine representation and idempotency-key utility structure
 
@@ -608,6 +619,6 @@ The Developer may not change routes, actor scope, backend contracts, draft seman
 
 ## 22. Readiness
 
-The approved page inventory and behavior are implementation-ready for public, resident, and manager frontend stories, subject to normal story-level acceptance criteria and backend integration dependencies already documented by architecture.
+The approved page inventory, interaction behavior, two-theme visual system, component contracts, motion system, state coverage, mock scenarios, and accessibility requirements are implementation-ready for public, resident, and manager frontend stories. Use [`README.md`](README.md) as the Developer handoff and implementation sequence.
 
 Administrator frontend work remains intentionally deferred. No administrator API or product requirement is removed by this frontend deferral.

@@ -52,7 +52,7 @@ Required primary destinations:
 | Route | Page | Primary APIs | Page-owned behavior |
 |---|---|---|---|
 | `/resident/onboarding` | Onboarding | `GET /resident/onboarding`, `POST /resident/onboarding/{step_id}/complete` | Ordered progress, next action, allowed completion, building content links, and no document-upload affordance. |
-| `/resident/benefits` | Benefits | `GET /resident/benefits` | Applicable benefit list. Detail opens inline or in a responsive drawer without a required child route. |
+| `/resident/benefits` | Benefits | `GET /resident/benefits` | Applicable benefit list. Detail opens inline or in a desktop drawer without a required child route. |
 | `/resident/assistant` | Building assistant | `POST /resident/chat/messages`, `GET /resident/ticket-draft`, `POST /resident/ticket-draft/start`, `PATCH /resident/ticket-draft` when ticket assistance is active | Grounded Vietnamese answer, citations, unavailable-answer state, and bounded field proposals. Manual ticket entry remains available when the assistant fails. |
 | `/resident/tickets` | Ticket history | `GET /resident/tickets` | Cursor list of the resident's tickets. Preserves filters/scroll on detail return where practical. |
 | `/resident/tickets/new` | Ticket workspace | `GET /resident/ticket-draft`, `POST /resident/ticket-draft/start`, `PATCH /resident/ticket-draft`, `POST /resident/ticket-draft/replace`, `POST /resident/ticket-draft/discard`, `POST /resident/ticket-draft/submit`, `GET /resident/profile` | One server draft across manual and assistant entry. Direct resume, explicit-new replacement, review, conflict reconciliation, and submission all remain on this route. |
@@ -111,10 +111,10 @@ The dashboard must not render:
 |---|---|---|
 | Registration OTP | `/register` | Stepper stage |
 | Recovery OTP/password reset | `/recovery` | Stepper stages |
-| Benefit detail | `/resident/benefits` | Inline expansion or responsive drawer |
+| Benefit detail | `/resident/benefits` | Inline expansion or desktop drawer |
 | Assistant ticket proposal review | `/resident/assistant` | Inline review panel or accessible dialog |
 | Resume or replace active draft | `/resident/tickets/new` | Accessible confirmation dialog |
-| Draft field conflict review | `/resident/tickets/new` | Mobile-friendly comparison panel/dialog |
+| Draft field conflict review | `/resident/tickets/new` | Desktop per-field comparison panel/dialog |
 | Ticket review before submit | `/resident/tickets/new` | Page mode/section |
 | Contact verification | Resident or Manager Profile | Dialog/stepper tied to profile page |
 | Password change | Resident or Manager Profile | Dialog/section tied to profile page |
@@ -122,7 +122,7 @@ The dashboard must not render:
 | Manager onboarding detail | `/manager/onboarding` | Inline expansion/drawer if DTO supports it |
 | Terminal ticket confirmation | Manager ticket detail | Dialog; Denied includes explanation validation |
 | Zalo fallback | Manager ticket detail | Dialog recommending Notify without a delivery claim |
-| Ticket-specific Notify | Manager ticket detail | Responsive composer drawer/dialog with preview step |
+| Ticket-specific Notify | Manager ticket detail | Desktop composer drawer/dialog with preview step |
 | Generic notification preview | `/manager/notifications` | Composer review state |
 | Scope-lost result | Current Manager route | Cache purge followed by safe-route message |
 

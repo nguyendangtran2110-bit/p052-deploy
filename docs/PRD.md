@@ -542,9 +542,9 @@ The product requires persistent records for:
 
 Relevant surfaces include visible loading, empty, unavailable, validation-error, permission-denied, and retry states. Status cannot rely on color alone. Important outcomes remain visible on the page or in history; toasts are supplemental.
 
-### Responsive and Accessibility Baseline
+### Desktop UX and Accessibility Baseline
 
-WCAG 2.2 AA is required. Resident-facing flows are mobile-first. Manager-facing flows are desktop-first but remain responsive and usable on smaller screens. Core workflows support 360 CSS px and above, with responsive breakpoints at 768, 1024, and 1280 CSS px. Keyboard operation, meaningful labels, visible focus, accessible dialogs, reflow, and screen-reader-readable status changes are required.
+WCAG 2.2 AA is required. Resident-facing and manager-facing flows are desktop-first. The minimum product-supported viewport is 1024 CSS px at 100% browser zoom, with layout targets at 1024, 1280, and 1440 CSS px and above. Mobile and tablet-specific navigation, compact layouts, touch or virtual-keyboard optimization, and product acceptance testing below 1024 CSS px at 100% zoom are out of scope. Keyboard operation, meaningful labels, visible focus, accessible dialogs, screen-reader-readable status changes, 200% zoom, and WCAG reflow at 320 CSS px equivalent content width remain required desktop accessibility behavior; reflow compliance does not create a mobile-support commitment.
 
 ---
 
@@ -628,7 +628,7 @@ Before targets are approved, the team must define denominators, measurement wind
 - Ticket history uses immutable submitted resident/location snapshots and current manager scope.
 - Resident/manager username and registry ID are immutable; resident location and manager assignments are administrator/registry controlled.
 - Zalo validation is local and rule-based only; no profile-existence or ownership request occurs in MVP.
-- WCAG 2.2 AA, resident mobile-first behavior, manager desktop-first responsive behavior, and the documented breakpoints are approved.
+- WCAG 2.2 AA and desktop-first resident and manager behavior are approved. The supported product viewport begins at 1024 CSS px at 100% zoom; mobile and tablet UX/UI are explicitly outside MVP scope, while WCAG zoom and reflow remain required accessibility behavior on desktop.
 
 ### Approved Deferred Post-MVP Items
 

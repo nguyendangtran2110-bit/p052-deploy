@@ -19,6 +19,20 @@ This document makes required visible states testable. Stable machine codes and a
 
 Toasts may supplement these states but cannot be their only representation.
 
+## Theme State Matrix
+
+| State | Required UX | Persistence / recovery | Accessibility and motion |
+|---|---|---|---|
+| First visit, no hint | Resolve `prefers-color-scheme`; fall back to Light | No account assumption | Apply before first paint where feasible; no announcement needed |
+| Signed-out explicit switch | Apply Light or Dark immediately | Store only a non-sensitive device hint | Control names current and target theme; preserve focus/scroll |
+| Authenticated profile loaded | Backend profile preference wins | Mirror resolved preference as pre-paint hint | If reconciliation changes theme, use one `motion.standard` token transition or instant under reduced motion |
+| Authenticated switch saving | Apply selected theme without blocking the current task; show quiet saving state only if latency is visible | Persist through the approved profile theme field | Do not disable unrelated controls or replay route motion |
+| Preference save failed | Keep the locally selected appearance for the current device/session and state that cross-device preference was not saved | Retry through the normal profile mutation; do not claim durable persistence | Durable inline/Toast feedback; no theme rollback flash unless product logic requires it |
+| Unsupported/corrupt hint | Ignore it and resolve device preference, then Light | Replace with a valid hint after explicit selection | No error surface unless profile contract itself fails |
+| Reduced motion | Same visual theme result | Same persistence | Token swap is immediate or opacity-only <=80ms; no radial wipe, spring, stagger, or layout motion |
+
+Every component state in this matrix must be visually complete in Light and Dark. Theme switching must not reset page, form, draft, dialog, selection, loading, or conflict state.
+
 ## Authentication State Matrix
 
 | Flow | State | Required UX |
@@ -146,7 +160,7 @@ Unchanged fields should not create unnecessary choices. The submitted reconcilia
 | Page | Loading | Empty | Error/unavailable | Success/current state | Special states |
 |---|---|---|---|---|---|
 | Work home | Shell/cards skeleton | No scope grants or no recent items | Individual section unavailable without collapsing all navigation | Work-area links and supported recent items | Partial cursor data must be labeled honestly |
-| Residents | Responsive-list skeleton | No scoped residents | Registry/scope dependency unavailable | Scoped cursor list | No filter matches; `scope_changed` |
+| Residents | Resident-list skeleton | No scoped residents | Registry/scope dependency unavailable | Scoped cursor list | No filter matches; `scope_changed` |
 | Onboarding | Progress-list skeleton | No scoped residents/progress | Progress or registry unavailable | Scoped progress rows | Incomplete/blocked; no manual reminder action |
 | Ticket queue | Ticket-list skeleton | No scoped tickets | Queue/scope unavailable | Side-effect-free cursor list | No filter matches; scope changed |
 | Ticket detail | Detail skeleton while open command runs | Not applicable | Protected not-found/scope lost | Current authorized detail | Open transitioned, already current, open conflict, terminal conflict, Zalo fallback, Notify preview stale |

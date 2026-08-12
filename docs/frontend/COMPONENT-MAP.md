@@ -8,7 +8,7 @@ This document defines reusable frontend boundaries. It does not prescribe a comp
 2. Shared visual components do not call feature APIs directly.
 3. Feature controllers own queries, mutations, idempotency keys, optimistic versions, and invalidation.
 4. Draft fields have one feature state owner per active `draft_id` generation.
-5. Responsive variants preserve the same data, actions, labels, and accessibility semantics.
+5. Desktop layout and WCAG zoom/reflow variants preserve the same data, actions, labels, and accessibility semantics.
 6. Server-returned localized messages are treated as user-safe display content but not as executable markup.
 
 ## Application Foundation
@@ -19,7 +19,7 @@ This document defines reusable frontend boundaries. It does not prescribe a comp
 | `SessionProvider` | `/auth/me`, principal, role, account ID, session epoch, scope version, logout/cache purge coordination | Backend authorization or locally invented scope |
 | `QueryCacheBoundary` | Account-keyed and scope-keyed cache namespaces, purge on logout/account/scope change | Persistent draft fields or sensitive browser storage |
 | `LocalizationProvider` | Vietnamese default strings, formatting, locale-aware dates/numbers, document language | Business rules embedded in translations |
-| `ThemeProvider` | Supported theme selection and semantic tokens | Contrast exceptions or feature-specific raw colors |
+| `ThemeProvider` | Light/Dark semantic tokens, device-default resolution, non-sensitive pre-paint hint, authenticated profile reconciliation, reduced-motion-aware switch transition | Identity/session data in the hint, contrast exceptions, or feature-specific raw colors |
 | `ErrorBoundary` | Unexpected rendering failure with request/support context and safe recovery | Raw stack traces in production UI |
 
 ## Route Shells and Navigation
@@ -27,8 +27,8 @@ This document defines reusable frontend boundaries. It does not prescribe a comp
 | Component group | Responsibilities |
 |---|---|
 | `PublicShell` | Public page landmark structure and auth-flow navigation |
-| `ResidentShell` | Mobile-first resident navigation, New ticket intent, protected content boundary |
-| `ManagerShell` | Responsive manager navigation, scope-change boundary, compact navigation behavior |
+| `ResidentShell` | Desktop-first resident navigation, New ticket intent, protected content boundary |
+| `ManagerShell` | Desktop-first manager navigation and scope-change boundary |
 | `PrimaryNavigation` | Renders destinations supplied for the confirmed role; supports keyboard and current-page state |
 | `SkipLink` | Moves focus to the main content landmark |
 | `PageHeader` | Page title, description, contextual actions, breadcrumbs/back action where needed |
@@ -37,6 +37,8 @@ This document defines reusable frontend boundaries. It does not prescribe a comp
 The MVP contains no `AdminShell`, administrator navigation, or administrator route components.
 
 ## Shared Feedback and Overlay Components
+
+Visual primitives `PageContainer`, `Section`, `Stack`, `Grid`, `Divider`, `Card`, `Button`, `IconButton`, `Input`, `Textarea`, `Checkbox`, `Radio`, `Switch`, `Badge`, and `StatusIndicator` follow `design/COMPONENT-SYSTEM.md`. They own presentation and native interaction semantics only; feature controllers remain the state/API owners below.
 
 | Component | Responsibilities | Required behavior |
 |---|---|---|
@@ -49,7 +51,7 @@ The MVP contains no `AdminShell`, administrator navigation, or administrator rou
 | `LiveStatus` | Coalesced polite/assertive announcements | Avoid repeated autosave noise |
 | `Dialog` | Accessible modal behavior | Label, description, focus trap, Escape policy, focus return |
 | `ConfirmationDialog` | Confirm destructive/terminal/replace actions | Safe cancel receives initial focus |
-| `ResponsiveDrawer` | Complex supporting flow on compact layouts | Preserves dialog/region semantics and keyboard behavior |
+| `DesktopDrawer` | Complex supporting flow in a desktop side panel | Preserves dialog/region semantics and keyboard behavior |
 | `ToastRegion` | Supplemental transient feedback | Never sole location of important results |
 
 ## Form Components
@@ -58,7 +60,7 @@ The MVP contains no `AdminShell`, administrator navigation, or administrator rou
 |---|---|
 | `FormField` | Label, control, help, required indicator, error association |
 | `PasswordField` | Password entry and optional reveal control with accessible state |
-| `OtpInput` | Code entry without forcing one-character focus traps; paste and mobile keyboard support |
+| `OtpInput` | Code entry without forcing one-character focus traps; paste and accessible input semantics |
 | `SelectField` | Native or accessible custom selection with full keyboard operation |
 | `TextAreaField` | Length guidance and validation without destructive trimming while typing |
 | `SubmitButton` | Pending state and duplicate-click protection as UX only |
@@ -66,6 +68,8 @@ The MVP contains no `AdminShell`, administrator navigation, or administrator rou
 | `ContactChangeFlow` | Current-password step, new contact entry, challenge state, OTP verification |
 | `PasswordChangeFlow` | Current/new password submission and other-session revocation notice |
 | `ThemeControl` | Supported account preference without violating contrast requirements |
+
+`DesktopDrawer` is the implementation-boundary name for the visual `Drawer` primitive in `design/COMPONENT-SYSTEM.md`. It may reflow inline or full-width at desktop zoom; `Sheet` is a deferred phone/tablet adaptation, not a separate MVP state owner.
 
 ## Authentication Components
 
@@ -146,7 +150,7 @@ Only `TicketWorkspaceProvider` may coordinate draft query data, unsaved buffers,
 | `WorkAreaCard` | Destination, description, and supported recent-state hint without invented metrics |
 | `ScopeSummary` | Read-only building/floor assignments and no-scope state |
 | `ScopedFilterPanel` | Allowlisted building/floor/unit/state/urgency filters |
-| `ResponsiveDataList` | Table presentation on desktop and data-equivalent cards/rows on compact screens |
+| `DesktopDataList` | Desktop table or master-detail presentation with complete data and actions |
 | `ResidentDirectoryRow` | Privacy-safe resident summary only |
 | `OnboardingResidentRow` | Privacy-safe identity/location and progress summary |
 | `ManagerTicketQueue` | Side-effect-free cursor list and navigation observations |
@@ -170,21 +174,21 @@ Only `TicketWorkspaceProvider` may coordinate draft query data, unsaved buffers,
 | Dialog/drawer/open state | Owning page/component | Memory only |
 | Notification preview token | Composer controller | Memory only |
 | Form field input outside draft | Owning form | Memory only unless backend accepted |
-| Theme preference | Backend profile plus theme provider | Backend; memory/cache |
+| Theme preference | Backend profile plus `ThemeProvider` | Backend profile; non-sensitive Light/Dark pre-paint hint only in cookie/local storage; memory/cache |
 
-## Responsive Component Contracts
+## Desktop Component Contracts
 
-- `ResponsiveDataList` must prove data/action parity between table and card variants.
-- `ResponsiveDrawer` may become an inline side panel on desktop without changing state ownership.
-- Ticket draft conflict fields stack on compact screens and compare side by side only when space supports it.
-- Manager ticket detail is a stacked route on mobile, not a squeezed desktop split pane.
-- Sticky navigation or actions must not cover focused controls, error summaries, or on-screen keyboards.
+- `DesktopDataList` must prove data/action completeness across supported desktop widths and WCAG zoom/reflow states.
+- `DesktopDrawer` may become an inline side panel without changing state ownership.
+- Ticket draft conflict fields use a per-field comparison and may compare side by side when space supports it.
+- Manager ticket detail may use a desktop split pane or a dedicated detail route.
+- Sticky navigation or actions must not cover focused controls or error summaries.
 
 ## Component Testing Expectations
 
 - Keyboard and focus behavior for every shared overlay.
 - Accessible names and state announcements for status and async feedback.
-- Data parity snapshots for responsive table/card representations.
+- Data-completeness snapshots for desktop table/detail representations.
 - No API calls from shared presentational components.
 - No persistent browser storage of draft fields.
 - No administrator components or navigation in the MVP route tree.

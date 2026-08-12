@@ -5,11 +5,12 @@ WCAG 2.2 AA is a release requirement for all public, resident, and manager front
 ## Coverage
 
 - Public authentication and recovery
-- Resident mobile-first flows
-- Manager desktop-first and compact/mobile flows
-- Shared dialogs, drawers, forms, navigation, status, tables/cards, and async feedback
+- Resident desktop-first flows
+- Manager desktop-first flows
+- Shared dialogs, drawers, forms, navigation, status, tables/master-detail views, and async feedback
 - Vietnamese default content
-- Viewports from 360 CSS px upward plus 320 CSS px equivalent reflow at 400% zoom
+- Light and Dark themes, including every interactive and semantic state
+- Product-supported desktop viewports from 1024 CSS px upward at 100% browser zoom, plus 320 CSS px equivalent reflow at 400% desktop zoom
 
 Administrator frontend accessibility is outside MVP scope because administrator pages are deferred.
 
@@ -20,7 +21,7 @@ Administrator frontend accessibility is outside MVP scope because administrator 
 - Use one descriptive `h1` per page and a logical heading hierarchy.
 - Identify multiple navigation landmarks with distinct accessible names.
 - Use lists for navigation, notification collections, timelines, and step lists where their relationship is meaningful.
-- Use tables only for tabular relationships. Compact card variants must preserve equivalent labels and reading order.
+- Use tables only for tabular relationships. Any alternate desktop detail presentation preserves equivalent labels and reading order.
 - Do not use clickable generic containers when a link or button is appropriate.
 
 ## Language and Vietnamese Content
@@ -42,7 +43,7 @@ Administrator frontend accessibility is outside MVP scope because administrator 
 - Enter submits only the intended form and must not bypass review or confirmation steps.
 - Space activates buttons and selection controls according to native behavior.
 - Sticky controls do not obscure the focused element.
-- Focus is never placed inside content hidden by responsive layout.
+- Focus is never placed inside content hidden by collapsed or conditional layout.
 
 ## Focus Management Matrix
 
@@ -76,7 +77,7 @@ Administrator frontend accessibility is outside MVP scope because administrator 
 - Place the safe cancel action first in focus order for destructive, replacement, and terminal confirmation.
 - Return focus to the invoking control if it still exists and remains authorized.
 - If the trigger was removed because state or scope changed, move focus to the nearest safe page heading/status.
-- A responsive full-screen sheet retains dialog semantics when it represents a modal flow.
+- A desktop drawer or constrained modal retains dialog semantics when it represents a modal flow.
 - Nested dialogs should be avoided. Transition from one flow to the next rather than stacking modal focus traps.
 
 ## Forms and Errors
@@ -89,7 +90,7 @@ Administrator frontend accessibility is outside MVP scope because administrator 
 - Do not move focus for low-level validation on blur unless the user explicitly requests validation.
 - Preserve entered values after recoverable errors.
 - Password reveal controls announce their state and do not change the input's accessible name unexpectedly.
-- OTP entry supports paste, deletion, mobile numeric keyboard where appropriate, and screen-reader navigation without one-character auto-focus traps.
+- OTP entry supports paste, deletion, appropriate input semantics, and screen-reader navigation without one-character auto-focus traps.
 
 ## Status and Live Regions
 
@@ -123,46 +124,61 @@ Use separate live regions or controlled sequencing so simultaneous query and mut
 - Do not implement white text on the current light Signal Teal token where it fails contrast. Use a tested dark text pairing or an approved adjusted action token.
 - Disabled controls remain legible and are not used as the only explanation for unavailable actions.
 
+### Two-theme contrast contract
+
+- Light and Dark are independently designed and independently tested. Passing Light does not imply Dark passes, and vice versa.
+- Test actual semantic pairings from `design/DESIGN.md`: canvas/surface/elevated text, muted text, links, control boundaries, focus, selected, disabled, loading, destructive, status tints, urgency, alerts, overlays, and skeletons.
+- Primary, secondary, accent, success, warning, danger, and info foreground pairings use their documented `on-*` foregrounds; do not assume white text is valid on every chromatic token.
+- Theme switching preserves state labels, non-color markers, focus visibility, and current/invalid/selected semantics. No component may retain a hardcoded prior-theme value.
+- Forced-colors/high-contrast mode preserves native control semantics, focus outlines, current navigation, invalid state, and selected state without relying on background fills.
+- Decorative gradients and washes are ignored for contrast calculation; essential content must pass against the underlying solid surface.
+
 ## Motion and Timing
 
 - Respect `prefers-reduced-motion`.
 - No task requires animation to understand a state change.
+- Use only the shared duration/easing tokens in `design/DESIGN.md`; broad use of micro-interaction does not permit arbitrary component timings.
+- Under reduced motion, remove page/section/card transforms, stagger, spring, shimmer, attention pulse, theme crossfade, and assistant thinking cycles. Use immediate changes or opacity-only fades no longer than 80 ms.
+- Route, dialog, drawer, validation, status, skeleton-to-content, notification-read, ticket-lifecycle, and assistant motion must not delay the next available action or focus placement.
+- Protected-data purge, logout/account switch, scope loss, authorization redirect, focus movement, and Zalo external navigation are not animated.
 - Avoid auto-advancing content.
 - Loading placeholders do not use high-frequency shimmer that causes distraction.
 - OTP expiry and resend timing remain readable without requiring rapid action; server timing remains authoritative.
 - Toasts do not disappear before important content is available elsewhere.
 
-## Touch and Pointer
+## Pointer and Target Size
 
-- Core targets meet the WCAG 2.2 target-size requirement or an allowed spacing/inline exception.
+- Ordinary standalone controls and primary actions use a minimum 44 x 44 CSS px target.
+- Dense Manager icon/row controls may use 36 x 36 CSS px only when the actual target remains at least 24 x 24, adjacent targets have sufficient spacing, the control has an accessible name, and an equivalent text-labeled action is available where ambiguity would remain.
+- Inline links and native text controls may use the WCAG 2.2 spacing/inline exceptions; do not shrink essential icon-only actions below the documented minimum.
 - Do not require hover to expose primary actions or essential information.
 - Pointer cancellation and confirmation protect terminal, replacement, and send actions.
 - Dragging is not required for reordering or completing any MVP task.
 - External Zalo opening is initiated only by an explicit user action.
 
-## Responsive and Zoom Requirements
+## Desktop Viewport and Zoom Requirements
 
-### 360 CSS px product viewport
+### 1024 CSS px minimum product viewport
 
-- No horizontal scrolling for core workflows.
-- Navigation, forms, draft editor, conflict comparison, ticket actions, audience controls, and confirmations remain usable.
-- Manager tables convert to data-equivalent cards/rows.
-- Composer and complex dialogs may use full-screen sheets.
+- Resident and Manager core workflows remain usable at 100% browser zoom.
+- Navigation, forms, draft editor, conflict comparison, ticket actions, audience controls, and confirmations remain operable by keyboard and pointer.
+- Manager tables or master-detail layouts expose all required data and actions.
+- Mobile and tablet-specific layouts are not part of the accessibility acceptance scope.
 
 ### 320 CSS px equivalent at 400% zoom
 
 - Content reflows into one column except where a two-dimensional data relationship is essential and an accessible alternative is provided.
 - No action or status is clipped, overlapped, or hidden.
-- Sticky navigation/actions do not consume most of the available viewport.
-- Focused controls remain visible above virtual keyboards where the browser permits.
+- Sticky navigation/actions do not consume most of the available content area.
+- Focused controls remain visible as desktop browser zoom changes the available content area.
 
 ### Text spacing
 
 Pages remain functional when users override line height, paragraph spacing, letter spacing, and word spacing to WCAG test values.
 
-## Responsive Data Parity
+## Desktop Data Availability
 
-For each Manager table/card pair, tests must confirm identical access to:
+For each Manager table/detail or master-detail presentation, tests must confirm access to:
 
 - Resident display name and building/floor/room summary where approved
 - Onboarding progress/status fields
@@ -170,7 +186,7 @@ For each Manager table/card pair, tests must confirm identical access to:
 - Row/detail action
 - Pagination and active filters
 
-No field may disappear solely because the viewport is narrow.
+Required fields and actions remain available throughout the supported desktop range and WCAG zoom/reflow states.
 
 ## Screen Reader Scenarios
 
@@ -192,12 +208,14 @@ Use representative current versions of NVDA with Firefox or Chrome and VoiceOver
 ## Automated Accessibility Checks
 
 - Run an automated accessibility scanner on every page and significant page state.
-- Include dialog-open, validation-error, conflict, empty, compact-card, and preview states.
+- Include dialog-open, validation-error, conflict, empty, desktop table/detail, and preview states.
 - Test keyboard focus order and focus return with component/integration tests.
 - Test accessible names for icon buttons and status controls.
 - Test landmark and heading uniqueness.
 - Test color tokens in every supported theme.
 - Test reduced-motion behavior.
+- Test theme switching while focus is inside a dialog, a dirty form, a draft conflict, a loading region, and a Manager data surface.
+- Test the pre-paint theme bootstrap for no flash-of-wrong-theme where the selected implementation makes that feasible.
 
 ## Accessibility Acceptance Checklist
 
@@ -207,6 +225,6 @@ Use representative current versions of NVDA with Firefox or Chrome and VoiceOver
 - All dialogs trap and return focus safely.
 - All important async outcomes are announced and remain visibly available.
 - All state and urgency information has a non-color representation.
-- Resident and Manager core tasks work at 360 px and 400% zoom reflow.
+- Resident and Manager core tasks work at 1024 CSS px and above at 100% zoom, plus required 400% desktop zoom reflow.
 - Vietnamese core copy and announcements are present.
 - Administrator pages are not included in MVP accessibility scope.

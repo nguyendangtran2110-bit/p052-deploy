@@ -79,6 +79,6 @@ AGENTS*
 .pytest_cache
 
 PRODUCT.md
-DESIGN.md
+docs/frontend
 
 .memlog.md

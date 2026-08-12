@@ -2,7 +2,7 @@
 
 **Reviewer:** Sally, UX Designer  
 **Review scope:** MVP architecture documents and ADRs, with emphasis on architecture-sensitive flows and frontend/backend seams.  
-**Verdict:** **BLOCKED for implementation stories that touch ticket mutation, ticket submission, notification contact, session recovery, or administrator provisioning.** The responsive and accessibility baseline is directionally strong, but several contracts still allow two compliant implementations to produce different user-visible behavior.
+**Verdict:** **BLOCKED for implementation stories that touch ticket mutation, ticket submission, notification contact, session recovery, or administrator provisioning.** The desktop-layout and accessibility baseline is directionally strong, but several contracts still allow two compliant implementations to produce different user-visible behavior.
 
 ## Findings
 
@@ -52,11 +52,11 @@ Registration collects both phone and email but accepts “at least one” regist
 
 **Required clarification:** return a masked, server-selected verification destination; preserve or reject the non-matching contact by explicit rule; specify resend, wrong-code, expired-code, and already-claimed flows in the UX/API contract.
 
-#### UX-008 - Responsive and accessibility requirements need testable interaction details
+#### UX-008 - Desktop layout and accessibility requirements need testable interaction details
 
-The baseline is approved (WCAG 2.2 AA, 360px support, resident mobile-first, manager desktop-first), but the architecture leaves several implementation seams: confirmation dialogs show English examples despite Vietnamese-first UX; automatic `Resolving` on detail open needs a non-disruptive status announcement; compact manager cards must expose all queue fields and actions; and the 400% zoom/320px reflow statement is not mapped to concrete component tests ([frontend-architecture.md](../frontend-architecture.md), Responsive Contract and Accessibility Contract).
+The baseline is approved (WCAG 2.2 AA, resident and manager desktop-first, 1024 CSS px minimum product viewport), but the architecture leaves several implementation seams: confirmation dialogs show English examples despite Vietnamese-first UX; automatic `Resolving` on detail open needs a non-disruptive status announcement; desktop manager tables/details must expose all required queue fields and actions; and the 400% zoom/320px reflow statement is not mapped to concrete component tests ([frontend-architecture.md](../frontend-architecture.md), Desktop Layout Contract and Accessibility Contract).
 
-**Required clarification:** add a UX accessibility matrix covering localized dialog/error copy, focus return after `Resolved`/`Denied` and Zalo fallback dialogs, live-region announcements for open/conflict/status changes, keyboard/touch operation of responsive queue cards, and viewport/zoom test cases. Define an administrator responsive baseline or explicitly exclude admin UI from the MVP web shell.
+**Required clarification:** add a UX accessibility matrix covering localized dialog/error copy, focus return after `Resolved`/`Denied` and Zalo fallback dialogs, live-region announcements for open/conflict/status changes, keyboard/pointer operation of desktop queue tables/details, and desktop viewport/zoom test cases. Administrator UI remains explicitly excluded from the MVP web shell.
 
 #### UX-009 - Read/unread notification state has no complete interaction contract
 
@@ -79,6 +79,6 @@ Only a mark-read endpoint is specified ([api-contracts.md](../api-contracts.md),
 2. Session expiry, same-account re-login, different-account login, and workspace-clearing flow.
 3. `Notify` prepare/preview/send flow with audience-change and scope-revocation states.
 4. Administrator account provisioning and first-login activation flow.
-5. Responsive manager queue/detail behavior at 360/768/1024/1280px and 400% zoom.
+5. Desktop manager queue/detail behavior at 1024/1280/1440px and required 400% zoom/reflow.
 6. Vietnamese accessibility copy and live-announcement matrix for dialogs, status changes, validation, and errors.
 
