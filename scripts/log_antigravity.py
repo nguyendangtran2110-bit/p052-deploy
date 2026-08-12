@@ -274,8 +274,35 @@ def iter_user_inputs(brain_dirs: list[Path], cutoff: datetime | None,
 # Emitting entries
 # ---------------------------------------------------------------------------
 
+_ABS_PATH_RE = re.compile(
+    r"(?:[A-Za-z]:\\|/home/\w+/|/Users/\w+/|file:///[A-Za-z]:)[^\s\)\]\"'`>]*",
+    re.IGNORECASE,
+)
+
+
+def _sanitize_paths(text: str, repo_root: str = "") -> str:
+    """Strip absolute local paths from text, replacing with relative equivalents."""
+    def _replace(m: re.Match) -> str:
+        raw = m.group(0)
+        # Strip file:/// scheme and optional drive letter  (file:///C: or C:\)
+        clean = re.sub(r"^file:///[A-Za-z]:", "", raw, flags=re.IGNORECASE)
+        clean = clean.replace("\\", "/")
+        # Strip leading drive letter that remains (e.g. "C:/Users/...")
+        clean = re.sub(r"^[A-Za-z]:/", "", clean)
+        clean = clean.lstrip("/")
+        # If repo_root is known, strip everything up to and including the repo dir
+        if repo_root:
+            # Normalise repo_root the same way: drop drive letter, forward slashes
+            repo_norm = re.sub(r"^[A-Za-z][:/\\]+", "", repo_root.replace("\\", "/")).strip("/")
+            if clean.lower().startswith(repo_norm.lower()):
+                clean = clean[len(repo_norm):].lstrip("/")
+        return clean or raw
+    return _ABS_PATH_RE.sub(_replace, text)
+
+
+
 def build_entry(msg: dict, repo: str, branch: str, commit: str,
-                student: str) -> dict:
+                student: str, repo_root: str = "") -> dict:
     ts = msg["timestamp"]
     if ts.endswith("Z"):
         try:
@@ -286,6 +313,11 @@ def build_entry(msg: dict, repo: str, branch: str, commit: str,
             )
         except ValueError:
             pass
+
+    raw_response = msg.get("response") or msg["text"]
+    response_summary = _sanitize_paths(
+        f"[Antigravity] {raw_response[:500]}", repo_root
+    )
 
     return {
         "ts": ts or datetime.now(VN_TZ).isoformat(),
@@ -299,8 +331,9 @@ def build_entry(msg: dict, repo: str, branch: str, commit: str,
         "commit": commit,
         "student": student,
         "prompt": msg["text"],
-        "response_summary": f"[Antigravity] {msg['response'][:500]}" if msg.get("response") else f"[Antigravity] {msg['text'][:500]}",
+        "response_summary": response_summary,
     }
+
 
 
 def main() -> None:
@@ -357,7 +390,7 @@ def main() -> None:
     new_entries: list[dict] = []
     for msg in iter_user_inputs(brain_dirs, cutoff, args.conv_id, repo_root_n):
         entry = build_entry(msg, repo or Path.cwd().name, branch, commit,
-                            student)
+                            student, repo_root_n)
         if entry["entry_id"] in logged_ids:
             continue
         new_entries.append(entry)

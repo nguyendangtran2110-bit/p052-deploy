@@ -17,7 +17,9 @@ from scripts.ingest_handbook import (
     MIN_NODE_WORDS,
     evaluate_ocr_quality,
     run_audit_scan,
+    extract_page_tables_as_markdown,
 )
+
 
 
 # ---------------------------------------------------------------------------
@@ -292,5 +294,48 @@ class TestAuditCLI:
         assert "Audit Scan Summary" in captured.out
         assert "Page 2" in captured.out
         assert "HIGH_SYMBOL_NOISE" in captured.out
+
+
+class TestMultiTenantIngestion:
+    @patch("scripts.ingest_handbook.fitz")
+    def test_load_pdf_hybrid_includes_building_id(self, mock_fitz, tmp_path: Path):
+        mock_doc = MagicMock()
+        mock_fitz.open.return_value = mock_doc
+        mock_doc.__len__.return_value = 1
+
+        mock_page = MagicMock()
+        mock_doc.__getitem__.return_value = mock_page
+        mock_page.get_text.return_value = "Word " * (MIN_PDF_PAGE_WORDS + 10)
+
+        pdf_path = tmp_path / "custom_building.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 sample content")
+
+        mock_settings = MagicMock()
+        docs = load_pdf_document_hybrid(pdf_path, mock_settings, building_id="vinhomes_central")
+
+        assert len(docs) == 1
+        assert docs[0].metadata["building_id"] == "vinhomes_central"
+
+
+class TestComplexTableParsing:
+    def test_extract_page_tables_no_tables(self):
+        mock_page = MagicMock()
+        mock_page.find_tables.return_value.tables = []
+        md_text, count = extract_page_tables_as_markdown(mock_page)
+        assert md_text == ""
+        assert count == 0
+
+    def test_extract_page_tables_with_table(self):
+        mock_page = MagicMock()
+        mock_table = MagicMock()
+        mock_table.to_markdown.return_value = "| Vehicle | Monthly Fee |\n|---|---|\n| Car | 1,200,000 |"
+        mock_page.find_tables.return_value.tables = [mock_table]
+
+        md_text, count = extract_page_tables_as_markdown(mock_page)
+        assert count == 1
+        assert "| Vehicle | Monthly Fee |" in md_text
+        assert "| Car | 1,200,000 |" in md_text
+
+
 
 

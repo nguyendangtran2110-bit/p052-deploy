@@ -20,7 +20,7 @@ _SAFE_OPERATORS = {
 
 
 @tool
-def search_knowledge(query: str) -> str:
+def search_knowledge(query: str, building_id: str | None = None) -> str:
     """Search the resident handbook for rules, policies, and building guidelines.
 
     Use this tool whenever a resident asks about:
@@ -32,11 +32,13 @@ def search_knowledge(query: str) -> str:
 
     Args:
         query: The resident's question in any language.
+        building_id: Optional building ID filter for multi-tenant isolation.
 
     Returns:
         A grounded answer drawn from the official resident handbook.
     """
-    return query_handbook(query)
+    return query_handbook(query, building_id=building_id)
+
 
 
 @tool

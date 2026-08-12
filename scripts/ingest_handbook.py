@@ -37,6 +37,7 @@ from dotenv import load_dotenv  # noqa: E402
 load_dotenv(ROOT / ".env")
 
 from src.config import get_settings  # noqa: E402
+from src.services.rag import get_chroma_client  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # LlamaIndex & Third-Party imports
@@ -138,9 +139,10 @@ def export_pdf_to_markdown(documents: list[Document], source_filepath: Path, out
     for doc in documents:
         page_num = doc.metadata.get("page_number", 1)
         is_ocr = doc.metadata.get("is_ocr", False)
-        flags = doc.metadata.get("warning_flags", [])
+        flags_raw = doc.metadata.get("warning_flags", "")
+        flags_str = ",".join(flags_raw) if isinstance(flags_raw, list) else str(flags_raw or "")
         ocr_tag = " (Qwen OCR)" if is_ocr else ""
-        audit_tag = f" [AUDIT_REQUIRED: {', '.join(flags)}]" if flags else ""
+        audit_tag = f" [AUDIT_REQUIRED: {flags_str}]" if flags_str else ""
 
         md_lines.append(f"<!-- Page {page_num}{ocr_tag}{audit_tag} -->")
         md_lines.append(doc.text or "")
@@ -150,6 +152,7 @@ def export_pdf_to_markdown(documents: list[Document], source_filepath: Path, out
     out_path.write_text(content, encoding="utf-8")
     print(f"[ingest] Exported Markdown document: {out_path}")
     return out_path
+
 
 
 
@@ -220,57 +223,108 @@ def ocr_pdf_page_with_qwen(image_data_uri: str, settings) -> str:
         return ""
 
 
-def load_pdf_document_hybrid(filepath: Path, settings) -> list[Document]:
+
+def extract_page_tables_as_markdown(page) -> tuple[str, int]:
+
+    """
+    Detect PDF grid tables on a page using PyMuPDF (fitz) find_tables().
+    Returns (markdown_tables_text, table_count).
+    """
+    if not hasattr(page, "find_tables"):
+        return "", 0
+
+    try:
+        tabs = page.find_tables()
+        if not tabs or not tabs.tables:
+            return "", 0
+
+        md_tables = []
+        for tab in tabs.tables:
+            md_str = tab.to_markdown()
+            if md_str and md_str.strip():
+                md_tables.append(md_str.strip())
+
+        if md_tables:
+            return "\n\n".join(md_tables), len(md_tables)
+    except Exception as e:
+        print(f"[ingest] WARNING: Table extraction failed on page: {e}")
+
+    return "", 0
+
+
+def load_pdf_document_hybrid(filepath: Path, settings, building_id: str = "phu_dong_sky_garden") -> list[Document]:
+
     """
     Hybrid PDF Loader:
     1. Extracts native text per page using PyMuPDF (fitz).
-    2. If a page has < MIN_PDF_PAGE_WORDS, triggers Qwen Vision OCR fallback.
+    2. Detects complex PDF tables and converts them to structured Markdown tables.
+    3. If a page has < MIN_PDF_PAGE_WORDS, triggers Qwen Vision OCR fallback.
     """
     if not fitz:
         print(f"[ingest] WARNING: PyMuPDF (fitz) not installed. Falling back to default LlamaIndex loader for {filepath.name}.")
         reader = SimpleDirectoryReader(input_files=[str(filepath)])
-        return reader.load_data()
+        docs = reader.load_data()
+        for d in docs:
+            d.metadata["building_id"] = building_id
+            d.metadata["has_tables"] = False
+            d.metadata["table_count"] = 0
+        return docs
 
     doc_hash = compute_file_hash(filepath)
     pdf_doc = fitz.open(filepath)
     documents = []
 
-    for page_idx in range(len(pdf_doc)):
-        page = pdf_doc[page_idx]
-        native_text = page.get_text("text").strip()
-        word_count = len(native_text.split())
+    try:
+        for page_idx in range(len(pdf_doc)):
+            page = pdf_doc[page_idx]
+            native_text = page.get_text("text").strip()
+            word_count = len(native_text.split())
 
-        is_ocr = False
-        final_text = native_text
+            is_ocr = False
+            final_text = native_text
 
-        if word_count < MIN_PDF_PAGE_WORDS:
-            print(f"[ingest] Page {page_idx + 1}/{len(pdf_doc)} of '{filepath.name}' has low native text ({word_count} words). Triggering Qwen Vision OCR...")
-            img_b64 = render_pdf_page_to_base64(page)
-            ocr_text = ocr_pdf_page_with_qwen(img_b64, settings)
-            if ocr_text.strip():
-                final_text = ocr_text.strip()
-                is_ocr = True
-            else:
-                print(f"[ingest] Page {page_idx + 1} OCR returned empty response, keeping native text fallback.")
+            table_md, table_count = extract_page_tables_as_markdown(page)
+            has_tables = table_count > 0
 
-        ocr_eval = evaluate_ocr_quality(final_text)
-        doc_obj = Document(
-            text=final_text,
-            metadata={
-                "source_file": filepath.name,
-                "file_path": str(filepath),
-                "page_number": page_idx + 1,
-                "is_ocr": is_ocr,
-                "ocr_confidence": ocr_eval["confidence_score"],
-                "warning_flags": ocr_eval["warning_flags"],
-                "needs_human_audit": not ocr_eval["is_passed"],
-                "version": "1.0",
-                "document_hash": doc_hash,
-            },
-        )
-        documents.append(doc_obj)
+            if word_count < MIN_PDF_PAGE_WORDS:
+                print(f"[ingest] Page {page_idx + 1}/{len(pdf_doc)} of '{filepath.name}' has low native text ({word_count} words). Triggering Qwen Vision OCR...")
+                img_b64 = render_pdf_page_to_base64(page)
+                ocr_text = ocr_pdf_page_with_qwen(img_b64, settings)
+                if ocr_text.strip():
+                    final_text = ocr_text.strip()
+                    is_ocr = True
+                else:
+                    print(f"[ingest] Page {page_idx + 1} OCR returned empty response, keeping native text fallback.")
 
-    pdf_doc.close()
+            if has_tables and not is_ocr:
+                final_text = f"{final_text}\n\n### Document Tables\n\n{table_md}".strip()
+                print(f"[ingest] Page {page_idx + 1}/{len(pdf_doc)} of '{filepath.name}': Detected {table_count} table(s) -> Converted to Markdown table.")
+
+            ocr_eval = evaluate_ocr_quality(final_text)
+            flags_list = ocr_eval["warning_flags"]
+            warning_flags_str = ",".join(flags_list) if isinstance(flags_list, list) else str(flags_list or "")
+            doc_obj = Document(
+                text=final_text,
+                metadata={
+                    "source_file": filepath.name,
+                    "file_path": str(filepath),
+                    "page_number": page_idx + 1,
+                    "building_id": building_id,
+                    "is_ocr": is_ocr,
+                    "has_tables": has_tables,
+                    "table_count": table_count,
+                    "ocr_confidence": ocr_eval["confidence_score"],
+                    "warning_flags": warning_flags_str,
+                    "needs_human_audit": not ocr_eval["is_passed"],
+                    "version": "1.0",
+                    "document_hash": doc_hash,
+                },
+            )
+
+            documents.append(doc_obj)
+    finally:
+        pdf_doc.close()
+
     return documents
 
 
@@ -298,7 +352,6 @@ def discover_target_files(file_path: str = None, dir_path: str = None) -> list[P
         search_dirs.append(Path(dir_path).resolve())
     else:
         search_dirs.append(ROOT / "data" / "raw")
-        search_dirs.append(ROOT / "data" / "processed")
         search_dirs.append(ROOT / "data")
 
     discovered = set()
@@ -306,11 +359,12 @@ def discover_target_files(file_path: str = None, dir_path: str = None) -> list[P
         if sdir.exists() and sdir.is_dir():
             for p in sdir.rglob("*"):
                 if p.is_file() and p.suffix.lower() in valid_exts and not p.name.startswith("."):
-                    # Exclude files inside chroma vector store directory
-                    if "chroma" not in p.parts:
+                    # Exclude files inside chroma vector store directory or intermediate processed export dir when scanning default
+                    if "chroma" not in p.parts and "processed" not in p.parts:
                         discovered.add(p.resolve())
 
     return sorted(list(discovered), key=lambda x: x.name)
+
 
 
 def run_audit_scan(processed_dir: Path = PROCESSED_DATA_DIR) -> int:
@@ -351,6 +405,7 @@ def run_ingestion(
     export_md: bool = True,
     export_only: bool = False,
     audit: bool = False,
+    building_id: str = "phu_dong_sky_garden",
 ) -> None:
     if audit:
         run_audit_scan(PROCESSED_DATA_DIR)
@@ -364,6 +419,7 @@ def run_ingestion(
     print(f"[ingest] Discovered   : {len(all_raw_files)} document(s)")
     for f in all_raw_files:
         print(f"           - {f.relative_to(ROOT) if f.is_relative_to(ROOT) else f}")
+    print(f"[ingest] Building ID  : {building_id}")
     print(f"[ingest] Vector store : {persist_dir}")
     print(f"[ingest] Collection   : {COLLECTION_NAME}")
     print(f"[ingest] Export MD    : {export_md}")
@@ -379,8 +435,9 @@ def run_ingestion(
     # ------------------------------------------------------------------
     # 1. Connect to ChromaDB & check existing indexed files / hashes
     # ------------------------------------------------------------------
-    Path(persist_dir).mkdir(parents=True, exist_ok=True)
-    db = chromadb.PersistentClient(path=persist_dir)
+    if not settings.chroma_server_host:
+        Path(persist_dir).mkdir(parents=True, exist_ok=True)
+    db = get_chroma_client(settings, persist_dir)
 
     existing_collections = [c.name for c in db.list_collections()]
     if force_rebuild and COLLECTION_NAME in existing_collections:
@@ -431,7 +488,7 @@ def run_ingestion(
     raw_documents = []
     for filepath in files_to_process:
         if filepath.suffix.lower() == ".pdf":
-            pdf_docs = load_pdf_document_hybrid(filepath, settings)
+            pdf_docs = load_pdf_document_hybrid(filepath, settings, building_id=building_id)
             if export_md and pdf_docs:
                 export_pdf_to_markdown(pdf_docs, filepath)
             raw_documents.extend(pdf_docs)
@@ -441,9 +498,11 @@ def run_ingestion(
             doc_hash = compute_file_hash(filepath)
             for d in file_docs:
                 d.metadata["source_file"] = filepath.name
+                d.metadata["building_id"] = building_id
                 d.metadata["version"] = "1.0"
                 d.metadata["document_hash"] = doc_hash
             raw_documents.extend(file_docs)
+
 
     print(f"[ingest] Loaded {len(raw_documents)} raw document page(s)/file(s) for processing.")
 
@@ -460,12 +519,15 @@ def run_ingestion(
     nodes = []
     if md_docs:
         md_parser = MarkdownNodeParser()
-        md_nodes = md_parser.get_nodes_from_documents(md_docs)
+        raw_md_nodes = md_parser.get_nodes_from_documents(md_docs)
+        sentence_splitter = SentenceSplitter(chunk_size=512, chunk_overlap=64)
+        md_nodes = sentence_splitter.get_nodes_from_documents(raw_md_nodes)
         for node in md_nodes:
             if node.metadata.get("Header 1"):
                 node.metadata["section_title"] = node.metadata.get("Header 2") or node.metadata.get("Header 1", "")
         nodes.extend(md_nodes)
         print(f"[ingest] Markdown / OCR nodes parsed: {len(md_nodes)}")
+
 
     if other_docs:
         sentence_parser = SentenceSplitter(chunk_size=512, chunk_overlap=64)
@@ -567,6 +629,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Scan data/processed/ for documents with low-confidence OCR flags requiring human review.",
     )
+    parser.add_argument(
+        "--building-id", "-b",
+        type=str,
+        default="phu_dong_sky_garden",
+        help="Specify the building ID tag for multi-tenant isolation (default: 'phu_dong_sky_garden').",
+    )
     args = parser.parse_args()
     run_ingestion(
         dry_run=args.dry_run,
@@ -576,7 +644,9 @@ if __name__ == "__main__":
         export_md=args.export_md,
         export_only=args.export_only,
         audit=args.audit,
+        building_id=args.building_id,
     )
+
 
 
 

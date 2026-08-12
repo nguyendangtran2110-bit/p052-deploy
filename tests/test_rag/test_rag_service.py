@@ -104,3 +104,56 @@ class TestQueryHandbookErrorHandling:
 
         assert isinstance(result, str)
         assert "RuntimeError" in result or "contact" in result.lower()
+
+
+# ---------------------------------------------------------------------------
+# Dual-Mode: PersistentClient vs HttpClient Selection
+# ---------------------------------------------------------------------------
+
+class TestChromaDualMode:
+    @patch("chromadb.PersistentClient")
+    def test_get_chroma_client_persistent_mode(self, mock_persistent, tmp_path: Path):
+        """When chroma_server_host is empty, get_chroma_client instantiates PersistentClient."""
+        from src.services.rag import get_chroma_client
+        mock_settings = MagicMock()
+        mock_settings.chroma_server_host = ""
+        persist_dir = str(tmp_path / "chroma_local")
+
+        client = get_chroma_client(mock_settings, persist_dir)
+        mock_persistent.assert_called_once_with(path=persist_dir)
+
+    @patch("chromadb.HttpClient")
+    def test_get_chroma_client_http_mode(self, mock_http):
+        """When chroma_server_host is set, get_chroma_client instantiates HttpClient."""
+        from src.services.rag import get_chroma_client
+        mock_settings = MagicMock()
+        mock_settings.chroma_server_host = "chromadb"
+        mock_settings.chroma_server_port = 8000
+        mock_settings.chroma_server_ssl = False
+
+        client = get_chroma_client(mock_settings, "./data/chroma")
+        mock_http.assert_called_once_with(host="chromadb", port=8000, ssl=False)
+
+
+# ---------------------------------------------------------------------------
+# Multi-Tenant Metadata Filtering
+# ---------------------------------------------------------------------------
+
+class TestMultiTenantRetrieval:
+    @patch("src.services.rag._build_query_engine")
+    def test_query_handbook_passes_building_id(self, mock_build_engine, tmp_path: Path):
+        persist_dir = str(tmp_path / "chroma_mt")
+        Path(persist_dir).mkdir()
+
+        mock_engine = MagicMock()
+        mock_build_engine.return_value = mock_engine
+        mock_engine.query.return_value = "Filtered building answer"
+
+        with patch("src.services.rag._get_persist_dir", return_value=persist_dir):
+            from src.services import rag
+            res = rag.query_handbook("Parking fee?", building_id="vinhomes_central")
+
+        mock_build_engine.assert_called_once_with(persist_dir, building_id="vinhomes_central")
+        assert res == "Filtered building answer"
+
+

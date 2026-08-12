@@ -27,7 +27,7 @@ class TestSearchKnowledgeTool:
             from src.agents.tools.example_tool import search_knowledge
             result = search_knowledge.invoke({"query": "parking rules"})
 
-        mock_qh.assert_called_once_with("parking rules")
+        mock_qh.assert_called_once_with("parking rules", building_id=None)
         assert result == "Mocked answer"
 
     def test_tool_passes_query_string_through(self):
@@ -37,7 +37,8 @@ class TestSearchKnowledgeTool:
             from src.agents.tools.example_tool import search_knowledge
             search_knowledge.invoke({"query": question})
 
-        mock_qh.assert_called_once_with(question)
+        mock_qh.assert_called_once_with(question, building_id=None)
+
 
     def test_tool_returns_string(self):
         with patch("src.agents.tools.example_tool.query_handbook", return_value="Electricity deposit is VND 500,000."):
@@ -46,3 +47,12 @@ class TestSearchKnowledgeTool:
 
         assert isinstance(result, str)
         assert "500,000" in result
+
+    def test_tool_passes_building_id(self):
+        with patch("src.agents.tools.example_tool.query_handbook", return_value="Building specific answer") as mock_qh:
+            from src.agents.tools.example_tool import search_knowledge
+            res = search_knowledge.invoke({"query": "pool hours", "building_id": "vinhomes_central"})
+
+        mock_qh.assert_called_once_with("pool hours", building_id="vinhomes_central")
+        assert res == "Building specific answer"
+

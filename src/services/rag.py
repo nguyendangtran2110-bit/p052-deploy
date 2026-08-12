@@ -31,20 +31,31 @@ def _get_persist_dir() -> str:
     return get_settings().chroma_persist_dir
 
 
-@lru_cache(maxsize=1)
-def _build_query_engine(persist_dir: str):
+def get_chroma_client(settings, persist_dir: str):
     """
-    Build and cache the LlamaIndex QueryEngine.
-
-    lru_cache(maxsize=1) means the engine is created once per process,
-    which avoids re-opening ChromaDB on every query.
-    The cache key is persist_dir, so changing the path in config produces
-    a new engine automatically.
+    Instantiate a ChromaDB client in Dual-Mode:
+    - Mode 1 (HttpClient): Active when settings.chroma_server_host is set (Docker / Production).
+    - Mode 2 (PersistentClient): Active for local offline development & unit testing.
     """
     import chromadb
+
+    if getattr(settings, "chroma_server_host", ""):
+        return chromadb.HttpClient(
+            host=settings.chroma_server_host,
+            port=getattr(settings, "chroma_server_port", 8000),
+            ssl=getattr(settings, "chroma_server_ssl", False),
+        )
+    return chromadb.PersistentClient(path=persist_dir)
+
+
+@lru_cache(maxsize=1)
+def _get_vector_index(persist_dir: str):
+    """
+    Build and cache the LlamaIndex VectorStoreIndex.
+    cached per process to avoid re-opening ChromaDB connections.
+    """
     from llama_index.core import VectorStoreIndex
     from llama_index.embeddings.openai import OpenAIEmbedding
-    from llama_index.llms.openai import OpenAI as LlamaIndexOpenAI
     from llama_index.vector_stores.chroma import ChromaVectorStore
 
     from src.config import get_settings
@@ -59,6 +70,26 @@ def _build_query_engine(persist_dir: str):
         api_base=base_url,
         embed_batch_size=10,
     )
+
+    db = get_chroma_client(settings, persist_dir)
+    chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
+    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+    return VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
+
+
+def _build_query_engine(persist_dir: str, building_id: str | None = None):
+    """
+    Build LlamaIndex QueryEngine with optional multi-tenant MetadataFilter.
+    """
+    from llama_index.core.vector_stores import ExactMatchFilter, MetadataFilters
+    from llama_index.llms.openai import OpenAI as LlamaIndexOpenAI
+
+    from src.config import get_settings
+    settings = get_settings()
+
+    api_key = settings.qwen_api_key or settings.openai_api_key
+    base_url = settings.qwen_api_base or settings.openai_api_base
+
     llm = LlamaIndexOpenAI(
         model=settings.model_name,
         api_key=api_key,
@@ -66,43 +97,46 @@ def _build_query_engine(persist_dir: str):
         temperature=settings.llm_temperature,
     )
 
-    db = chromadb.PersistentClient(path=persist_dir)
-    chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
-    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-    index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
+    index = _get_vector_index(persist_dir)
+
+    filters = None
+    if building_id:
+        filters = MetadataFilters(filters=[ExactMatchFilter(key="building_id", value=building_id)])
 
     return index.as_query_engine(
         llm=llm,
         similarity_top_k=3,
-        # Return source nodes so callers can surface citations.
+        filters=filters,
         response_mode="compact",
     )
 
 
-def query_handbook(query: str) -> str:
+def query_handbook(query: str, building_id: str | None = None) -> str:
     """
     Query the resident handbook knowledge base.
 
     Returns a grounded answer drawn from the indexed handbook sections.
-    If the vector store has not been built yet, returns a safe degradation
-    message instead of raising an exception.
+    If building_id is provided, filters retrieval strictly to that building.
 
     Args:
-        query: The question to answer (in any language; model handles translation).
+        query: The question to answer.
+        building_id: Optional tenant isolation filter (e.g. 'phu_dong_sky_garden').
 
     Returns:
         A plain-text answer with source context, or a degradation message.
     """
+    from src.config import get_settings
+    settings = get_settings()
     persist_dir = _get_persist_dir()
 
-    if not Path(persist_dir).exists():
+    if not settings.chroma_server_host and not Path(persist_dir).exists():
         return (
             "The resident handbook knowledge base is not available yet. "
             "Please ask a management staff member for assistance."
         )
 
     try:
-        engine = _build_query_engine(persist_dir)
+        engine = _build_query_engine(persist_dir, building_id=building_id)
         response = engine.query(query)
         return str(response)
     except Exception as exc:  # pragma: no cover — surface runtime errors safely
@@ -110,3 +144,5 @@ def query_handbook(query: str) -> str:
             f"Could not retrieve an answer from the handbook at this time "
             f"({type(exc).__name__}). Please contact the management office."
         )
+
+

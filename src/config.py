@@ -34,6 +34,9 @@ class Settings(BaseSettings):
 
     # Vector Store
     chroma_persist_dir: str = "./data/chroma"
+    chroma_server_host: str = ""
+    chroma_server_port: int = Field(default=8000, ge=1, le=65535)
+    chroma_server_ssl: bool = False
 
 
 @lru_cache
