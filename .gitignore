@@ -83,9 +83,24 @@ _bmad*
 AGENTS*
 .impeccable
 
+# The Python agent package is source code, not an ignored agent cache.
+!src/agents/
+!src/agents/**
+src/agents/**/__pycache__/
+src/agents/**/*.pyc
+
 .pytest_cache
 
 PRODUCT.md
 docs/frontend
 
 .memlog.md
+
+# Spec files not required in the backend build
+frontend_spec.md
+frontend_error_spec.md
+frontend_backend_connect_spec.md
+ai_chat_actions_spec.md
+ai_chat_agent_spec.md
+ai_chat_backend_spec.md
+ai_chat_frontend_spec.md

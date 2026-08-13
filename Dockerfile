@@ -11,7 +11,6 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
-
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 
@@ -33,6 +32,9 @@ RUN groupadd --gid 1000 appuser \
     appuser \
     && mkdir -p /app/data \
     && chown appuser:appuser /app/data
+# Copy Python packages đã cài từ builder sang stage-1
+
+# Copy các file thực thi (như alembic, uvicorn, gunicorn, v.v.)
 
 COPY --from=builder /opt/venv /opt/venv
 COPY --chown=appuser:appuser . .

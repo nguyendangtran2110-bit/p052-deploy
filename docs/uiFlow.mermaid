@@ -1,0 +1,43 @@
+graph TD
+    Landing["<b>Landing</b><br/>Boomerang product entry"]
+    Onboarding["<b>Onboarding tab</b><br/>Step-by-step checklist + chatbot"]
+    Chat["<b>In-app resident chat</b><br/>Handbook Q&A + ticket intake"]
+    Summary["<b>Agent context</b><br/>Relevant handbook and ticket context"]
+    Detect["<b>Rule-based detection</b><br/>nước · điện · cháy · nứt · hỏng"]
+    Prompt["<b>Create ticket prompt</b><br/>Resident confirms"]
+    Ticket["<b>Tickets tab</b><br/>Resident / Management role"]
+    TicketList["<b>Resident ticket list</b><br/>Open one ticket"]
+    Verify["<b>Resident verify</b><br/>Prefilled fields + submit"]
+    Thread["<b>Ticket conversation</b><br/>One thread per ticket"]
+    Queue["<b>Management queue</b><br/>Review classification + priority"]
+    HITL["<b>HITL approval</b><br/>Approve / reject"]
+    Status["<b>Ticket status</b><br/>Submitted → Approved → In progress → Resolved"]
+
+    Landing --> Onboarding
+    Landing --> Chat
+    Landing --> Ticket
+    Onboarding --> Ticket
+    Chat --> Summary
+    Chat --> Detect
+    Detect --> Prompt
+    Prompt -->|Có| Ticket
+    Prompt -->|Để sau| Chat
+    Ticket --> TicketList
+    TicketList --> Thread
+    Ticket --> Verify
+    Ticket --> Queue
+    Verify --> Queue
+    Verify --> Thread
+    Queue --> HITL
+    HITL --> Status
+    Status --> Thread
+    Thread --> Summary
+
+    classDef marketing fill:#F7F5F0,stroke:#D1D5DB,stroke-width:1px,color:#2D3748;
+    class Landing marketing;
+    classDef resident fill:#E6F6F4,stroke:#A3E4D7,stroke-width:1px,color:#166534;
+    class Onboarding,Chat,TicketList,Verify,Thread resident;
+    classDef agent fill:#F4F3F3,stroke:#D1D5DB,stroke-width:1px,color:#374151;
+    class Summary,Detect,Prompt agent;
+    classDef management fill:#FDF2F0,stroke:#FADBD8,stroke-width:1px,color:#991B1B;
+    class Ticket,Queue,HITL,Status management;

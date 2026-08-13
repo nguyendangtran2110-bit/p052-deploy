@@ -1,7 +1,18 @@
+"""Legacy router kept for callers of the original API module."""
+
 from fastapi import APIRouter, HTTPException
 
 from src.agents.graph import agent
-from src.models.schemas import ChatRequest, ChatResponse, DemoChatRequest, DraftRequest, ManagerActionRequest, SubmitDraftRequest, TicketUpdateRequest
+from src.backend.api.router import api_router
+from src.models.schemas import (
+    ChatRequest,
+    ChatResponse,
+    DemoChatRequest,
+    DraftRequest,
+    ManagerActionRequest,
+    SubmitDraftRequest,
+    TicketUpdateRequest,
+)
 from src.services.mvp import mvp_service
 
 router = APIRouter()
@@ -96,3 +107,4 @@ async def contact_ticket_resident(ticket_id: str, request: ManagerActionRequest)
         return mvp_service.contact_resident(ticket_id, request.actor_role)
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
+__all__ = ["router", "api_router"]

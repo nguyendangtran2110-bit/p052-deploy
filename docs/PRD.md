@@ -15,6 +15,11 @@
 This document is the authoritative MVP product specification. Where `docs/Brief.md` or `PRODUCT.md` conflicts with this PRD, this PRD supersedes them. Approved post-MVP deferrals are listed in Section 10 and do not block MVP architecture or implementation planning.
 
 ## 1. Product Definition
+### Executive Summary
+
+- **Target user & use case**: New homeowners/residents right after unit handover, who need step-by-step onboarding guidance, answers about amenities/regulations, and a way to report and track defects; property management staff who must review and approve every commitment or ticket before it is created.
+- **Key differentiator & value proposition**: Unlike scattered manual processes (phone calls, paper checklists, separate channels), OnBxrD combines a stateful onboarding checklist (LangGraph), source-grounded Q&A (RAG over the resident handbook), and structured defect-ticket escalation — all gated by mandatory human approval (HITL) so management retains authority and accountability.
+- **Success definition & metrics**: Success means residents complete onboarding faster, defect requests are triaged and resolved accurately, and management spends less time on repetitive questions. Primary KPI: % of residents completing the onboarding checklist within the target window (initial target: 80% within 7 days of handover).
 
 ### Product Vision
 
@@ -655,6 +660,14 @@ These deferrals do not block MVP architecture or implementation planning. Implem
 - **Stale building information:** outdated sources could produce incorrect guidance. Mitigate with accountable source owners, versioning, and explicit refusal when approved information is unavailable.
 - **Incorrect benefit eligibility:** residents could see benefits they cannot use. Mitigate with building-scoped eligibility rules and the approved benefit-governance process.
 - **Unbounded administrator access:** support privileges could expose resident data. Mitigate with explicit capabilities, least privilege, and audited elevation.
+
+---
+### Demo UI Surface
+
+- **Landing**: Boomerang positioning and direct links into the working surfaces. Booking, purchasing, and unrelated conversion actions are intentionally excluded from the demo.
+- **Onboarding**: A resident checklist with step-by-step agent guidance, grounded answers with source references, and a resident context summary.
+- **In-app chat**: A resident conversation inside the OnBxrD app for handbook Q&A and maintenance issue intake. The agent detects ticket intent, collects the structured fields, and asks for confirmation before creating a ticket.
+- **Ticket**: A resident ticket workspace with a dedicated one-to-one conversation. The resident reviews the structured request before submission, then sees status events and follow-up messages in the same ticket thread.
 
 ---
 
