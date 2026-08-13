@@ -1,3 +1,4 @@
+from src.backend.infrastructure.db.models.ai_workflows import AIWorkflow, AIWorkflowAction
 from src.backend.infrastructure.db.models.announcements import (
     Announcement,
     AnnouncementEvent,
@@ -21,6 +22,8 @@ __all__ = [
     "AnnouncementEvent",
     "AnnouncementRead",
     "AnnouncementScope",
+    "AIWorkflow",
+    "AIWorkflowAction",
     "Conversation",
     "EmailVerificationToken",
     "KnowledgeChunk",

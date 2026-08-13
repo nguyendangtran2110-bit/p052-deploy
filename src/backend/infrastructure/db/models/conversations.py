@@ -14,6 +14,7 @@ from src.backend.domain.conversations.enums import (
 from src.backend.infrastructure.db.base import Base, TimestampMixin, UuidPrimaryKeyMixin, utc_now
 
 if TYPE_CHECKING:
+    from src.backend.infrastructure.db.models.ai_workflows import AIWorkflow
     from src.backend.infrastructure.db.models.residents import Resident, Unit
     from src.backend.infrastructure.db.models.tickets import Ticket, TicketAttachment
 
@@ -25,6 +26,14 @@ class Conversation(UuidPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint(
             "handoff_status IN ('bot_active', 'waiting_management', 'management_active')",
             name="ck_conversation_handoff_status",
+        ),
+        CheckConstraint(
+            "conversation_type IN ('resident_support', 'manager_assistant')",
+            name="ck_conversation_type",
+        ),
+        CheckConstraint(
+            "workflow_type IS NULL OR workflow_type IN ('resident_ticket', 'manager_announcement')",
+            name="ck_conversation_workflow_type",
         ),
     )
 
@@ -40,6 +49,11 @@ class Conversation(UuidPrimaryKeyMixin, TimestampMixin, Base):
     assigned_manager_id: Mapped[str | None] = mapped_column(String(100), index=True)
     conversation_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_message_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    conversation_type: Mapped[str] = mapped_column(
+        String(30), default="resident_support", nullable=False, index=True
+    )
+    workflow_type: Mapped[str | None] = mapped_column(String(40), index=True)
+    workflow_id: Mapped[str | None] = mapped_column(String(36), index=True)
 
     resident: Mapped[Resident | None] = relationship(back_populates="conversations")
     unit: Mapped[Unit | None] = relationship(back_populates="conversations")
@@ -47,6 +61,9 @@ class Conversation(UuidPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="conversation", cascade="all, delete-orphan", order_by="Message.created_at"
     )
     ticket: Mapped[Ticket | None] = relationship(back_populates="conversation", uselist=False)
+    ai_workflow: Mapped[AIWorkflow | None] = relationship(
+        back_populates="conversation", uselist=False, cascade="all, delete-orphan"
+    )
 
 
 class Message(UuidPrimaryKeyMixin, Base):
@@ -65,6 +82,11 @@ class Message(UuidPrimaryKeyMixin, Base):
     intent: Mapped[str | None] = mapped_column(String(100))
     citations: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     action_payload: Mapped[dict | None] = mapped_column(JSON)
+    workflow_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("ai_workflows.id", ondelete="SET NULL"), index=True
+    )
+    workflow_state: Mapped[str | None] = mapped_column(String(40))
+    workflow_version: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     conversation: Mapped[Conversation] = relationship(back_populates="messages")

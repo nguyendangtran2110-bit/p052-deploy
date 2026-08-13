@@ -95,6 +95,9 @@ def build_message_event(
         "intent": message.intent,
         "citations": message.citations,
         "action_payload": message.action_payload,
+        "workflow_id": message.workflow_id,
+        "workflow_state": message.workflow_state,
+        "workflow_version": message.workflow_version,
         "attachment_ids": list(attachment_ids)
             if attachment_ids is not None
             else [attachment.id for attachment in message.__dict__.get("attachments", [])],

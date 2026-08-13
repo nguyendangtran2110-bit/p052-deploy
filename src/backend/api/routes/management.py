@@ -95,6 +95,9 @@ def _conversation_message_response(conversation, message, attachment_ids=None) -
         attachment_ids=resolved_attachment_ids,
         created_at=message.created_at,
         conversation_version=conversation.conversation_version,
+        workflow_id=message.workflow_id,
+        workflow_state=message.workflow_state,
+        workflow_version=message.workflow_version,
     )
 
 

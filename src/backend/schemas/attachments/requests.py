@@ -9,9 +9,11 @@ class AttachmentPresignRequest(BaseModel):
     size_bytes: int = Field(gt=0)
     ticket_id: UUID | None = None
     announcement_id: UUID | None = None
+    workflow_id: UUID | None = None
 
     @model_validator(mode="after")
     def validate_parent(self) -> "AttachmentPresignRequest":
-        if self.ticket_id is not None and self.announcement_id is not None:
-            raise ValueError("Attachment cannot be linked to both a ticket and an announcement")
+        parents = [value for value in (self.ticket_id, self.announcement_id, self.workflow_id) if value is not None]
+        if len(parents) > 1:
+            raise ValueError("Attachment cannot be linked to more than one parent")
         return self

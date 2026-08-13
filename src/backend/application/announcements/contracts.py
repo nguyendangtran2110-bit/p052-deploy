@@ -25,6 +25,7 @@ class CreateAnnouncementCommand:
     expires_at: datetime | None
     scopes: tuple[AnnouncementScopeCommand, ...] = ()
     attachment_ids: tuple[str, ...] = ()
+    action_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

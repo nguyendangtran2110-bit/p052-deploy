@@ -19,7 +19,7 @@ from src.backend.domain.common.errors import (
 )
 from src.backend.domain.identity.enums import ActorRole, ManagementRole
 from src.backend.infrastructure.db.base import utc_now
-from src.backend.infrastructure.db.models import Announcement, Message, Ticket, TicketAttachment
+from src.backend.infrastructure.db.models import AIWorkflow, Announcement, Message, Ticket, TicketAttachment
 from src.backend.infrastructure.storage import S3Storage
 
 
@@ -37,6 +37,7 @@ class AttachmentService:
         size_bytes: int,
         ticket_id: str | None,
         announcement_id: str | None = None,
+        workflow_id: str | None = None,
         actor: ActorContext,
     ) -> tuple[TicketAttachment, str]:
         self._require_authenticated(actor)
@@ -50,8 +51,9 @@ class AttachmentService:
 
         normalized_ticket_id = str(ticket_id) if ticket_id else None
         normalized_announcement_id = str(announcement_id) if announcement_id else None
-        if normalized_ticket_id and normalized_announcement_id:
-            raise ValidationError("Attachment cannot be linked to both a ticket and an announcement")
+        normalized_workflow_id = str(workflow_id) if workflow_id else None
+        if sum(value is not None for value in (normalized_ticket_id, normalized_announcement_id, normalized_workflow_id)) > 1:
+            raise ValidationError("Attachment cannot be linked to more than one parent")
         if normalized_ticket_id:
             ticket = await self.session.get(Ticket, normalized_ticket_id)
             if ticket is None:
@@ -62,6 +64,11 @@ class AttachmentService:
             if announcement is None:
                 raise NotFoundError("Announcement was not found")
             self._authorize_announcement(announcement, actor)
+        if normalized_workflow_id:
+            workflow = await self.session.get(AIWorkflow, normalized_workflow_id)
+            if workflow is None:
+                raise NotFoundError("AI workflow was not found")
+            self._authorize_workflow(workflow, actor)
 
         uploader_id = actor.actor_id or actor.resident_id
         if not uploader_id:
@@ -74,6 +81,7 @@ class AttachmentService:
             uploader_id=uploader_id,
             ticket_id=normalized_ticket_id,
             announcement_id=normalized_announcement_id,
+            workflow_id=normalized_workflow_id,
             filename=safe_filename,
             storage_path=object_key,
             mime_type=normalized_mime,
@@ -112,6 +120,7 @@ class AttachmentService:
             if attachment.announcement_id is not None:
                 raise ConflictError("Attachment is already linked to an announcement")
             attachment.ticket_id = ticket_id
+            attachment.workflow_id = None
 
     async def attach_to_announcement(
         self,
@@ -132,9 +141,33 @@ class AttachmentService:
             await self._authorize_attachment(attachment, actor)
             if attachment.announcement_id not in {None, announcement_id}:
                 raise ConflictError("Attachment is already linked to another announcement")
-            if attachment.ticket_id is not None or attachment.message_id is not None:
-                raise ConflictError("Attachment is already linked to another ticket or message")
+            if attachment.ticket_id is not None:
+                raise ConflictError("Attachment is already linked to another ticket")
             attachment.announcement_id = announcement_id
+            attachment.workflow_id = None
+
+    async def bind_to_workflow(
+        self,
+        attachment_ids: list[str] | tuple[str, ...],
+        workflow_id: str,
+        actor: ActorContext,
+    ) -> None:
+        if not attachment_ids:
+            return
+        workflow = await self.session.get(AIWorkflow, workflow_id)
+        if workflow is None:
+            raise NotFoundError("AI workflow was not found")
+        self._authorize_workflow(workflow, actor)
+        attachments = await self._get_many(attachment_ids)
+        if len(attachments) != len(set(attachment_ids)):
+            raise NotFoundError("One or more attachments were not found")
+        for attachment in attachments:
+            self._authorize_workflow_attachment(attachment, workflow, actor)
+            if attachment.workflow_id not in {None, workflow_id}:
+                raise ConflictError("Attachment is already linked to another workflow")
+            if attachment.ticket_id is not None or attachment.announcement_id is not None:
+                raise ConflictError("Attachment is already linked to a ticket or announcement")
+            attachment.workflow_id = workflow_id
 
     async def attach_to_message(
         self,
@@ -188,7 +221,30 @@ class AttachmentService:
             )
             if await self.session.scalar(statement) is not None:
                 return
+        if attachment.workflow_id:
+            workflow = await self.session.get(AIWorkflow, attachment.workflow_id)
+            if workflow:
+                self._authorize_workflow(workflow, actor)
+                return
         raise AuthorizationError("Actor cannot access this attachment")
+
+    @staticmethod
+    def _authorize_workflow(workflow: AIWorkflow, actor: ActorContext) -> None:
+        if actor.is_management and workflow.owner_actor_id == actor.actor_id:
+            return
+        if actor.role is ActorRole.RESIDENT and workflow.owner_resident_id == actor.resident_id:
+            return
+        raise AuthorizationError("Actor cannot access this workflow attachment")
+
+    @staticmethod
+    def _authorize_workflow_attachment(attachment: TicketAttachment, workflow: AIWorkflow, actor: ActorContext) -> None:
+        if attachment.workflow_id == workflow.id:
+            return
+        if actor.role is ActorRole.RESIDENT and attachment.uploader_id in {actor.actor_id, actor.resident_id}:
+            return
+        if actor.is_management and attachment.uploader_id == actor.actor_id:
+            return
+        raise AuthorizationError("Attachment does not belong to this workflow")
 
     @staticmethod
     def _authorize_announcement(announcement: Announcement, actor: ActorContext) -> None:

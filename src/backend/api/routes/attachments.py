@@ -30,6 +30,7 @@ async def presign_attachment_upload(
         size_bytes=payload.size_bytes,
         ticket_id=str(payload.ticket_id) if payload.ticket_id else None,
         announcement_id=str(payload.announcement_id) if payload.announcement_id else None,
+        workflow_id=str(payload.workflow_id) if payload.workflow_id else None,
         actor=actor,
     )
     return AttachmentUploadResponse(

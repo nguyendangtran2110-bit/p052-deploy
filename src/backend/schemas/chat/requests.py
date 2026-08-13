@@ -9,5 +9,8 @@ class ChatMessageRequest(BaseModel):
     ticket_id: UUID | None = None
     unit_id: UUID | None = None
     confirm_action: bool = False
+    workflow_id: UUID | None = None
+    workflow_version: int | None = Field(default=None, ge=0)
+    confirmed_action_id: UUID | None = None
     idempotency_key: str | None = Field(default=None, min_length=1, max_length=100)
     attachment_ids: list[UUID] = Field(default_factory=list, max_length=10)

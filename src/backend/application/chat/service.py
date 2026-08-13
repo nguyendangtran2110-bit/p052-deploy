@@ -1,13 +1,17 @@
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.backend.application.ai_workflows.service import AIWorkflowService
 from src.backend.application.attachments.service import AttachmentService
 from src.backend.application.chat.contracts import AgentRuntime, ChatCommand, ChatOutcome
 from src.backend.application.conversations.service import ConversationService
+from src.backend.application.knowledge.search import KnowledgeSearchService
 from src.backend.application.realtime import build_message_event, publish_conversation_event, publish_message_payload
 from src.backend.application.tickets.contracts import CreateTicketCommand
 from src.backend.application.tickets.service import TicketService
+from src.backend.domain.ai_workflows.enums import AIWorkflowType
 from src.backend.domain.common.auth import ActorContext
 from src.backend.domain.common.errors import (
     AuthenticationError,
@@ -20,7 +24,7 @@ from src.backend.domain.conversations.enums import ConversationHandoffStatus, Me
 from src.backend.domain.identity.enums import ActorRole
 from src.backend.domain.tickets.enums import TicketPriority, TicketSource
 from src.backend.infrastructure.db.base import utc_now
-from src.backend.infrastructure.db.models import Conversation, Message
+from src.backend.infrastructure.db.models import AIWorkflow, Conversation, Message, Unit
 from src.backend.infrastructure.db.repositories import ConversationRepository, ResidentRepository
 
 HANDOFF_ACTION_TYPES = {"handoff_to_management", "escalate_to_management", "request_management"}
@@ -35,6 +39,8 @@ class ChatService:
         self.residents = ResidentRepository(session)
         self.ticket_service = TicketService(session)
         self.attachments = AttachmentService(session)
+        self.workflows = AIWorkflowService(session)
+        self.knowledge = KnowledgeSearchService(session)
 
     async def send(self, command: ChatCommand, actor: ActorContext) -> ChatOutcome:
         conversation = await self._get_or_create_conversation(command, actor)
@@ -106,12 +112,62 @@ class ChatService:
                 "location": ticket.location,
             }
 
+        workflow = await self._get_workflow_for_conversation(command, conversation, actor)
+        handbook_results = await self._handbook_results(command.message, conversation)
         result = await self.agent.ainvoke(
             {
                 "query": command.message,
+                "message": command.message,
+                "actor_role": actor.role.value,
+                "actor_id": actor.actor_id or actor.resident_id,
+                "resident_id": actor.resident_id,
                 "metadata": metadata,
+                "workflow_id": command.workflow_id,
+                "workflow_version": command.workflow_version,
+                "confirmed_action_id": command.confirmed_action_id,
+                "workflow_type": workflow.workflow_type if workflow else None,
+                "workflow_state": workflow.state if workflow else None,
+                "workflow_draft": workflow.draft if workflow else {},
+                "pending_action": workflow.pending_action if workflow else None,
+                "workflow_attachment_ids": workflow.attachment_ids if workflow else [],
+                "selected_unit_id": command.unit_id or conversation.unit_id,
+                "messages": metadata["messages"],
+                "handbook_results": handbook_results,
             }
         )
+        if self._is_resident_workflow_result(result, command, conversation, workflow):
+            outcome = await self.workflows.process_agent_result(
+                conversation=conversation,
+                workflow=workflow,
+                actor=actor,
+                workflow_type=AIWorkflowType.RESIDENT_TICKET,
+                command=command,
+                user_message=user_message,
+                result=result,
+            )
+            action = outcome.action
+            if (
+                action
+                and action.get("type") == "completed"
+                and command.workflow_id is None
+                and command.confirmed_action_id is None
+            ):
+                action = {"type": "ticket_created", **(action.get("payload") or {})}
+            return ChatOutcome(
+                conversation_id=outcome.conversation.id,
+                response=outcome.assistant_message.content,
+                citations=outcome.citations,
+                action=action,
+                ticket=outcome.ticket,
+                workflow_id=outcome.workflow.id,
+                workflow_type=outcome.workflow.workflow_type,
+                state=outcome.workflow.state,
+                workflow_version=outcome.workflow.version,
+                draft=outcome.workflow.draft or {},
+                missing_fields=outcome.workflow.missing_fields or [],
+                message=outcome.assistant_message,
+            )
+
         response = str(result.get("response") or "")
         citations = self._normalize_citations(result.get("citations"))
         action = self._normalize_action(result)
@@ -171,7 +227,72 @@ class ChatService:
             ticket=ticket,
         )
 
+    async def _handbook_results(self, message: str, conversation: Conversation) -> list[dict]:
+        unit = await self.session.get(Unit, conversation.unit_id) if conversation.unit_id else None
+        return await self.knowledge.search(
+            message,
+            project_code=unit.project_code if unit else None,
+            building=unit.building if unit else None,
+        )
+
+    async def _get_workflow_for_conversation(
+        self,
+        command: ChatCommand,
+        conversation: Conversation,
+        actor: ActorContext,
+    ) -> AIWorkflow | None:
+        if command.workflow_id:
+            workflow = await self.workflows.get_workflow(command.workflow_id, actor)
+            if workflow.conversation_id != conversation.id:
+                raise AuthorizationError("Workflow does not belong to this conversation")
+            return workflow
+        if conversation.workflow_type != AIWorkflowType.RESIDENT_TICKET.value:
+            return None
+        return await self.session.scalar(
+            select(AIWorkflow).where(AIWorkflow.conversation_id == conversation.id)
+        )
+
+    @staticmethod
+    def _is_resident_workflow_result(
+        result: dict[str, Any],
+        command: ChatCommand,
+        conversation: Conversation,
+        workflow: AIWorkflow | None,
+    ) -> bool:
+        if command.workflow_id or command.confirmed_action_id:
+            return True
+        if workflow is not None and workflow.state in {
+            "collecting",
+            "awaiting_confirmation",
+            "failed",
+            "awaiting_publish_confirmation",
+        }:
+            return True
+        if conversation.ticket is not None:
+            return False
+        if result.get("workflow_type") == AIWorkflowType.RESIDENT_TICKET.value:
+            return True
+        if result.get("intent") in {"create_ticket", "clarification_response"}:
+            action = result.get("action")
+            return isinstance(action, dict) and action.get("type") in {
+                "create_ticket",
+                "ask_clarification",
+                "preview_ticket",
+                "cancelled",
+            }
+        return isinstance(result.get("ticket_draft"), dict) or isinstance(result.get("draft"), dict) and result.get("workflow_type") == AIWorkflowType.RESIDENT_TICKET.value
+
     async def _get_or_create_conversation(self, command: ChatCommand, actor: ActorContext) -> Conversation:
+        if command.workflow_id:
+            workflow = await self.workflows.get_workflow(command.workflow_id, actor)
+            if workflow.workflow_type != AIWorkflowType.RESIDENT_TICKET.value:
+                raise AuthorizationError("This workflow cannot be used by resident chat")
+            conversation = await self.conversations.get(workflow.conversation_id)
+            if conversation is None:
+                raise NotFoundError("Workflow conversation was not found")
+            if command.conversation_id and command.conversation_id != conversation.id:
+                raise AuthorizationError("Workflow does not belong to this conversation")
+            return conversation
         if command.ticket_id:
             if actor.role is not ActorRole.RESIDENT or not actor.resident_id:
                 raise AuthenticationError("Resident authentication is required to use a ticket conversation")
@@ -186,6 +307,8 @@ class ChatService:
             conversation = await self.conversations.get(command.conversation_id)
             if conversation is None:
                 raise NotFoundError("Conversation was not found")
+            if conversation.conversation_type == "manager_assistant":
+                raise AuthorizationError("Resident cannot access a manager assistant conversation")
             if conversation.resident_id and conversation.resident_id != actor.resident_id:
                 raise AuthorizationError("Actor cannot access this conversation")
             return conversation

@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from src.backend.api.routes import (
     announcements,
+    ai_workflows,
     attachments,
     auth,
     chat,
@@ -18,6 +19,8 @@ api_router = APIRouter()
 api_router.include_router(auth.router)
 api_router.include_router(announcements.resident_router)
 api_router.include_router(announcements.management_router)
+api_router.include_router(ai_workflows.router)
+api_router.include_router(ai_workflows.workflow_router)
 api_router.include_router(attachments.router)
 api_router.include_router(realtime.router)
 api_router.include_router(management.router)

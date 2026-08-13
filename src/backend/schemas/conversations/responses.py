@@ -20,6 +20,9 @@ class ConversationMessageResponse(BaseModel):
     attachment_ids: list[UUID] = Field(default_factory=list)
     created_at: datetime
     conversation_version: int | None = None
+    workflow_id: UUID | None = None
+    workflow_state: str | None = None
+    workflow_version: int | None = None
 
 
 class ConversationHandoffResponse(BaseModel):

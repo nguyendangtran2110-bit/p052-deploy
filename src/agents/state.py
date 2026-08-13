@@ -11,8 +11,32 @@ class AgentState(TypedDict, total=False):
     """
 
     query: str
+    message: str
+    actor_role: str
+    actor_id: str
+    resident_id: str | None
+    conversation_id: str
+    workflow_id: str | None
+    workflow_type: str | None
+    workflow_version: int | None
+    confirmed_action_id: str | None
+    selected_unit_id: str | None
+    workflow_attachment_ids: list[str]
+    messages: list[dict]
+    workflow_draft: dict
+    workflow_state: str | None
+    pending_action: dict | None
+    handbook_results: list[dict]
     context: str
     analysis: str
     response: str
-    error: str
+    assistant_message: str
+    intent: str
+    draft: dict
+    missing_fields: list[str]
+    action: dict | None
+    citations: list[dict]
+    attachment_ids: list[str]
+    error_details: dict | None
+    error: dict | None
     metadata: dict
