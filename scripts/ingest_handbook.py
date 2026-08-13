@@ -418,7 +418,28 @@ def run_audit_scan(processed_dir: Path = PROCESSED_DATA_DIR) -> int:
 # Main ingestion logic
 # ---------------------------------------------------------------------------
 
+def resolve_building_id(filepath: Path, override_building_id: str = None) -> str:
+    """
+    Resolve building_id for a file based on simple filename keyword matching.
+    If override_building_id is explicitly passed (and not equal to the default fallback),
+    use it. Otherwise, match known filename keywords.
+    """
+    fname = filepath.name.lower()
+    if "the-river" in fname or "the_river" in fname:
+        return "the_river"
+    elif "phu-dong" in fname or "sky-garden" in fname or "phu_dong" in fname:
+        return "phu_dong_sky_garden"
+    elif "vinhomes" in fname:
+        return "vinhomes_central_park"
+    elif "sample" in fname:
+        return "sample_building"
+    elif override_building_id and override_building_id != "phu_dong_sky_garden":
+        return override_building_id
+    return override_building_id or "phu_dong_sky_garden"
+
+
 def run_ingestion(
+
     dry_run: bool = False,
     force_rebuild: bool = False,
     file_path: str = None,
@@ -508,8 +529,9 @@ def run_ingestion(
     # ------------------------------------------------------------------
     raw_documents = []
     for filepath in files_to_process:
+        file_b_id = resolve_building_id(filepath, building_id)
         if filepath.suffix.lower() == ".pdf":
-            pdf_docs = load_pdf_document_hybrid(filepath, settings, building_id=building_id)
+            pdf_docs = load_pdf_document_hybrid(filepath, settings, building_id=file_b_id)
             if export_md and pdf_docs:
                 export_pdf_to_markdown(pdf_docs, filepath)
             raw_documents.extend(pdf_docs)
@@ -519,10 +541,11 @@ def run_ingestion(
             doc_hash = compute_file_hash(filepath)
             for d in file_docs:
                 d.metadata["source_file"] = filepath.name
-                d.metadata["building_id"] = building_id
+                d.metadata["building_id"] = file_b_id
                 d.metadata["version"] = "1.0"
                 d.metadata["document_hash"] = doc_hash
             raw_documents.extend(file_docs)
+
 
 
     print(f"[ingest] Loaded {len(raw_documents)} raw document page(s)/file(s) for processing.")
