@@ -271,10 +271,13 @@ def load_pdf_document_hybrid(filepath: Path, settings, building_id: str = "phu_d
         return docs
 
     doc_hash = compute_file_hash(filepath)
-    pdf_doc = fitz.open(filepath)
+    # Guard: initialise to None so finally can safely check before calling .close()
+    # even if fitz.open() itself raises (e.g. corrupt/locked file).
+    pdf_doc = None
     documents = []
 
     try:
+        pdf_doc = fitz.open(filepath)
         for page_idx in range(len(pdf_doc)):
             page = pdf_doc[page_idx]
             native_text = page.get_text("text").strip()
@@ -323,7 +326,8 @@ def load_pdf_document_hybrid(filepath: Path, settings, building_id: str = "phu_d
 
             documents.append(doc_obj)
     finally:
-        pdf_doc.close()
+        if pdf_doc is not None:
+            pdf_doc.close()
 
     return documents
 
@@ -348,7 +352,11 @@ def discover_target_files(file_path: str = None, dir_path: str = None) -> list[P
         sys.exit(1)
 
     search_dirs = []
-    if dir_path:
+    # When the user explicitly provides a dir_path, trust their intent fully —
+    # do NOT silently exclude sub-directories like 'chroma' or 'processed'.
+    # Exclusion filters only apply to the automatic default scan.
+    explicit_dir = bool(dir_path)
+    if explicit_dir:
         search_dirs.append(Path(dir_path).resolve())
     else:
         search_dirs.append(ROOT / "data" / "raw")
@@ -359,9 +367,13 @@ def discover_target_files(file_path: str = None, dir_path: str = None) -> list[P
         if sdir.exists() and sdir.is_dir():
             for p in sdir.rglob("*"):
                 if p.is_file() and p.suffix.lower() in valid_exts and not p.name.startswith("."):
-                    # Exclude files inside chroma vector store directory or intermediate processed export dir when scanning default
-                    if "chroma" not in p.parts and "processed" not in p.parts:
+                    if explicit_dir:
+                        # User explicitly chose this directory — include everything inside it.
                         discovered.add(p.resolve())
+                    else:
+                        # Default scan: exclude auto-generated artifacts that should not be re-ingested.
+                        if "chroma" not in p.parts and "processed" not in p.parts:
+                            discovered.add(p.resolve())
 
     return sorted(list(discovered), key=lambda x: x.name)
 
