@@ -49,10 +49,11 @@ def get_chroma_client(settings, persist_dir: str):
 
 
 @lru_cache(maxsize=1)
-def _get_vector_index(persist_dir: str):
+def _get_vector_index_cached(persist_dir: str, api_key: str, base_url: str, chroma_host: str, model_name: str):
     """
     Build and cache the LlamaIndex VectorStoreIndex.
-    cached per process to avoid re-opening ChromaDB connections.
+    Keyed by persist_dir, credentials, and host endpoints so dynamic setting updates
+    or test monkeypatching force a cache refresh rather than returning stale instances.
     """
     from llama_index.core import VectorStoreIndex
     from llama_index.embeddings.openai import OpenAIEmbedding
@@ -61,11 +62,8 @@ def _get_vector_index(persist_dir: str):
     from src.config import get_settings
     settings = get_settings()
 
-    api_key = settings.qwen_api_key or settings.openai_api_key
-    base_url = settings.qwen_api_base or settings.openai_api_base
-
     embed_model = OpenAIEmbedding(
-        model_name=settings.embedding_model_name,
+        model_name=model_name,
         api_key=api_key,
         api_base=base_url,
         embed_batch_size=10,
@@ -75,6 +73,17 @@ def _get_vector_index(persist_dir: str):
     chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
     vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     return VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
+
+
+def _get_vector_index(persist_dir: str):
+    from src.config import get_settings
+    settings = get_settings()
+    api_key = settings.qwen_api_key or settings.openai_api_key
+    base_url = settings.qwen_api_base or settings.openai_api_base
+    chroma_host = getattr(settings, "chroma_server_host", "")
+    model_name = settings.embedding_model_name
+    return _get_vector_index_cached(persist_dir, api_key, base_url, chroma_host, model_name)
+
 
 
 def _build_query_engine(persist_dir: str, building_id: str | None = None):

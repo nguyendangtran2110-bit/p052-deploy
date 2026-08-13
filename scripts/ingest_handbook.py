@@ -259,9 +259,10 @@ def load_pdf_document_hybrid(filepath: Path, settings, building_id: str = "phu_d
     2. Detects complex PDF tables and converts them to structured Markdown tables.
     3. If a page has < MIN_PDF_PAGE_WORDS, triggers Qwen Vision OCR fallback.
     """
+    doc_hash = compute_file_hash(filepath)
     if not fitz:
+
         print(f"[ingest] WARNING: PyMuPDF (fitz) not installed. Falling back to default LlamaIndex loader for {filepath.name}.")
-        doc_hash = compute_file_hash(filepath)
         reader = SimpleDirectoryReader(input_files=[str(filepath)])
         docs = reader.load_data()
         for d in docs:
@@ -278,11 +279,11 @@ def load_pdf_document_hybrid(filepath: Path, settings, building_id: str = "phu_d
             d.metadata["version"] = "1.0"
         return docs
 
-    doc_hash = compute_file_hash(filepath)
     # Guard: initialise to None so finally can safely check before calling .close()
     # even if fitz.open() itself raises (e.g. corrupt/locked file).
     pdf_doc = None
     documents = []
+
 
     try:
         pdf_doc = fitz.open(filepath)
