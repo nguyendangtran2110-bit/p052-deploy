@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_api_base: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
     model_name: str = "qwen3.6-plus"
+    qwen_model_name: str = "qwen3.5-plus"
+    groq_api_key: str = ""
+    groq_api_base: str = "https://api.groq.com/openai/v1"
+    groq_model_name: str = "llama-3.3-70b-versatile"
     embedding_model_name: str = "text-embedding-v4"
     llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
 
