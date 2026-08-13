@@ -247,7 +247,8 @@ class TestExportPDFToMarkdown:
                 "page_number": 1,
                 "is_ocr": True,
                 "ocr_confidence": 0.5,
-                "warning_flags": ["HIGH_SYMBOL_NOISE"],
+                # warning_flags is always a comma-separated string (ChromaDB scalar constraint)
+                "warning_flags": "HIGH_SYMBOL_NOISE",
                 "needs_human_audit": True,
             }
         )
@@ -256,6 +257,7 @@ class TestExportPDFToMarkdown:
         out_file = export_pdf_to_markdown([doc], source, output_dir=out_dir)
         content = out_file.read_text(encoding="utf-8")
         assert "<!-- Page 1 (Qwen OCR) [AUDIT_REQUIRED: HIGH_SYMBOL_NOISE] -->" in content
+
 
 
 class TestEvaluateOCRQuality:

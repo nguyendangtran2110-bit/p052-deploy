@@ -82,7 +82,25 @@
 | Trần Đăng Nguyên | Live vector ingestion into ChromaDB (167 nodes indexed successfully) | ✅ Done | `./data/chroma` | 0.5h |
 | Trần Đăng Nguyên | Document daily progress & session summary | ✅ Done | [`work_summary_2026-08-12.md`](../work_summary_2026-08-12.md) | 0.5h |
 
-**Tổng kết ngày:** Trần Đăng Nguyên thực hiện pull và đồng bộ nhánh `main` (tài liệu kiến trúc & ADRs mới), giải quyết xung đột `Worklog.md`. Khắc phục triệt để các lỗi RAG Ingestion: loại bỏ trùng lặp file xuất intermediate `data/processed/` (giảm từ 7 xuống 4 file nguồn), sub-chunking Markdown nodes bằng `SentenceSplitter(chunk_size=512)` xử lý dứt điểm lỗi token overflow API DashScope, và chuyển đổi `warning_flags` sang kiểu string tương thích chuẩn metadata ChromaDB. Đã nhúng và lưu trữ thành công toàn bộ 167 vector nodes vào ChromaDB, vượt qua 38/38 unit tests (100% green).
+**Tổng kết ngày:** Trần Đăng Nguyên thực hiện pull và đồng bộ nhánh `main` (tài liệu kiến trúc & ADRs mới), giải quyết xung đột `Worklog.md`. Khắc phục triệt me các lỗi RAG Ingestion: loại bỏ trùng lặp file xuất intermediate `data/processed/` (giảm từ 7 xuống 4 file nguồn), sub-chunking Markdown nodes bằng `SentenceSplitter(chunk_size=512)` xử lý dứt điểm lỗi token overflow API DashScope, và chuyển đổi `warning_flags` sang kiểu string tương thích chuẩn metadata ChromaDB. Đã nhúng và lưu trữ thành công toàn bộ 167 vector nodes vào ChromaDB, vượt qua 38/38 unit tests (100% green).
+
+---
+
+## 2026-08-13
+
+| Member | Task | Status | Output | Time |
+|--------|------|--------|--------|------|
+| Trần Đăng Nguyên | Fix resource leak & `UnboundLocalError` guard in `load_pdf_document_hybrid()` | ✅ Done | [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py) | 0.5h |
+| Trần Đăng Nguyên | Fix directory path exclusion scope for explicit `--dir` target scanning | ✅ Done | [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py) | 0.5h |
+| Trần Đăng Nguyên | Complete metadata fields on `SimpleDirectoryReader` fallback loader path | ✅ Done | [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py) | 0.5h |
+| Trần Đăng Nguyên | Simplify `warning_flags` producer/consumer string contract & update unit test | ✅ Done | [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py), [`tests/test_rag/test_ingestion.py`](../tests/test_rag/test_ingestion.py) | 0.5h |
+| Trần Đăng Nguyên | Author RAG Data Ingestion Pipeline & HITL Audit specification document | ✅ Done | [`docs/architecture/ingestion-pipeline.md`](architecture/ingestion-pipeline.md) | 1.5h |
+| Trần Đăng Nguyên | Update Architecture index Document Map | ✅ Done | [`docs/architecture/README.md`](architecture/README.md) | 0.5h |
+| Trần Đăng Nguyên | Log prompts & submit AI logs (`submit_log.py` → 202 Success) | ✅ Done | `.ai-log/` | 0.5h |
+| Trần Đăng Nguyên | Document daily progress & session summary | ✅ Done | [`work_summary_2026-08-13.md`](../work_summary_2026-08-13.md) | 0.5h |
+
+**Tổng kết ngày:** Trần Đăng Nguyên hoàn thành tối ưu hóa và sửa lỗi triệt để cho RAG Ingestion Pipeline: khắc phục resource leak `pdf_doc.close()` tránh nuốt lỗi khi mở file hỏng, sửa logic quét thư mục `--dir` tùy chỉnh, đồng bộ hóa đầy đủ 9 trường metadata cho luồng fallback `SimpleDirectoryReader`, chuẩn hóa hợp đồng dữ liệu `warning_flags` dạng string và cập nhật unit test. Xây dựng toàn bộ tài liệu kiến trúc kỹ thuật chuẩn [`ingestion-pipeline.md`](architecture/ingestion-pipeline.md) quy định chi tiết sơ đồ luồng, bảng schema metadata ChromaDB và quy trình HITL Audit 2 giai đoạn. Thực hiện log và submit thành công 13 nhật ký tương tác lên server (HTTP 202), toàn bộ 38/38 unit tests đạt 100% green.
+
 
 
 

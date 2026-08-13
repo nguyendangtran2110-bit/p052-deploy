@@ -139,8 +139,7 @@ def export_pdf_to_markdown(documents: list[Document], source_filepath: Path, out
     for doc in documents:
         page_num = doc.metadata.get("page_number", 1)
         is_ocr = doc.metadata.get("is_ocr", False)
-        flags_raw = doc.metadata.get("warning_flags", "")
-        flags_str = ",".join(flags_raw) if isinstance(flags_raw, list) else str(flags_raw or "")
+        flags_str = str(doc.metadata.get("warning_flags", "") or "")
         ocr_tag = " (Qwen OCR)" if is_ocr else ""
         audit_tag = f" [AUDIT_REQUIRED: {flags_str}]" if flags_str else ""
 
@@ -262,12 +261,21 @@ def load_pdf_document_hybrid(filepath: Path, settings, building_id: str = "phu_d
     """
     if not fitz:
         print(f"[ingest] WARNING: PyMuPDF (fitz) not installed. Falling back to default LlamaIndex loader for {filepath.name}.")
+        doc_hash = compute_file_hash(filepath)
         reader = SimpleDirectoryReader(input_files=[str(filepath)])
         docs = reader.load_data()
         for d in docs:
+            d.metadata["source_file"] = filepath.name
+            d.metadata["file_path"] = str(filepath)
             d.metadata["building_id"] = building_id
+            d.metadata["document_hash"] = doc_hash
             d.metadata["has_tables"] = False
             d.metadata["table_count"] = 0
+            d.metadata["is_ocr"] = False
+            d.metadata["ocr_confidence"] = 1.0
+            d.metadata["warning_flags"] = ""
+            d.metadata["needs_human_audit"] = False
+            d.metadata["version"] = "1.0"
         return docs
 
     doc_hash = compute_file_hash(filepath)

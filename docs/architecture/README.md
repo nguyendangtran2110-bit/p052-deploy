@@ -18,6 +18,8 @@ The architecture spine and supporting contracts are complete for review and impl
 | [`container-architecture.md`](container-architecture.md) | Runtime containers and module ownership |
 | [`domain-model.md`](domain-model.md) | Entities, ownership, relationships, and ticket lifecycle |
 | [`data-architecture.md`](data-architecture.md) | Persistent/transient data, snapshots, scope, and retention assumptions |
+| [`ingestion-pipeline.md`](ingestion-pipeline.md) | RAG data ingestion pipeline, 2-stage HITL audit, table parsing, and vector metadata |
+
 | [`authentication-authorization.md`](authentication-authorization.md) | Registration, OTP verification, sessions, RBAC, and manager scope |
 | [`api-contracts.md`](api-contracts.md) | API responsibilities, errors, idempotency, and concurrency |
 | [`integrations.md`](integrations.md) | Registry, OTP, Zalo, LLM, and knowledge boundaries |
