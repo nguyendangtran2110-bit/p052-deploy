@@ -68,3 +68,7 @@ test_log.txt
 frontend_spec.md
 frontend_error_spec.md
 frontend_backend_connect_spec.md
+ai_chat_actions_spec.md
+ai_chat_agent_spec.md
+ai_chat_backend_spec.md
+ai_chat_frontend_spec.md
