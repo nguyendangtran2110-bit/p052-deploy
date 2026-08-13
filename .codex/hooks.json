@@ -1,12 +1,13 @@
 {
-  "version": "1.0",
+  "description": "Ghi Codex prompts vào AI tracking log.",
   "hooks": {
     "UserPromptSubmit": [
       {
         "hooks": [
           {
-            "name": "log-prompt",
-            "command": "bash scripts/_pyrun.sh scripts/log_hook.py --tool=codex",
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/_pyrun.sh\" \"$(git rev-parse --show-toplevel)/scripts/log_hook.py\" --tool=codex",
+            "commandWindows": "$root = git rev-parse --show-toplevel; & \"$root\\.venv\\Scripts\\python.exe\" \"$root\\scripts\\log_hook.py\" --tool=codex",
             "timeout": 10
           }
         ]
@@ -16,8 +17,9 @@
       {
         "hooks": [
           {
-            "name": "log-stop",
-            "command": "bash scripts/_pyrun.sh scripts/log_hook.py --tool=codex",
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/_pyrun.sh\" \"$(git rev-parse --show-toplevel)/scripts/log_hook.py\" --tool=codex",
+            "commandWindows": "$root = git rev-parse --show-toplevel; & \"$root\\.venv\\Scripts\\python.exe\" \"$root\\scripts\\log_hook.py\" --tool=codex",
             "timeout": 10
           }
         ]

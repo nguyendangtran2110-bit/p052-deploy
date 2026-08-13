@@ -1,0 +1,43 @@
+flowchart TD
+    Login[Login or register] --> Role{Role}
+    Role --> ResidentHome[Resident home]
+    Role --> ManagerHome[Manager home]
+    Role --> AdminHome[Administrator home]
+
+    ResidentHome --> Onboarding[Onboarding plan]
+    ResidentHome --> Benefits[Benefits]
+    ResidentHome --> Chat[Building assistant]
+    ResidentHome --> NewTicket[New ticket]
+    ResidentHome --> TicketHistory[Ticket history]
+    ResidentHome --> Notifications[Notifications]
+    ResidentHome --> Profile[Resident profile]
+
+    Chat --> ChatIntent{New-ticket intent?}
+    ChatIntent -->|No / continue| TicketWorkspace[Persistent account ticket draft]
+    ChatIntent -->|Yes| DraftStart[Start account draft]
+    NewTicket --> DraftStart
+    DraftStart --> ExistingDraft{Existing draft?}
+    ExistingDraft -->|No| TicketWorkspace
+    ExistingDraft -->|Resume| TicketWorkspace
+    ExistingDraft -->|Confirm atomic replace| TicketWorkspace
+    TicketWorkspace --> Review[Review ticket]
+    Review --> Submit[Resident submits]
+    Submit --> Pending[Pending]
+
+    ManagerHome --> ScopedQueue[Scope-filtered queue]
+    ManagerHome --> ManagerOnboarding[Scope-filtered onboarding]
+    ManagerHome --> Compose[Compose notification]
+    ScopedQueue --> Detail[Full ticket detail]
+    Detail --> Resolving[Open detail: Resolving]
+    Detail --> Zalo[Zalo]
+    Detail --> Notify[Notify composer]
+    Notify --> NotifyPreview[Preview resident audience]
+    NotifyPreview --> NotifySend[Explicit send]
+    Detail --> ResolveConfirm[Confirm Resolved]
+    Detail --> DenyConfirm[Confirm Denied + explanation]
+    Resolving --> ResolveConfirm
+    Resolving --> DenyConfirm
+    ResolveConfirm --> Resolved[Resolved]
+    DenyConfirm --> Denied[Denied]
+
+    AdminHome --> AccountAdmin[Invite, deactivate, restore, correct]
