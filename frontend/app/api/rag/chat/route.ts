@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import { apiError, jsonObject, residentFrom } from "@/app/api/mock/_lib";
+import { accountFrom, apiError, jsonObject } from "@/app/api/mock/_lib";
 
 const DEFAULT_BACKEND_URL = "http://127.0.0.1:8000";
 
 export async function POST(request: Request) {
-  const resident = residentFrom(request);
-  if (!resident) return apiError(401, "resident_session_required", "Resident session required");
+  const account = accountFrom(request);
+  if (!account || (account.role !== "resident" && account.role !== "manager")) {
+    return apiError(401, "assistant_session_required", "Authenticated Resident or Manager session required");
+  }
 
   const body = await jsonObject(request);
   const message = typeof body?.message === "string" ? body.message.trim() : "";
@@ -13,6 +15,7 @@ export async function POST(request: Request) {
 
   if (!message) return apiError(422, "message_required", "Message is required");
   if (message.length > 5000) return apiError(422, "message_too_long", "Message is too long");
+  if (sessionId.length > 120) return apiError(422, "session_id_too_long", "Session identifier is too long");
 
   try {
     const backendResponse = await fetch(`${backendBaseUrl()}/api/v1/rag/chat`, {
@@ -23,11 +26,9 @@ export async function POST(request: Request) {
     });
     const payload = await safeJson(backendResponse);
 
-    if (!backendResponse.ok) {
-      return apiError(backendResponse.status, "rag_backend_error", "RAG assistant is unavailable", { upstream: payload });
-    }
+    if (!backendResponse.ok) return apiError(backendResponse.status, "rag_backend_error", "RAG assistant is unavailable");
 
-    return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(managerGroundedResponse(payload, account.role), { headers: { "Cache-Control": "no-store" } });
   } catch {
     return apiError(503, "rag_backend_unavailable", "RAG assistant is unavailable");
   }
@@ -43,4 +44,14 @@ async function safeJson(response: Response) {
   } catch {
     return null;
   }
+}
+
+function managerGroundedResponse(payload: unknown, role: "resident" | "manager") {
+  if (role !== "manager" || !payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
+  const record = payload as Record<string, unknown>;
+  return {
+    ...(typeof record.answer === "string" ? { answer: record.answer } : {}),
+    ...(Array.isArray(record.citations) ? { citations: record.citations } : {}),
+    ...(typeof record.session_id === "string" ? { session_id: record.session_id } : {}),
+  };
 }

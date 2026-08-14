@@ -95,3 +95,7 @@ PRODUCT.md
 
 .memlog.md
 so-tay-phu-dong-sky-garden.pdf
+
+docs/frontend
+!docs/frontend/FRONTEND-SPEC.md
+!docs/frontend/ROUTE-MAP.md

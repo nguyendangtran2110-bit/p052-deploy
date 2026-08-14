@@ -20,7 +20,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000/login`.
+Open `http://localhost:3000/` for the public landing page, then choose Sign in or Create an account.
 
 For a production-style local run:
 
@@ -29,7 +29,19 @@ npm run build
 npm run start
 ```
 
-No external backend, model provider, database, token, or environment variable is required for the synthetic demo.
+The shell, routes, synthetic sign-in, tickets, and profile flows run with `npm run dev`. Homie Agent's grounded answers additionally require the repository's FastAPI RAG service; without it, the panel stays available and shows a safe unavailable response.
+
+To use Homie Agent locally, run both servers in separate terminals:
+
+```bash
+# repository root
+uvicorn src.main:app --port 8000
+
+# frontend/
+npm run dev
+```
+
+The Next.js proxy calls `http://127.0.0.1:8000/api/v1/rag/chat` by default. Set `BACKEND_API_URL` before starting Next.js if the backend uses another origin, for example `BACKEND_API_URL=http://127.0.0.1:8010 npm run dev`.
 
 ## Demo Accounts
 
@@ -48,13 +60,15 @@ The login page can populate these values automatically. Different accounts in th
 
 ## Route Inventory
 
-The MVP contains exactly 18 user-facing routes. `/` is only an entry redirect and is not counted. Administrator UI is not included.
+The MVP contains a public landing page at `/` plus exactly 18 authentication and protected workflow routes. Administrator UI is not included.
 
 ### Public (3)
 
 - `/login`
 - `/register`
 - `/recovery`
+
+`/` is the OnBxrd landing page. It uses local visual placeholders until you add images under `public/landing/`; see `public/landing/README.md` for its independent `hero`, `features`, `workflows`, and `stories` image sets.
 
 ### Resident (8)
 
@@ -145,15 +159,16 @@ Important runtime boundaries:
 - Production responses use a per-request nonce Content Security Policy and standard hardening headers.
 - Domain fixtures are statically imported from `mock-data/*.json` and validated by `src/mock/data.ts` before pages, APIs, or authorization helpers can use them.
 
-## Mock Assistant Safety
+## Homie Agent Safety
 
-The assistant uses response templates from `mock-data/assistant-scenarios.json` through `src/lib/mock-llm.ts`; it does not call an external model. Fixture output is treated as hostile and passes through the same type of trust boundary expected for a real model:
+Homie Agent is the user-facing name for the grounded assistant. Residents and Managers can open its persistent shared workside panel through the same same-origin proxy. The proxy calls the local FastAPI RAG endpoint described above; it is not started by `npm run dev`. Backend output is treated as hostile and passes through the same type of trust boundary expected for a real model:
 
 - only approved schema fields survive validation;
 - HTML and unsafe URLs are rendered as inert text or rejected;
 - role, identity, authorization, and server-owned context cannot be changed;
 - ticket proposals are limited to Subject, Content, and Urgency;
 - a proposal never submits a ticket or performs another privileged action.
+- Manager conversations are grounded answer/citation only; they never receive a resident ticket proposal or ticket action.
 
 ## Accessibility and Design
 

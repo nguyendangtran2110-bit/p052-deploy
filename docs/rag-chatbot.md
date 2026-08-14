@@ -26,7 +26,7 @@ Resident Assistant UI
   -> Answer + citations + retrieved chunks
 ```
 
-Frontend chỉ gọi same-origin `/api/rag/chat`; Next.js proxy sẽ chuyển request sang backend FastAPI. Cách này tránh lỗi CORS và giúp frontend không cần hard-code backend host.
+Frontend chỉ gọi same-origin `/api/rag/chat`; Next.js proxy sẽ chuyển request sang backend FastAPI. Cách này tránh lỗi CORS và giúp frontend không cần hard-code backend host. `Homie Agent` is the user-facing name. The proxy admits only a server-recognized Resident or Manager principal; Manager responses are restricted to grounded answer/citation output and have ticket proposals removed before the client receives them.
 
 ---
 
@@ -88,7 +88,7 @@ Request:
 }
 ```
 
-Proxy yêu cầu principal là resident demo account. Nếu thiếu hoặc không phải resident, trả `401`.
+Proxy yêu cầu principal là Resident hoặc Manager demo account đã được server nhận diện. Nếu thiếu hoặc không thuộc hai role này, trả `401`. Manager chỉ nhận answer/citation grounded fields; ticket proposal và các trường ngoài allowlist không được trả về client.
 
 ### 3.2 Backend RAG Endpoint
 

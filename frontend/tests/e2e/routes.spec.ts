@@ -30,7 +30,20 @@ async function fillAndSubmitDemo(page: import("@playwright/test").Page, name: Re
   await expect(page).toHaveURL(/\/(?:resident\/onboarding|manager\/dashboard)$/);
 }
 
-test("public routes render and theme switches", async ({ page }) => {
+async function sendHomieMessage(page: import("@playwright/test").Page, message: string, response: Record<string, unknown>, status = 200) {
+  await page.route("**/api/rag/chat", async (route) => {
+    await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(response) });
+  });
+  await page.getByRole("button", { name: "Homie Agent" }).click();
+  await page.getByLabel("Message").fill(message);
+  await page.getByRole("button", { name: "Send" }).click();
+}
+
+test("public landing and authentication routes render and theme switches", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "A more settled start to building life." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in to OnBxrd" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Create an account" }).first()).toBeVisible();
   for (const route of publicRoutes) {
     await page.goto(route);
     await expect(page.locator("h1").first()).toBeVisible();
@@ -43,6 +56,64 @@ test("public routes render and theme switches", async ({ page }) => {
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", nextTheme);
   await expect(page).toHaveTitle("Sign in · OnBxrd");
+  await expect(page.getByRole("link", { name: "Back to OnBxrd home" })).toHaveAttribute("href", "/");
+});
+
+test("the account card opens the role profile and the wordmark returns to the landing page", async ({ page }) => {
+  await fillAndSubmitDemo(page, /Avery Lagoon/);
+  await expect(page.getByRole("link", { name: "Open profile for Avery Lagoon" })).toHaveAttribute("href", "/resident/profile");
+  await page.getByRole("link", { name: "Open profile for Avery Lagoon" }).click();
+  await expect(page).toHaveURL(/\/resident\/profile$/);
+  await expect(page.getByRole("heading", { name: "Preferences" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Verified contact" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "OnBxrd" }).first()).toHaveAttribute("href", "/");
+});
+
+test("Homie Agent is a keyboard-accessible non-modal workside panel in both protected role shells", async ({ page }) => {
+  await fillAndSubmitDemo(page, /Avery Lagoon/);
+  const residentLauncher = page.getByRole("button", { name: "Homie Agent" });
+  await residentLauncher.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("Homie Agent workside panel")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Homie Agent" })).toHaveCount(0);
+  await expect(page.getByLabel("Message")).toBeFocused();
+  await expect(page.getByLabel("Homie Agent workside panel")).toBeVisible();
+  await residentLauncher.click();
+  await expect(page.getByLabel("Homie Agent workside panel")).toHaveCount(0);
+
+  await fillAndSubmitDemo(page, /Drew Eight/);
+  await page.getByRole("button", { name: "Homie Agent" }).click();
+  await expect(page.getByLabel("Homie Agent workside panel")).toBeVisible();
+  await expect(page.getByRole("link", { name: /manual ticket/i })).toHaveCount(0);
+});
+
+test("Homie Agent remains usable at 320px without horizontal overflow", async ({ page }) => {
+  await fillAndSubmitDemo(page, /Avery Lagoon/);
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.getByRole("button", { name: "Homie Agent" }).click();
+  await expect(page.getByLabel("Homie Agent workside panel")).toBeVisible();
+  await expect(page.getByLabel("Message")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
+test("Resident Homie Agent proposal and unavailable fallback preserve the safe ticket paths", async ({ page }) => {
+  await fillAndSubmitDemo(page, /Avery Lagoon/);
+  await sendHomieMessage(page, "The lobby door is broken", {
+    answer: "I can suggest fields for your review.",
+    citations: [{ source_file: "handbook.pdf", section_title: "Support requests" }],
+    proposal: { subject: "Broken lobby door", content: "The lobby door is broken.", urgency: "High" },
+  });
+  await page.getByRole("button", { name: "Review ticket fields" }).click();
+  await expect(page).toHaveURL(/\/resident\/tickets\/new$/);
+  await expect(page.getByLabel("Homie Agent workside panel")).toBeVisible();
+  await expect(page.getByText("Broken lobby door")).toBeVisible();
+
+  await page.goto("/resident/onboarding");
+  await sendHomieMessage(page, "Can you help?", { code: "rag_backend_unavailable", message: "Unavailable" }, 503);
+  await page.getByRole("link", { name: /manual ticket/i }).click();
+  await expect(page).toHaveURL(/\/resident\/tickets\/new\?intent=new$/);
+  await expect(page.getByLabel("Homie Agent workside panel")).toBeVisible();
 });
 
 test("public skip navigation and benefit tabs are keyboard complete", async ({ page }) => {

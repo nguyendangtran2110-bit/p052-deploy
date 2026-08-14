@@ -35,7 +35,7 @@ export default function AssistantPage() {
   return (
     <div className="page">
       <PageHeader
-        title="Building assistant"
+        title="Homie Agent"
         description="Ask about approved building information or prepare a ticket proposal you review yourself."
         action={<Link className="button button-secondary" href="/resident/tickets/new?intent=new">Open manual ticket</Link>}
       />
@@ -102,7 +102,7 @@ export default function AssistantPage() {
         <aside className="proposal-zone reveal reveal-3">
           {result?.proposal ? (
             <Card className="proposal-card">
-              <span className="proposal-label">Assistant proposal · not submitted</span>
+              <span className="proposal-label">Homie Agent proposal · not submitted</span>
               <h2>Review ticket fields</h2>
               <dl>
                 <div><dt>Subject</dt><dd>{result.proposal.subject}</dd></div>
@@ -114,7 +114,7 @@ export default function AssistantPage() {
           ) : (
             <Card>
               <h2>Bounded by design</h2>
-              <p>The assistant can propose Subject, Content, and Urgency. It cannot change verified identity, contact details, location, or submit a ticket.</p>
+              <p>Homie Agent can propose Subject, Content, and Urgency. It cannot change verified identity, contact details, location, or submit a ticket.</p>
             </Card>
           )}
         </aside>

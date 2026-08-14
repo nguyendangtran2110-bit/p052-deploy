@@ -36,10 +36,21 @@ function webRoute(file: string) {
 }
 
 describe("route inventory", () => {
-  it("ships exactly the 18 approved MVP pages", () => {
+  it("ships a public landing page alongside the 18 approved auth and protected MVP pages", () => {
     const discovered = pageFiles(path.resolve("app"));
     expect(discovered.filter((file) => webRoute(file) === "/")).toEqual(["app/page.tsx"]);
     expect(discovered.filter((file) => webRoute(file) !== "/").sort()).toEqual([...approvedRoutes].sort());
+  });
+
+  it("keeps the root route as the OnBxrd landing page", () => {
+    const landing = fs.readFileSync(path.resolve("app/page.tsx"), "utf8");
+    expect(landing).toContain("A more settled start to building life.");
+    expect(landing).toContain('href="/login"');
+    expect(landing).toContain('href="/register"');
+    expect(landing).not.toContain('redirect("/login")');
+    expect(fs.existsSync(path.resolve("src/components/landing-image.tsx"))).toBe(true);
+    expect(fs.readFileSync(path.resolve("src/components/landing-image.tsx"), "utf8")).toContain("availableSources");
+    expect(landing).toContain("fs.readdirSync");
   });
 
   it("does not add an Administrator route", () => {

@@ -6,7 +6,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
     <div className="public-shell">
       <a className="skip-link" href="#main-content">Skip to content</a>
       <header className="public-topbar">
-        <Link className="brand" href="/login"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span>OnBxrd</span></Link>
+        <Link className="brand" href="/"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span>OnBxrd</span></Link>
         <ThemeButton />
       </header>
       <main id="main-content" tabIndex={-1}>{children}</main>
