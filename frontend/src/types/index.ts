@@ -197,9 +197,125 @@ export interface ChatResponse {
   citations: Citation[];
   action?: {
     type?: string;
+    action_id?: string;
+    requires_confirmation?: boolean;
     payload?: Record<string, unknown>;
+    next_action?: ChatResponse["action"];
   } | null;
   ticket?: Ticket | null;
+  announcement?: Announcement | null;
+  workflow_id?: string | null;
+  workflow_type?: AIWorkflowType | null;
+  state?: AIWorkflowState | null;
+  workflow_version?: number | null;
+  draft?: Record<string, unknown>;
+  missing_fields?: string[];
+  message?: AIWorkflowMessage | null;
+}
+
+export type AIWorkflowType = "resident_ticket" | "manager_announcement";
+export type AIWorkflowState =
+  | "collecting"
+  | "awaiting_confirmation"
+  | "executing"
+  | "completed"
+  | "cancelled"
+  | "failed"
+  | "awaiting_publish_confirmation"
+  | "publishing"
+  | "published";
+
+export type AIActionType =
+  | "ask_clarification"
+  | "preview_ticket"
+  | "create_ticket"
+  | "completed"
+  | "preview_announcement"
+  | "create_announcement_draft"
+  | "announcement_draft_created"
+  | "update_announcement"
+  | "publish_announcement"
+  | "published"
+  | "cancelled";
+
+export interface AIAction {
+  type: AIActionType | string;
+  action_id: string;
+  requires_confirmation: boolean;
+  payload: Record<string, unknown>;
+  next_action?: AIAction | null;
+}
+
+export interface TicketWorkflowDraft {
+  unit_id?: string | null;
+  category?: string | null;
+  priority?: TicketPriority | null;
+  title?: string | null;
+  description?: string | null;
+  location?: string | null;
+  attachment_ids?: string[];
+  ticket_id?: string | null;
+}
+
+export interface AnnouncementWorkflowScope {
+  scope_type: AnnouncementScopeType;
+  project_code?: string | null;
+  building?: string | null;
+  unit_id?: string | null;
+}
+
+export interface AnnouncementWorkflowDraft {
+  title?: string | null;
+  content?: string | null;
+  type?: AnnouncementType | null;
+  priority?: AnnouncementPriority | null;
+  scopes?: AnnouncementWorkflowScope[];
+  expires_at?: string | null;
+  attachment_ids?: string[];
+  announcement_id?: string | null;
+}
+
+export type AIWorkflowDraft = TicketWorkflowDraft | AnnouncementWorkflowDraft;
+
+export interface AIWorkflowMessage {
+  id: string;
+  role: MessageRole;
+  author_id?: string | null;
+  content: string;
+  intent?: string | null;
+  citations: Citation[];
+  action_payload?: Record<string, unknown> | null;
+  attachment_ids: string[];
+  workflow_id?: string | null;
+  workflow_state?: AIWorkflowState | null;
+  workflow_version?: number | null;
+  created_at: string;
+}
+
+export interface AIWorkflowResponse {
+  conversation_id: string;
+  workflow_id: string;
+  workflow_type: AIWorkflowType;
+  state: AIWorkflowState;
+  workflow_version: number;
+  message?: AIWorkflowMessage | null;
+  draft: AIWorkflowDraft;
+  missing_fields: string[];
+  action?: AIAction | null;
+  citations: Citation[];
+  ticket?: Ticket | null;
+  announcement?: Announcement | null;
+  error?: Record<string, unknown> | null;
+}
+
+export interface AIWorkflowConversationResponse extends Omit<AIWorkflowResponse, "message"> {
+  messages: AIWorkflowMessage[];
+}
+
+export interface AIWorkflowCancelResponse {
+  workflow_id: string;
+  state: AIWorkflowState;
+  workflow_version: number;
 }
 
 export interface AttachmentUploadResponse {

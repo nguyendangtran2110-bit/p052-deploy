@@ -15,6 +15,11 @@ import {
 } from "@/lib/mock-data";
 import type {
   Account,
+  AIAction,
+  AIWorkflowCancelResponse,
+  AIWorkflowConversationResponse,
+  AIWorkflowMessage,
+  AIWorkflowResponse,
   Announcement,
   AnnouncementScope,
   AttachmentDownloadResponse,
@@ -185,6 +190,9 @@ export interface ChatInput {
   unit_id?: string;
   ticket_id?: string;
   confirm_action?: boolean;
+  workflow_id?: string;
+  workflow_version?: number;
+  confirmed_action_id?: string;
   idempotency_key?: string;
   attachment_ids?: string[];
 }
@@ -204,6 +212,260 @@ export function sendChat(payload: ChatInput) {
     ticket: payload.confirm_action ? demoTickets[1] : null,
   };
   return mockOr(mock, () => post<ChatResponse>("/chat/messages", payload));
+}
+
+export type AIWorkflowMessageInput = Omit<ChatInput, "conversation_id" | "unit_id" | "ticket_id"> & {
+  message: string;
+};
+
+function normalizeAction(action: ChatResponse["action"] | null | undefined): AIAction | null {
+  if (!action?.type || !action.action_id) return null;
+  return {
+    type: action.type,
+    action_id: action.action_id,
+    requires_confirmation: Boolean(action.requires_confirmation),
+    payload: action.payload ?? {},
+    next_action: normalizeAction(action.next_action),
+  };
+}
+
+function workflowMessageFromResponse(response: ChatResponse): AIWorkflowMessage | null {
+  if (response.message) return response.message;
+  if (!response.response) return null;
+  return {
+    id: `assistant-${Date.now()}`,
+    role: "assistant",
+    author_id: null,
+    content: response.response,
+    intent: null,
+    citations: response.citations ?? [],
+    action_payload: response.action?.payload ?? null,
+    attachment_ids: [],
+    workflow_id: response.workflow_id ?? null,
+    workflow_state: response.state ?? null,
+    workflow_version: response.workflow_version ?? null,
+    created_at: new Date().toISOString(),
+  };
+}
+
+function normalizeResidentWorkflowResponse(response: ChatResponse): AIWorkflowResponse {
+  return {
+    conversation_id: response.conversation_id,
+    workflow_id: response.workflow_id ?? "",
+    workflow_type: response.workflow_type ?? "resident_ticket",
+    state: response.state ?? (response.ticket ? "completed" : "collecting"),
+    workflow_version: response.workflow_version ?? 0,
+    message: workflowMessageFromResponse(response),
+    draft: response.draft ?? {},
+    missing_fields: response.missing_fields ?? [],
+    action: normalizeAction(response.action),
+    citations: response.citations ?? [],
+    ticket: response.ticket ?? null,
+    announcement: response.announcement ?? null,
+    error: null,
+  };
+}
+
+const demoResidentWorkflowId = "00000000-0000-0000-0000-000000000101";
+const demoResidentActionId = "00000000-0000-0000-0000-000000000102";
+const demoManagerConversationId = "00000000-0000-0000-0000-000000000201";
+const demoManagerWorkflowId = "00000000-0000-0000-0000-000000000202";
+const demoManagerCreateActionId = "00000000-0000-0000-0000-000000000203";
+const demoManagerPublishActionId = "00000000-0000-0000-0000-000000000204";
+let demoResidentWorkflowState: AIWorkflowResponse | null = null;
+
+function demoWorkflowMessage(content: string, workflowId: string, state: AIWorkflowResponse["state"], version: number, attachments: string[] = []): AIWorkflowMessage {
+  return {
+    id: `workflow-message-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    role: "assistant",
+    author_id: null,
+    content,
+    intent: null,
+    citations: [],
+    action_payload: null,
+    attachment_ids: attachments,
+    workflow_id: workflowId,
+    workflow_state: state,
+    workflow_version: version,
+    created_at: new Date().toISOString(),
+  };
+}
+
+function mockResidentWorkflow(payload: ChatInput): AIWorkflowResponse {
+  const workflowId = payload.workflow_id ?? demoResidentWorkflowId;
+  const conversationId = payload.conversation_id ?? "00000000-0000-0000-0000-000000000301";
+  const draft = {
+    unit_id: payload.unit_id ?? demoUnit.id,
+    category: "maintenance",
+    priority: "medium" as const,
+    title: "Yêu cầu hỗ trợ từ chatbot",
+    description: payload.message,
+    location: "Cần xác nhận vị trí",
+    attachment_ids: payload.attachment_ids ?? [],
+  };
+  if (payload.confirm_action) {
+    return {
+      conversation_id: conversationId,
+      workflow_id: workflowId,
+      workflow_type: "resident_ticket",
+      state: "completed",
+      workflow_version: (payload.workflow_version ?? 0) + 1,
+      message: demoWorkflowMessage("Ticket đã được tạo và đã chuyển vào danh sách theo dõi của bạn.", workflowId, "completed", (payload.workflow_version ?? 0) + 1, payload.attachment_ids),
+      draft: { ...draft, ticket_id: demoTickets[1].id },
+      missing_fields: [],
+      action: { type: "completed", action_id: payload.confirmed_action_id ?? demoResidentActionId, requires_confirmation: false, payload: { ticket_id: demoTickets[1].id, ticket_code: demoTickets[1].ticket_code } },
+      citations: [],
+      ticket: demoTickets[1],
+      announcement: null,
+      error: null,
+    };
+  }
+  const action: AIAction = {
+    type: "create_ticket",
+    action_id: demoResidentActionId,
+    requires_confirmation: true,
+    payload: draft,
+    next_action: null,
+  };
+  return {
+    conversation_id: conversationId,
+    workflow_id: workflowId,
+    workflow_type: "resident_ticket",
+    state: "awaiting_confirmation",
+    workflow_version: (payload.workflow_version ?? 0) + 1,
+    message: demoWorkflowMessage("Mình đã chuẩn bị bản nháp ticket. Bạn kiểm tra thông tin rồi xác nhận để tạo ticket nhé.", workflowId, "awaiting_confirmation", (payload.workflow_version ?? 0) + 1),
+    draft,
+    missing_fields: [],
+    action,
+    citations: [],
+    ticket: null,
+    announcement: null,
+    error: null,
+  };
+}
+
+let demoManagerWorkflow: AIWorkflowConversationResponse = {
+  conversation_id: demoManagerConversationId,
+  workflow_id: demoManagerWorkflowId,
+  workflow_type: "manager_announcement",
+  state: "collecting",
+  workflow_version: 0,
+  messages: [],
+  draft: {},
+  missing_fields: ["title", "content", "scopes"],
+  action: null,
+  citations: [],
+  ticket: null,
+  announcement: null,
+  error: null,
+};
+
+function mockManagerAssistantMessage(payload: AIWorkflowMessageInput): AIWorkflowResponse {
+  const version = demoManagerWorkflow.workflow_version + 1;
+  const isCreateConfirmation = payload.confirm_action && payload.confirmed_action_id === demoManagerCreateActionId;
+  const isPublishConfirmation = payload.confirm_action && payload.confirmed_action_id === demoManagerPublishActionId;
+  if (isPublishConfirmation) {
+    const result: AIWorkflowResponse = {
+      ...demoManagerWorkflow,
+      state: "published",
+      workflow_version: version,
+      action: { type: "published", action_id: demoManagerPublishActionId, requires_confirmation: false, payload: { announcement_id: demoAnnouncements[0].id } },
+      announcement: { ...demoAnnouncements[0], status: "published" },
+      message: demoWorkflowMessage("Announcement đã được publish thành công.", demoManagerWorkflowId, "published", version),
+    };
+    demoManagerWorkflow = { ...result, messages: [...demoManagerWorkflow.messages, result.message!], action: result.action };
+    return result;
+  }
+  const draft = {
+    title: payload.message.length > 8 ? payload.message.slice(0, 80) : "Thông báo mới từ ban quản lý",
+    content: payload.message,
+    type: "general" as const,
+    priority: "normal" as const,
+    scopes: [{ scope_type: "all_residents" as const }],
+    expires_at: null,
+    attachment_ids: payload.attachment_ids ?? [],
+  };
+  if (isCreateConfirmation) {
+    const action: AIAction = { type: "publish_announcement", action_id: demoManagerPublishActionId, requires_confirmation: true, payload: draft, next_action: null };
+    const result: AIWorkflowResponse = {
+      ...demoManagerWorkflow,
+      state: "awaiting_publish_confirmation",
+      workflow_version: version,
+      draft: { ...draft, announcement_id: demoAnnouncements[0].id },
+      missing_fields: [],
+      action,
+      message: demoWorkflowMessage("Draft announcement đã được tạo. Bạn cần xác nhận riêng trước khi publish.", demoManagerWorkflowId, "awaiting_publish_confirmation", version),
+    };
+    demoManagerWorkflow = { ...result, messages: [...demoManagerWorkflow.messages, result.message!], action };
+    return result;
+  }
+  const action: AIAction = { type: "create_announcement_draft", action_id: demoManagerCreateActionId, requires_confirmation: true, payload: draft, next_action: null };
+  const result: AIWorkflowResponse = {
+    ...demoManagerWorkflow,
+    state: "awaiting_confirmation",
+    workflow_version: version,
+    draft,
+    missing_fields: [],
+    action,
+    message: demoWorkflowMessage("Mình đã chuẩn bị bản nháp announcement. Kiểm tra nội dung và xác nhận tạo draft.", demoManagerWorkflowId, "awaiting_confirmation", version),
+  };
+  demoManagerWorkflow = { ...result, messages: [...demoManagerWorkflow.messages, result.message!], action };
+  return result;
+}
+
+export function sendResidentAssistantMessage(payload: ChatInput) {
+  if (USE_MOCKS) {
+    const response = mockResidentWorkflow(payload);
+    demoResidentWorkflowState = response;
+    return Promise.resolve(response);
+  }
+  return post<ChatResponse>("/chat/messages", payload).then(normalizeResidentWorkflowResponse);
+}
+
+export function createManagerAssistantConversation() {
+  if (USE_MOCKS) {
+    demoManagerWorkflow = {
+      conversation_id: demoManagerConversationId,
+      workflow_id: demoManagerWorkflowId,
+      workflow_type: "manager_announcement",
+      state: "collecting",
+      workflow_version: 0,
+      messages: [],
+      draft: {},
+      missing_fields: ["title", "content", "scopes"],
+      action: null,
+      citations: [],
+      ticket: null,
+      announcement: null,
+      error: null,
+    };
+    return Promise.resolve(demoManagerWorkflow);
+  }
+  const mock = { ...demoManagerWorkflow, messages: [] };
+  return mockOr(mock, () => post<AIWorkflowConversationResponse>("/management/assistant/conversations", {}));
+}
+
+export function fetchManagerAssistantConversation(conversationId: string) {
+  return mockOr({ ...demoManagerWorkflow, conversation_id: conversationId }, () => get<AIWorkflowConversationResponse>(`/management/assistant/conversations/${conversationId}`));
+}
+
+export function sendManagerAssistantMessage(conversationId: string, payload: AIWorkflowMessageInput) {
+  if (USE_MOCKS) return Promise.resolve(mockManagerAssistantMessage(payload));
+  return post<AIWorkflowResponse>(`/management/assistant/conversations/${conversationId}/messages`, payload);
+}
+
+export function fetchAIWorkflow(workflowId: string) {
+  if (USE_MOCKS) {
+    return Promise.resolve(demoResidentWorkflowState?.workflow_id === workflowId
+      ? demoResidentWorkflowState
+      : { conversation_id: demoManagerConversationId, workflow_id: workflowId, workflow_type: "resident_ticket", state: "collecting", workflow_version: 0, message: null, draft: {}, missing_fields: [], action: null, citations: [], ticket: null, announcement: null, error: null } satisfies AIWorkflowResponse);
+  }
+  return get<AIWorkflowResponse>(`/ai/workflows/${workflowId}`);
+}
+
+export function cancelAIWorkflow(workflowId: string) {
+  const mock: AIWorkflowCancelResponse = { workflow_id: workflowId, state: "cancelled", workflow_version: demoManagerWorkflow.workflow_version + 1 };
+  return mockOr(mock, () => post<AIWorkflowCancelResponse>(`/ai/workflows/${workflowId}/cancel`));
 }
 
 export function fetchAnnouncements(filters: Record<string, QueryValue> = {}, management = false) {
@@ -466,18 +728,49 @@ export function validateAttachment(file: File) {
   return null;
 }
 
-export async function uploadAttachment(file: File, parent?: { ticket_id?: string; announcement_id?: string }) {
-  if (USE_MOCKS) return { id: `attachment-${Date.now()}`, filename: file.name, mime_type: file.type, size_bytes: file.size, upload_url: "" } satisfies AttachmentUploadResponse;
+export interface AttachmentUploadParent {
+  ticket_id?: string;
+  announcement_id?: string;
+  workflow_id?: string;
+}
+
+export async function uploadAttachment(file: File, parent?: AttachmentUploadParent, onProgress?: (progress: number) => void) {
+  if (USE_MOCKS) {
+    onProgress?.(100);
+    return { id: `attachment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, filename: file.name, mime_type: file.type, size_bytes: file.size, upload_url: "" } satisfies AttachmentUploadResponse;
+  }
   const presign = await post<AttachmentUploadResponse>("/attachments/presign", {
     filename: file.name,
     content_type: file.type || "application/octet-stream",
     size_bytes: file.size,
     ticket_id: parent?.ticket_id ?? null,
     announcement_id: parent?.announcement_id ?? null,
+    workflow_id: parent?.workflow_id ?? null,
   });
-  const upload = await fetch(presign.upload_url, { method: "PUT", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file });
-  if (!upload.ok) throw new Error("Upload file thất bại");
+  onProgress?.(8);
+  if (onProgress && typeof XMLHttpRequest !== "undefined") {
+    await uploadWithProgress(presign.upload_url, file, file.type || "application/octet-stream", onProgress);
+  } else {
+    const upload = await fetch(presign.upload_url, { method: "PUT", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file });
+    if (!upload.ok) throw new Error("Upload file that bai");
+  }
+  onProgress?.(100);
   return presign;
+}
+
+function uploadWithProgress(url: string, file: File, contentType: string, onProgress: (progress: number) => void) {
+  return new Promise<void>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", url);
+    request.setRequestHeader("Content-Type", contentType);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    request.onload = () => request.status >= 200 && request.status < 300 ? resolve() : reject(new Error("Upload file that bai"));
+    request.onerror = () => reject(new Error("Upload file that bai"));
+    request.onabort = () => reject(new Error("Upload file da bi huy"));
+    request.send(file);
+  });
 }
 
 export function downloadAttachment(attachmentId: string) {

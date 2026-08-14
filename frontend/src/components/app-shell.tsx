@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, BookOpen, Building2, ChevronDown, FileText, Home, LayoutDashboard, LifeBuoy, LogOut, Menu, MessageCircle, Megaphone, Settings, Shield, UserCog, Users, X } from "lucide-react";
+import { Bell, BookOpen, Bot, Building2, ChevronDown, FileText, Home, LayoutDashboard, LifeBuoy, LogOut, Menu, MessageCircle, Megaphone, Settings, Shield, UserCog, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, IconButton, WorkspaceLoading, cn } from "@/components/ui";
 import { ConnectionPill, ToastViewport } from "@/components/feedback";
@@ -12,6 +12,7 @@ import { logoutSession } from "@/lib/data";
 import { disconnectRealtime, connectRealtime, type RealtimeEvent, type RealtimeState } from "@/lib/realtime";
 import { queryClient } from "@/lib/query-client";
 import { initials } from "@/lib/format";
+import { aiChatKeys } from "@/features/ai-chat/queries";
 import { useUiStore } from "@/stores/ui-store";
 import type { Account } from "@/types";
 
@@ -27,6 +28,7 @@ const managementNav = [
   { href: "/management", label: "Dashboard", icon: LayoutDashboard },
   { href: "/management/tickets", label: "Ticket queue", icon: FileText },
   { href: "/management/conversations", label: "Handoff", icon: MessageCircle },
+  { href: "/management/assistant", label: "AI announcement assistant", icon: Bot },
   { href: "/management/residents", label: "Residents", icon: Users },
   { href: "/management/announcements", label: "Announcements", icon: Megaphone },
   { href: "/management/knowledge", label: "Knowledge", icon: BookOpen },
@@ -45,11 +47,14 @@ function invalidateForRealtimeEvent(event: RealtimeEvent) {
   const conversationId = eventId(event, "conversation_id");
   const ticketId = eventId(event, "ticket_id");
   const announcementId = eventId(event, "announcement_id");
+  const workflowId = eventId(event, "workflow_id");
 
   if (event.event.startsWith("conversation.")) {
     if (conversationId) {
       queryClient.invalidateQueries({ queryKey: ["conversation", conversationId], exact: true });
       queryClient.invalidateQueries({ queryKey: ["ticket", conversationId, "conversation"], exact: true });
+      queryClient.invalidateQueries({ queryKey: aiChatKeys.residentConversation(conversationId), exact: true });
+      queryClient.invalidateQueries({ queryKey: aiChatKeys.managerConversation(conversationId), exact: true });
     }
     if (ticketId) {
       queryClient.invalidateQueries({ queryKey: ["ticket", ticketId], exact: true });
@@ -67,6 +72,11 @@ function invalidateForRealtimeEvent(event: RealtimeEvent) {
       queryClient.invalidateQueries({ queryKey: ["ticket", ticketId, "conversation"], exact: true });
     }
     queryClient.invalidateQueries({ queryKey: ["management", "dashboard"], exact: true });
+  }
+
+  if (workflowId) {
+    queryClient.invalidateQueries({ queryKey: aiChatKeys.workflow(workflowId), exact: true });
+    queryClient.invalidateQueries({ queryKey: aiChatKeys.all });
   }
 
   if (event.event.startsWith("announcement.")) {
@@ -120,9 +130,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const actor = account;
   const navItems = useMemo(() => {
     if (!isManagement) return residentNav;
+    const canUseAssistant = ["manager", "admin"].includes(actor?.management_profile?.management_role ?? "");
+    const visibleManagementNav = canUseAssistant ? managementNav : managementNav.filter((item) => item.href !== "/management/assistant");
     return actor?.management_profile?.management_role === "admin"
-      ? [...managementNav, { href: "/management/accounts", label: "Management accounts", icon: UserCog }]
-      : managementNav;
+      ? [...visibleManagementNav, { href: "/management/accounts", label: "Management accounts", icon: UserCog }]
+      : visibleManagementNav;
   }, [actor?.management_profile?.management_role, isManagement]);
   const roleLabel = actor?.role === "management" ? actor.management_profile?.management_role ?? "management" : "Resident";
   const displayName = actor?.role === "management" ? actor.management_profile?.full_name ?? actor.email : actor?.email ?? "Đang tải phiên";

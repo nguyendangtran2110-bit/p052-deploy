@@ -86,6 +86,18 @@ class ManagerWorkflowAgent:
         }
 
 
+class ManagerHandbookAgent:
+    async def ainvoke(self, _state):
+        return {
+            "response": "The pool closes at 21:00.",
+            "intent": "handbook_question",
+            "draft": {},
+            "missing_fields": [],
+            "action": None,
+            "citations": [{"title": "Handbook", "page": 18}],
+        }
+
+
 @pytest.mark.asyncio
 async def test_resident_workflow_collects_then_confirms_once(client, resident_unit, resident_headers):
     agent = ResidentWorkflowAgent(resident_unit["unit_id"])
@@ -132,6 +144,34 @@ async def test_resident_workflow_collects_then_confirms_once(client, resident_un
         assert confirmed.json()["state"] == "completed"
         assert confirmed.json()["ticket"]["source"] == "chat"
         assert confirmed.json()["ticket"]["location"] == "Bếp"
+    finally:
+        app.dependency_overrides.pop(get_agent_runtime, None)
+
+
+@pytest.mark.asyncio
+async def test_manager_handbook_question_does_not_create_announcement_action(client, management_headers):
+    app.dependency_overrides[get_agent_runtime] = ManagerHandbookAgent
+    try:
+        created = await client.post("/api/v1/management/assistant/conversations", headers=management_headers)
+        assert created.status_code == 201, created.text
+        conversation_id = created.json()["conversation_id"]
+        workflow_id = created.json()["workflow_id"]
+
+        response = await client.post(
+            f"/api/v1/management/assistant/conversations/{conversation_id}/messages",
+            headers=management_headers,
+            json={
+                "message": "What time does the pool close?",
+                "workflow_id": workflow_id,
+                "workflow_version": 0,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["state"] == "collecting"
+        assert response.json()["missing_fields"] == []
+        assert response.json()["action"] is None
+        assert response.json()["announcement"] is None
     finally:
         app.dependency_overrides.pop(get_agent_runtime, None)
 

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseApiError } from "@/lib/api-client";
 import { parseSseChunk } from "@/lib/realtime";
-import { assignTicket, createAnnouncement, createTicket, fetchConversationById, fetchHandoffs, sendChat, updateAnnouncement, uploadAttachment } from "@/lib/data";
+import { assignTicket, createAnnouncement, createManagerAssistantConversation, createTicket, fetchConversationById, fetchHandoffs, sendChat, sendManagerAssistantMessage, sendResidentAssistantMessage, updateAnnouncement, uploadAttachment } from "@/lib/data";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -32,6 +32,52 @@ describe("backend connection adapters", () => {
     const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
     expect(body.unit_id).toBe("real-unit");
     expect(body).not.toHaveProperty("conversation_id");
+  });
+
+  it("sends resident workflow confirmation fields to the chat endpoint", async () => {
+    const response = {
+      conversation_id: "conversation-id",
+      response: "preview",
+      citations: [],
+      action: { type: "create_ticket", action_id: "action-id", requires_confirmation: true, payload: {} },
+      ticket: null,
+      workflow_id: "workflow-id",
+      workflow_type: "resident_ticket",
+      state: "awaiting_confirmation",
+      workflow_version: 4,
+      draft: { title: "Door" },
+      missing_fields: [],
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(response), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await sendResidentAssistantMessage({
+      message: "Confirm ticket creation",
+      conversation_id: "conversation-id",
+      unit_id: "unit-id",
+      workflow_id: "workflow-id",
+      workflow_version: 4,
+      confirmed_action_id: "action-id",
+      confirm_action: true,
+      idempotency_key: "stable-key",
+    });
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+    expect(body).toMatchObject({ workflow_id: "workflow-id", workflow_version: 4, confirmed_action_id: "action-id", confirm_action: true, idempotency_key: "stable-key" });
+    expect(result.action?.action_id).toBe("action-id");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/chat/messages");
+  });
+
+  it("uses manager assistant endpoints and keeps publish confirmation separate", async () => {
+    const conversation = { conversation_id: "conversation-id", workflow_id: "workflow-id", workflow_type: "manager_announcement", state: "collecting", workflow_version: 0, messages: [], draft: {}, missing_fields: [], action: null };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(conversation), { status: 201 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...conversation, state: "awaiting_publish_confirmation", workflow_version: 2, action: { type: "publish_announcement", action_id: "publish-id", requires_confirmation: true, payload: {} } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const created = await createManagerAssistantConversation();
+    await sendManagerAssistantMessage(created.conversation_id, { message: "Confirm publish", workflow_id: created.workflow_id, workflow_version: 1, confirmed_action_id: "publish-id", confirm_action: true, idempotency_key: "publish-retry" });
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/management/assistant/conversations");
+    const body = JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body));
+    expect(body).toMatchObject({ workflow_id: "workflow-id", workflow_version: 1, confirmed_action_id: "publish-id", confirm_action: true, idempotency_key: "publish-retry" });
+    expect(String(fetchMock.mock.calls[1][0])).toContain("/management/assistant/conversations/conversation-id/messages");
   });
 
   it("keeps handoff list response as ConversationSummary", async () => {

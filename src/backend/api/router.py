@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
 from src.backend.api.routes import (
-    announcements,
     ai_workflows,
+    announcements,
     attachments,
     auth,
     chat,

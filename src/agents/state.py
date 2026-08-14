@@ -20,6 +20,7 @@ class AgentState(TypedDict, total=False):
     workflow_type: str | None
     workflow_version: int | None
     confirmed_action_id: str | None
+    confirm_action: bool
     selected_unit_id: str | None
     workflow_attachment_ids: list[str]
     messages: list[dict]
@@ -35,6 +36,7 @@ class AgentState(TypedDict, total=False):
     draft: dict
     missing_fields: list[str]
     action: dict | None
+    state: str | None
     citations: list[dict]
     attachment_ids: list[str]
     error_details: dict | None

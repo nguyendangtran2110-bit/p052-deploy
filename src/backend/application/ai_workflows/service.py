@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
-from uuid import uuid4
+from typing import Any, Literal
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic import ValidationError as PydanticValidationError
@@ -48,21 +48,21 @@ from src.backend.infrastructure.db.repositories import ConversationRepository
 class TicketDraftModel(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    unit_id: str | None = None
+    unit_id: UUID | None = None
     category: str | None = Field(default=None, min_length=1, max_length=100)
-    priority: str | None = None
+    priority: Literal["low", "medium", "high", "urgent"] | None = None
     title: str | None = Field(default=None, min_length=1, max_length=255)
-    description: str | None = Field(default=None, min_length=1)
+    description: str | None = Field(default=None, min_length=1, max_length=50000)
     location: str | None = Field(default=None, min_length=1, max_length=255)
 
 
 class AnnouncementScopeModel(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    scope_type: str
+    scope_type: Literal["all_residents", "project", "building", "unit"]
     project_code: str | None = None
     building: str | None = None
-    unit_id: str | None = None
+    unit_id: UUID | None = None
 
 
 class AnnouncementDraftModel(BaseModel):
@@ -70,10 +70,44 @@ class AnnouncementDraftModel(BaseModel):
 
     title: str | None = Field(default=None, min_length=2, max_length=255)
     content: str | None = Field(default=None, min_length=2, max_length=50000)
-    type: str = AnnouncementType.GENERAL.value
-    priority: str = AnnouncementPriority.NORMAL.value
+    type: Literal[
+        "general",
+        "maintenance",
+        "facility",
+        "regulation_update",
+        "event",
+        "emergency",
+    ] = AnnouncementType.GENERAL.value
+    priority: Literal["normal", "important", "urgent"] = AnnouncementPriority.NORMAL.value
     expires_at: datetime | None = None
     scopes: list[AnnouncementScopeModel] = Field(default_factory=list)
+
+
+class AgentActionModel(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    type: str = Field(min_length=1, max_length=80)
+    action_id: UUID | None = None
+    requires_confirmation: bool | None = None
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentResultModel(BaseModel):
+    """Validated boundary for untrusted Agent output."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    response: str | None = None
+    assistant_message: str | None = None
+    intent: str | None = None
+    draft: dict[str, Any] = Field(default_factory=dict)
+    ticket_draft: dict[str, Any] | None = None
+    announcement_draft: dict[str, Any] | None = None
+    missing_fields: list[str] = Field(default_factory=list)
+    action: AgentActionModel | None = None
+    citations: list[dict[str, Any]] = Field(default_factory=list)
+    attachment_ids: list[UUID] = Field(default_factory=list, max_length=10)
+    error: dict[str, Any] | None = None
 
 
 class AIWorkflowService:
@@ -178,7 +212,9 @@ class AIWorkflowService:
                 "workflow_type": workflow.workflow_type,
                 "workflow_version": workflow.version,
                 "confirmed_action_id": command.confirmed_action_id,
+                "confirm_action": command.confirm_action,
                 "attachment_ids": list(command.attachment_ids),
+                "workflow_attachment_ids": list(workflow.attachment_ids or []),
                 "messages": [
                     {
                         "role": message.role,
@@ -224,9 +260,21 @@ class AIWorkflowService:
             if workflow.workflow_type != workflow_type.value:
                 raise ConflictError("Workflow type does not match this assistant")
 
-        self._check_version(workflow, command.workflow_version)
         completed_action = await self._validate_confirmation(command, workflow)
         replaying_action = completed_action is not None
+        if not replaying_action:
+            self._check_version(workflow, command.workflow_version)
+            if workflow.state in {
+                AIWorkflowState.COMPLETED.value,
+                AIWorkflowState.PUBLISHED.value,
+                AIWorkflowState.CANCELLED.value,
+            }:
+                raise ConflictError("This AI workflow is already finished; start a new workflow")
+            if workflow.state in {
+                AIWorkflowState.EXECUTING.value,
+                AIWorkflowState.PUBLISHING.value,
+            }:
+                raise ConflictError("This AI workflow action is already being processed")
         requested_attachment_ids = self._merge_ids(command.attachment_ids)
         await self.attachments.bind_to_workflow(requested_attachment_ids, workflow.id, actor)
         merged_draft = self._merge_draft(workflow.draft or {}, normalized.draft, normalized.action)
@@ -239,6 +287,7 @@ class AIWorkflowService:
 
         pending_action = workflow.pending_action if isinstance(workflow.pending_action, dict) else None
         candidate_action = normalized.action or pending_action
+        read_only_result = normalized.intent in {"handbook_question", "ticket_question"} and normalized.action is None
         if completed_action is not None:
             candidate_action = {
                 "type": completed_action.action_type,
@@ -258,14 +307,27 @@ class AIWorkflowService:
             )
         ):
             candidate_action = {**candidate_action, "action_id": pending_action["action_id"]}
-        action = self._normalize_action(candidate_action, workflow_type, merged_draft)
-        missing_fields = self._required_missing(workflow_type, merged_draft)
-        if normalized.missing_fields:
+        action = None if read_only_result else self._normalize_action(candidate_action, workflow_type, merged_draft)
+        missing_fields = [] if read_only_result else self._required_missing(workflow_type, merged_draft)
+        if normalized.missing_fields and not read_only_result:
             missing_fields = self._merge_missing(
                 missing_fields,
                 [field for field in normalized.missing_fields if field in missing_fields],
             )
-        if action and action.get("type") == "cancelled":
+        if normalized.error:
+            error_fields = [str(field) for field in normalized.error.get("fields", []) if field]
+            workflow.state = AIWorkflowState.COLLECTING.value
+            workflow.pending_action = None
+            workflow.last_error = {"type": str(normalized.error.get("type") or "agent_error")}
+            action = {
+                "type": "ask_clarification",
+                "action_id": self._action_id(pending_action),
+                "requires_confirmation": False,
+                "payload": {"fields": error_fields},
+            }
+            if error_fields:
+                missing_fields = self._merge_missing(missing_fields, error_fields)
+        elif action and action.get("type") == "cancelled":
             workflow.state = AIWorkflowState.CANCELLED.value
             workflow.pending_action = None
             workflow.last_error = None
@@ -302,6 +364,7 @@ class AIWorkflowService:
                 if action.get("type") == "publish_announcement"
                 else AIWorkflowState.EXECUTING.value
             )
+            await self._reserve_action_state(workflow)
             try:
                 domain_ticket, domain_announcement, action = await self._execute_action(
                     workflow=workflow,
@@ -335,9 +398,9 @@ class AIWorkflowService:
 
         workflow.draft = merged_draft
         workflow.missing_fields = missing_fields
-        if not replaying_action:
+        if not replaying_action and not read_only_result:
             workflow.pending_action = action if action and action.get("requires_confirmation") else None
-        if execution_error is None and workflow.state != AIWorkflowState.FAILED.value:
+        if execution_error is None and normalized.error is None and workflow.state != AIWorkflowState.FAILED.value:
             workflow.last_error = None
         if domain_ticket is not None:
             workflow.result = {"ticket_id": domain_ticket.id, "ticket_code": domain_ticket.ticket_code}
@@ -352,6 +415,7 @@ class AIWorkflowService:
             if action and action.get("type") == "published":
                 workflow.state = AIWorkflowState.PUBLISHED.value
                 workflow.completed_at = utc_now()
+                workflow.pending_action = None
             elif replaying_action and workflow.pending_action:
                 workflow.state = AIWorkflowState.AWAITING_PUBLISH_CONFIRMATION.value
                 if action:
@@ -406,7 +470,7 @@ class AIWorkflowService:
         assistant_event = build_message_event(assistant, conversation)
         publish_message_payload(conversation, user_event, include_management=workflow_type is AIWorkflowType.MANAGER_ANNOUNCEMENT)
         publish_message_payload(conversation, assistant_event, include_management=workflow_type is AIWorkflowType.MANAGER_ANNOUNCEMENT)
-        if domain_ticket is not None:
+        if domain_ticket is not None or domain_announcement is not None:
             publish_conversation_event(
                 conversation,
                 "conversation.workflow.changed",
@@ -460,6 +524,25 @@ class AIWorkflowService:
         if result.rowcount != 1:
             raise ConflictError("AI workflow has changed; reload it before continuing")
 
+    async def _reserve_action_state(self, workflow: AIWorkflow) -> None:
+        """Reserve the current workflow version before a domain service commits.
+
+        Ticket and announcement services own their existing transactions. The
+        conditional update prevents a second request with the same stale
+        workflow version from reaching those side effects first.
+        """
+        expected_version = workflow.version
+        next_version = expected_version + 1
+        result = await self.session.execute(
+            update(AIWorkflow)
+            .where(AIWorkflow.id == workflow.id, AIWorkflow.version == expected_version)
+            .values(state=workflow.state, version=next_version, updated_at=utc_now())
+            .execution_options(synchronize_session=False)
+        )
+        if result.rowcount != 1:
+            raise ConflictError("AI workflow has changed; reload it before continuing")
+        workflow.version = next_version
+
     async def _execute_action(
         self,
         *,
@@ -487,8 +570,21 @@ class AIWorkflowService:
                 AIWorkflowActionStatus.UNKNOWN.value,
             }:
                 raise ConflictError("This action is already being processed; reload the workflow")
-            if existing.status == AIWorkflowActionStatus.FAILED.value and not command.confirm_action:
+            if existing.status == AIWorkflowActionStatus.FAILED.value and not (
+                command.confirm_action or command.confirmed_action_id
+            ):
                 raise ConflictError("The previous action failed; confirm again to retry")
+
+        allowed_actions = {
+            AIWorkflowType.RESIDENT_TICKET: {"create_ticket"},
+            AIWorkflowType.MANAGER_ANNOUNCEMENT: {
+                "create_announcement_draft",
+                "update_announcement",
+                "publish_announcement",
+            },
+        }
+        if action_type not in allowed_actions[workflow_type]:
+            raise AuthorizationError("This action is not allowed for the current workflow")
 
         ledger = existing or AIWorkflowAction(
             workflow_id=workflow.id,
@@ -641,8 +737,19 @@ class AIWorkflowService:
         announcement_id = str((workflow.result or {}).get("announcement_id") or workflow.draft.get("announcement_id") or "")
         if not announcement_id:
             raise ValidationError("No announcement draft is available to publish")
+        expected_version = (workflow.result or {}).get("announcement_version")
+        pending_action = workflow.pending_action if isinstance(workflow.pending_action, dict) else None
+        pending_payload = pending_action.get("payload") if pending_action else None
+        if isinstance(pending_payload, dict) and pending_payload.get("announcement_version") is not None:
+            expected_version = pending_payload["announcement_version"]
+        if expected_version is None:
+            raise ValidationError("Announcement version is missing from the workflow")
+        try:
+            expected_version = int(expected_version)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("Announcement version is invalid") from exc
         announcement = await self.announcements.get_management(announcement_id, actor)
-        return await self.announcements.publish(announcement.id, announcement.version, actor)
+        return await self.announcements.publish(announcement.id, expected_version, actor)
 
     async def _create_workflow_for_conversation(
         self, conversation: Conversation, workflow_type: AIWorkflowType, actor: ActorContext
@@ -679,28 +786,26 @@ class AIWorkflowService:
     def _normalize_result(result: dict[str, Any]) -> WorkflowAgentResult:
         if not isinstance(result, dict):
             raise ValidationError("Agent returned an invalid result")
-        action = result.get("action")
-        action = action if isinstance(action, dict) else None
-        draft = result.get("draft")
-        if not isinstance(draft, dict):
-            draft = {}
-        for legacy_key in ("ticket_draft", "announcement_draft"):
-            if isinstance(result.get(legacy_key), dict):
-                draft = {**draft, **result[legacy_key]}
+        try:
+            validated = AgentResultModel.model_validate(result)
+        except PydanticValidationError as exc:
+            raise ValidationError("Agent returned an invalid structured result") from exc
+        action = validated.action.model_dump(mode="json") if validated.action else None
+        draft = dict(validated.draft)
+        for legacy_draft in (validated.ticket_draft, validated.announcement_draft):
+            if legacy_draft:
+                draft = {**draft, **legacy_draft}
         if action and isinstance(action.get("payload"), dict):
             draft = {**draft, **action["payload"]}
-        citations = result.get("citations") if isinstance(result.get("citations"), list) else []
-        attachments = result.get("attachment_ids") if isinstance(result.get("attachment_ids"), list) else []
-        missing = result.get("missing_fields") if isinstance(result.get("missing_fields"), list) else []
         return WorkflowAgentResult(
-            response=str(result.get("assistant_message") or result.get("response") or ""),
-            intent=str(result.get("intent")) if result.get("intent") else None,
+            response=validated.assistant_message or validated.response or "",
+            intent=validated.intent,
             draft={key: value for key, value in draft.items() if value is not None},
-            missing_fields=[str(value) for value in missing],
+            missing_fields=list(validated.missing_fields),
             action=action,
-            citations=[item for item in citations if isinstance(item, dict)],
-            attachment_ids=[str(value) for value in attachments],
-            error=result.get("error") if isinstance(result.get("error"), dict) else None,
+            citations=list(validated.citations),
+            attachment_ids=[str(value) for value in validated.attachment_ids],
+            error=validated.error,
         )
 
     @staticmethod
@@ -741,9 +846,10 @@ class AIWorkflowService:
                 return None
         normalized = dict(action)
         normalized["action_id"] = str(normalized.get("action_id") or uuid4())
-        normalized.setdefault("requires_confirmation", normalized.get("type") in {
-            "create_ticket", "create_announcement_draft", "update_announcement", "publish_announcement"
-        })
+        if normalized.get("requires_confirmation") is None:
+            normalized["requires_confirmation"] = normalized.get("type") in {
+                "create_ticket", "create_announcement_draft", "update_announcement", "publish_announcement"
+            }
         normalized.setdefault("payload", draft)
         return normalized
 
@@ -770,7 +876,12 @@ class AIWorkflowService:
             return command.confirmed_action_id == str(action.get("action_id"))
         # Legacy clients sent only confirm_action. Keep this compatibility path
         # until all clients send action_id explicitly.
-        return command.confirm_action and command.workflow_id is None
+        return (
+            command.confirm_action
+            and command.workflow_id is None
+            and workflow.workflow_type == AIWorkflowType.RESIDENT_TICKET.value
+            and (workflow.pending_action is not None or workflow.version == 0)
+        )
 
     @staticmethod
     def _check_version(workflow: AIWorkflow, expected_version: int | None) -> None:
@@ -839,7 +950,7 @@ class AIWorkflowService:
                     scope_type=scope_type,
                     project_code=scope.project_code,
                     building=scope.building,
-                    unit_id=scope.unit_id,
+                    unit_id=str(scope.unit_id) if scope.unit_id else None,
                 )
             )
         return tuple(result)
