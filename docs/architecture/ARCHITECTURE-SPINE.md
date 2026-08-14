@@ -73,11 +73,11 @@ Use a modular monolith with explicit domain modules behind one FastAPI process, 
 - **Prevents:** SSRF-like profile checks, unsupported provider assumptions, and false delivery claims.
 - **Rule:** Apply version-controlled `ZaloLinkPolicy v1` locally: HTTPS, exact `zalo.me` host, one approved profile-ID path segment, and no unsafe URL components. Store the normalized URL with validator version and revalidate stale versions before an authorized manager handoff. Do not call Zalo or claim ownership, existence, delivery, or read state.
 
-### AD-011 - Role-specific responsive web shells [ADOPTED]
+### AD-011 - Role-specific desktop-first web shells [ADOPTED]
 
 - **Binds:** Route ownership, state ownership, and accessibility baseline.
-- **Prevents:** Manager-only assumptions leaking into resident mobile flows or client-side role checks becoming authorization.
-- **Rule:** Resident routes are mobile-first; manager routes are desktop-first and responsive; all conform to WCAG 2.2 AA. The backend remains the authority for role and scope.
+- **Prevents:** Manager-density assumptions leaking into resident task flows, mobile requirements entering MVP implicitly, or client-side role checks becoming authorization.
+- **Rule:** Resident and manager routes are desktop-first with a minimum product-supported viewport of 1024 CSS px at 100% zoom. Mobile and tablet UX/UI are out of scope. All routes conform to WCAG 2.2 AA, including required desktop zoom/reflow behavior. The backend remains the authority for role and scope.
 
 ### AD-012 - Database-backed asynchronous work [ADOPTED]
 

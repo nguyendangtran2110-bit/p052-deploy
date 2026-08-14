@@ -1,17 +1,17 @@
-# ADR-0007: Role-Specific Responsive Web Client and WCAG 2.2 AA
+# ADR-0007: Role-Specific Desktop-First Web Client and WCAG 2.2 AA
 
 **Status:** Accepted
 **Date:** 2026-08-11
 
 ## Context
 
-Resident flows are mobile-first. Manager flows are desktop-first but must remain usable on smaller screens. WCAG 2.2 AA is approved. No frontend project currently exists, while existing architecture notes point to React/Next.js.
+Resident and manager flows are desktop-first. Mobile and tablet UX/UI are outside MVP scope. WCAG 2.2 AA remains approved, including zoom and reflow behavior required for desktop accessibility. No frontend project currently exists, while existing architecture notes point to React/Next.js.
 
 ## Decision
 
-Use one TypeScript Next.js/React web client with public, resident, manager, and administrator route shells. Support core workflows from 360 CSS px upward with breakpoints at 768, 1024, and 1280 CSS px. Apply WCAG 2.2 AA across both role experiences.
+Use one TypeScript Next.js/React web client with public, resident, manager, and administrator route shells. Design resident and manager workflows desktop-first, with a minimum product-supported viewport of 1024 CSS px at 100% browser zoom and layout targets at 1024, 1280, and 1440 CSS px and above. Do not require mobile or tablet-specific shells, navigation, compact data representations, or acceptance tests below 1024 CSS px at 100% zoom. Apply WCAG 2.2 AA across both role experiences, including 200% zoom and 400%/320 CSS px equivalent reflow on desktop.
 
-The frontend owns presentation, accessible dialogs, responsive layout, account/epoch-bound unsaved edit buffers, a single-flight draft save queue, and visible field-level conflict recovery. The backend owns the persistent account draft generation/version, identity, authorization, scope, snapshots, state transitions, durable submission results, and notification durability.
+The frontend owns presentation, accessible dialogs, desktop layout, account/epoch-bound unsaved edit buffers, a single-flight draft save queue, and visible field-level conflict recovery. The backend owns the persistent account draft generation/version, identity, authorization, scope, snapshots, state transitions, durable submission results, and notification durability.
 
 ## Rationale
 
@@ -21,7 +21,7 @@ The frontend owns presentation, accessible dialogs, responsive layout, account/e
 
 ## Tradeoffs
 
-- Manager tables require alternative compact/card layouts on narrow screens.
+- Phone- and tablet-specific access patterns are intentionally unspecified; any future mobile or tablet work requires separate scope approval.
 - One application bundle contains multiple role shells and requires disciplined code splitting.
 - Accessibility acceptance adds design/test work before frontend stories are complete.
 

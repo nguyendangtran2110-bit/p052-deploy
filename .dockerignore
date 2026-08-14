@@ -2,14 +2,23 @@
 .gitignore
 .env
 .venv
-__pycache__
-*.pyc
 .pytest_cache
 .ruff_cache
+frontend/node_modules
+frontend/.next
+frontend/tsconfig.tsbuildinfo
+__pycache__
+*.pyc
 # Agent tooling, skills, and generated logs
 .impeccable/
 AGENTS.md
 SKILL.md
+# Bmad and local agent cache files
+_bmad*
+.agents/skills
+.agent/skills
+AGENTS*
+.memlog.md
 docs/
 docs/superpowers/
 presentation/
@@ -22,9 +31,3 @@ Dockerfile
 docker-compose.yml
 test_log.txt
 .impeccable
-# Bmad cache files
-_bmad*
-.agents/skills
-.agent/skills
-AGENTS*
-.memlog.md

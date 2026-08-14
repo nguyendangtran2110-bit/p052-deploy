@@ -63,7 +63,7 @@ Every mutation uses the currently rendered `draft_id` and version plus a fresh i
 - preserve the resident's attempted changes in memory;
 - replace the displayed server baseline/version with the returned current draft;
 - announce that the draft changed in another session;
-- show a mobile-friendly comparison for subject, content, and urgency, defaulting each field to the latest server value;
+- show a clear per-field comparison for subject, content, and urgency, defaulting each field to the latest server value;
 - let the resident explicitly select individual local field values to apply, then send only those selected fields against the returned current version; and
 - preserve unsent local text and repeat review after another conflict; never auto-merge, force-overwrite, or silently retry.
 
@@ -87,29 +87,31 @@ Manager queue rows and previews are read-only. The full detail route calls `POST
 
 If manager scope changes or is revoked while a protected detail/composer is open, purge that detail, preview token, resident/contact data, and related query-cache entries before redirecting to a safe manager route. Do not leave protected content behind a disabled overlay or browser back-cache.
 
-## Responsive Contract
+## Desktop Layout Contract
 
 ### Supported widths
 
-- Minimum supported viewport: `360 CSS px` for all core resident and manager workflows.
-- Mobile: `360-767 px`.
-- Tablet/compact manager: `768-1023 px`.
-- Desktop: `1024-1279 px`.
-- Wide desktop: `1280 px` and above.
+- Resident and manager workflows are desktop-first.
+- Minimum product-supported viewport: `1024 CSS px` at 100% browser zoom.
+- Standard desktop: `1024-1279 px`.
+- Wide desktop: `1280-1439 px`.
+- Extra-wide desktop: `1440 px` and above.
+- Mobile and tablet-specific layouts, navigation, and acceptance testing below `1024 CSS px` at 100% zoom are outside MVP scope.
+- WCAG reflow at `320 CSS px` equivalent content width under 400% desktop zoom remains required accessibility behavior and does not imply mobile support.
 
 ### Resident shell
 
-- Mobile-first at 360 px.
+- Desktop-first at 1024 px and above.
 - Primary navigation remains reachable without hover.
-- Forms use single-column layout on mobile and may widen on larger screens.
+- Forms use a clear primary task column and may add a contextual side rail when space permits.
 - Ticket review keeps read-only resident context visually separate from editable fields.
 
 ### Manager shell
 
 - Desktop-first multi-column/dashboard layout at 1024 px and above.
-- At 768-1023 px, collapse secondary panels and preserve queue/detail actions.
-- At 360-767 px, use stacked queue/detail views, accessible filters, and action menus without horizontal scrolling for core workflows.
-- Dense tables convert to cards or responsive rows; no required data is hidden solely because of viewport width.
+- Queue, detail, filtering, and action layouts are optimized for desktop pointer and keyboard use.
+- Dense data remains in desktop tables or deliberate master-detail layouts; mobile card conversions are not required.
+- Required data and actions remain available throughout the supported desktop range and WCAG zoom/reflow states.
 
 ## Accessibility Contract
 
@@ -121,8 +123,8 @@ WCAG 2.2 AA is binding.
 - Dialog focus is trapped, labeled, announced, and returned to its trigger.
 - Ticket transitions, OTP errors, validation, notification state, and conflict results use appropriate live-region announcements.
 - Draft save announcements are coalesced so screen readers are not told `saving`/`saved` on every keystroke.
-- Touch targets meet WCAG 2.2 target-size expectations or documented exceptions.
-- Reflow at 400% zoom and 320 CSS px equivalent content width must not lose core functionality, while the product-supported viewport remains 360 px.
+- Pointer targets meet WCAG 2.2 target-size expectations or documented exceptions.
+- Reflow at 400% zoom and 320 CSS px equivalent content width must not lose core functionality. This is a desktop accessibility requirement, not a supported mobile viewport.
 - Theme changes preserve contrast, focus, and reduced-motion preferences.
 - Vietnamese strings are the default and must not be embedded in business logic.
 

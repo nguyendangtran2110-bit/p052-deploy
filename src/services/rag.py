@@ -2,14 +2,15 @@
 RAG retrieval service for the Resident Handbook.
 
 This module is the ONLY place in the codebase that knows about ChromaDB and
-LlamaIndex. All other layers (agent tools, API routes) call query_handbook().
+LlamaIndex. All other layers (agent tools, API routes) call retrieve_context()
+or query_handbook().
 
 Usage:
-    from src.services.rag import query_handbook
+    from src.services.rag import retrieve_context, query_handbook
+    chunks = retrieve_context("What are the quiet hours?")
     answer = query_handbook("What are the quiet hours?")
 """
 
-import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -17,11 +18,38 @@ import llama_index.llms.openai.utils as openai_utils
 import tiktoken.model as tiktoken_model
 
 # Register Qwen model in LlamaIndex & Tiktoken for OpenAI compatibility
-openai_utils.ALL_AVAILABLE_MODELS["qwen3.6-plus"] = 128000
-openai_utils.CHAT_MODELS["qwen3.6-plus"] = 128000
-tiktoken_model.MODEL_TO_ENCODING["qwen3.6-plus"] = "cl100k_base"
+openai_utils.ALL_AVAILABLE_MODELS["qwen3.5-plus"] = 1_000_000
+openai_utils.CHAT_MODELS["qwen3.5-plus"] = 1_000_000
+tiktoken_model.MODEL_TO_ENCODING["qwen3.5-plus"] = "cl100k_base"
 
 COLLECTION_NAME = "resident_handbook"
+
+
+class RetrievedChunk:
+    """A single chunk retrieved from the vector store with metadata."""
+
+    def __init__(
+        self,
+        text: str,
+        source_file: str = "",
+        page_number: int = 0,
+        section_title: str = "",
+        score: float = 0.0,
+    ):
+        self.text = text
+        self.source_file = source_file
+        self.page_number = page_number
+        self.section_title = section_title
+        self.score = score
+
+    def to_dict(self) -> dict:
+        return {
+            "text": self.text,
+            "source_file": self.source_file,
+            "page_number": self.page_number,
+            "section_title": self.section_title,
+            "score": round(self.score, 4),
+        }
 
 
 def _get_persist_dir() -> str:
@@ -85,6 +113,63 @@ def _get_vector_index(persist_dir: str):
     return _get_vector_index_cached(persist_dir, api_key, base_url, chroma_host, model_name)
 
 
+def _build_retriever(persist_dir: str, building_id: str | None = None, top_k: int = 5):
+    """
+    Build LlamaIndex VectorIndexRetriever with optional multi-tenant MetadataFilter.
+    """
+    from llama_index.core.vector_stores import ExactMatchFilter, MetadataFilters
+
+    index = _get_vector_index(persist_dir)
+    filters = None
+    if building_id:
+        filters = MetadataFilters(filters=[ExactMatchFilter(key="building_id", value=building_id)])
+
+    return index.as_retriever(similarity_top_k=top_k, filters=filters)
+
+
+def retrieve_context(query: str, top_k: int = 5, building_id: str | None = None) -> list[RetrievedChunk]:
+    """
+    Retrieve relevant chunks from the handbook vector store.
+
+    Uses Qwen embedding for vector similarity search.
+    Returns a list of RetrievedChunk objects with text and metadata.
+
+    Args:
+        query: The search query (in any language).
+        top_k: Number of top chunks to retrieve.
+        building_id: Optional tenant isolation filter (e.g. 'phu_dong_sky_garden').
+
+    Returns:
+        List of RetrievedChunk objects sorted by relevance.
+    """
+    from src.config import get_settings
+    settings = get_settings()
+    persist_dir = _get_persist_dir()
+
+    if not getattr(settings, "chroma_server_host", "") and not Path(persist_dir).exists():
+        return []
+
+    try:
+        retriever = _build_retriever(persist_dir, building_id=building_id, top_k=top_k)
+        nodes = retriever.retrieve(query)
+
+        chunks = []
+        for node in nodes[:top_k]:
+            metadata = node.metadata or {}
+            chunk = RetrievedChunk(
+                text=node.get_content(),
+                source_file=metadata.get("source_file", ""),
+                page_number=metadata.get("page_number", 0),
+                section_title=metadata.get("section_title", metadata.get("Header 1", "")),
+                score=node.score if node.score is not None else 0.0,
+            )
+            chunks.append(chunk)
+
+        return chunks
+    except Exception as exc:
+        print(f"[rag] Retrieval error: {type(exc).__name__}: {exc}")
+        return []
+
 
 def _build_query_engine(persist_dir: str, building_id: str | None = None):
     """
@@ -138,7 +223,7 @@ def query_handbook(query: str, building_id: str | None = None) -> str:
     settings = get_settings()
     persist_dir = _get_persist_dir()
 
-    if not settings.chroma_server_host and not Path(persist_dir).exists():
+    if not getattr(settings, "chroma_server_host", "") and not Path(persist_dir).exists():
         return (
             "The resident handbook knowledge base is not available yet. "
             "Please ask a management staff member for assistance."
@@ -153,5 +238,3 @@ def query_handbook(query: str, building_id: str | None = None) -> str:
             f"Could not retrieve an answer from the handbook at this time "
             f"({type(exc).__name__}). Please contact the management office."
         )
-
-

@@ -7,8 +7,10 @@ Uses pytest tmp_path fixture to isolate file operations.
 
 import hashlib
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
+from llama_index.core import Document
 
 # Import helpers directly — avoids running the __main__ block.
 from scripts.ingest_handbook import (
@@ -18,8 +20,11 @@ from scripts.ingest_handbook import (
     evaluate_ocr_quality,
     run_audit_scan,
     extract_page_tables_as_markdown,
+    ocr_pdf_page_with_qwen,
+    load_pdf_document_hybrid,
+    MIN_PDF_PAGE_WORDS,
+    export_pdf_to_markdown,
 )
-
 
 
 # ---------------------------------------------------------------------------
@@ -127,14 +132,6 @@ class TestQualityGate:
 # Hybrid PDF & Qwen OCR tests
 # ---------------------------------------------------------------------------
 
-from unittest.mock import MagicMock, patch
-from scripts.ingest_handbook import (
-    ocr_pdf_page_with_qwen,
-    load_pdf_document_hybrid,
-    MIN_PDF_PAGE_WORDS,
-)
-
-
 class TestQwenOCR:
     @patch("scripts.ingest_handbook.openai.OpenAI")
     def test_ocr_success(self, mock_openai):
@@ -212,10 +209,6 @@ class TestHybridPDFLoader:
         assert mock_ocr.called
 
 
-from llama_index.core import Document
-from scripts.ingest_handbook import export_pdf_to_markdown
-
-
 class TestExportPDFToMarkdown:
     def test_exports_markdown_file(self, tmp_path: Path):
         source = tmp_path / "handbook.pdf"
@@ -257,7 +250,6 @@ class TestExportPDFToMarkdown:
         out_file = export_pdf_to_markdown([doc], source, output_dir=out_dir)
         content = out_file.read_text(encoding="utf-8")
         assert "<!-- Page 1 (Qwen OCR) [AUDIT_REQUIRED: HIGH_SYMBOL_NOISE] -->" in content
-
 
 
 class TestEvaluateOCRQuality:
@@ -337,7 +329,3 @@ class TestComplexTableParsing:
         assert count == 1
         assert "| Vehicle | Monthly Fee |" in md_text
         assert "| Car | 1,200,000 |" in md_text
-
-
-
-

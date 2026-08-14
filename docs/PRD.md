@@ -15,6 +15,11 @@
 This document is the authoritative MVP product specification. Where `docs/Brief.md` or `PRODUCT.md` conflicts with this PRD, this PRD supersedes them. Approved post-MVP deferrals are listed in Section 10 and do not block MVP architecture or implementation planning.
 
 ## 1. Product Definition
+### Executive Summary
+
+- **Target user & use case**: New homeowners/residents right after unit handover, who need step-by-step onboarding guidance, answers about amenities/regulations, and a way to report and track defects; property management staff who must review and approve every commitment or ticket before it is created.
+- **Key differentiator & value proposition**: Unlike scattered manual processes (phone calls, paper checklists, separate channels), OnBxrD combines a stateful onboarding checklist (LangGraph), source-grounded Q&A (RAG over the resident handbook), and structured defect-ticket escalation — all gated by mandatory human approval (HITL) so management retains authority and accountability.
+- **Success definition & metrics**: Success means residents complete onboarding faster, defect requests are triaged and resolved accurately, and management spends less time on repetitive questions. Primary KPI: % of residents completing the onboarding checklist within the target window (initial target: 80% within 7 days of handover).
 
 ### Product Vision
 
@@ -542,9 +547,9 @@ The product requires persistent records for:
 
 Relevant surfaces include visible loading, empty, unavailable, validation-error, permission-denied, and retry states. Status cannot rely on color alone. Important outcomes remain visible on the page or in history; toasts are supplemental.
 
-### Responsive and Accessibility Baseline
+### Desktop UX and Accessibility Baseline
 
-WCAG 2.2 AA is required. Resident-facing flows are mobile-first. Manager-facing flows are desktop-first but remain responsive and usable on smaller screens. Core workflows support 360 CSS px and above, with responsive breakpoints at 768, 1024, and 1280 CSS px. Keyboard operation, meaningful labels, visible focus, accessible dialogs, reflow, and screen-reader-readable status changes are required.
+WCAG 2.2 AA is required. Resident-facing and manager-facing flows are desktop-first. The minimum product-supported viewport is 1024 CSS px at 100% browser zoom, with layout targets at 1024, 1280, and 1440 CSS px and above. Mobile and tablet-specific navigation, compact layouts, touch or virtual-keyboard optimization, and product acceptance testing below 1024 CSS px at 100% zoom are out of scope. Keyboard operation, meaningful labels, visible focus, accessible dialogs, screen-reader-readable status changes, 200% zoom, and WCAG reflow at 320 CSS px equivalent content width remain required desktop accessibility behavior; reflow compliance does not create a mobile-support commitment.
 
 ---
 
@@ -628,7 +633,7 @@ Before targets are approved, the team must define denominators, measurement wind
 - Ticket history uses immutable submitted resident/location snapshots and current manager scope.
 - Resident/manager username and registry ID are immutable; resident location and manager assignments are administrator/registry controlled.
 - Zalo validation is local and rule-based only; no profile-existence or ownership request occurs in MVP.
-- WCAG 2.2 AA, resident mobile-first behavior, manager desktop-first responsive behavior, and the documented breakpoints are approved.
+- WCAG 2.2 AA and desktop-first resident and manager behavior are approved. The supported product viewport begins at 1024 CSS px at 100% zoom; mobile and tablet UX/UI are explicitly outside MVP scope, while WCAG zoom and reflow remain required accessibility behavior on desktop.
 
 ### Approved Deferred Post-MVP Items
 
@@ -655,6 +660,14 @@ These deferrals do not block MVP architecture or implementation planning. Implem
 - **Stale building information:** outdated sources could produce incorrect guidance. Mitigate with accountable source owners, versioning, and explicit refusal when approved information is unavailable.
 - **Incorrect benefit eligibility:** residents could see benefits they cannot use. Mitigate with building-scoped eligibility rules and the approved benefit-governance process.
 - **Unbounded administrator access:** support privileges could expose resident data. Mitigate with explicit capabilities, least privilege, and audited elevation.
+
+---
+### Demo UI Surface
+
+- **Landing**: Boomerang positioning and direct links into the working surfaces. Booking, purchasing, and unrelated conversion actions are intentionally excluded from the demo.
+- **Onboarding**: A resident checklist with step-by-step agent guidance, grounded answers with source references, and a resident context summary.
+- **In-app chat**: A resident conversation inside the OnBxrD app for handbook Q&A and maintenance issue intake. The agent detects ticket intent, collects the structured fields, and asks for confirmation before creating a ticket.
+- **Ticket**: A resident ticket workspace with a dedicated one-to-one conversation. The resident reviews the structured request before submission, then sees status events and follow-up messages in the same ticket thread.
 
 ---
 

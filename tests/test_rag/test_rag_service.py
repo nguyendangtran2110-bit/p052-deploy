@@ -12,6 +12,20 @@ import pytest
 
 
 # ---------------------------------------------------------------------------
+# Helpers / fixtures
+# ---------------------------------------------------------------------------
+
+class _FakeNode:
+    def __init__(self, text: str, metadata: dict | None = None, score: float = 0.8):
+        self.metadata = metadata or {}
+        self.score = score
+        self._text = text
+
+    def get_content(self) -> str:
+        return self._text
+
+
+# ---------------------------------------------------------------------------
 # Graceful degradation: vector store directory does not exist
 # ---------------------------------------------------------------------------
 
@@ -30,6 +44,13 @@ class TestQueryHandbookDegradation:
         # Should NOT raise; should contain a human-friendly message
         assert "not available" in result.lower() or "contact" in result.lower()
 
+    def test_retrieve_context_returns_empty_when_store_missing(self, tmp_path: Path):
+        missing_dir = str(tmp_path / "no_such_dir")
+        with patch("src.services.rag._get_persist_dir", return_value=missing_dir):
+            from src.services import rag
+            chunks = rag.retrieve_context("What are the quiet hours?")
+        assert chunks == []
+
 
 # ---------------------------------------------------------------------------
 # Happy path: mocked vector store returns an answer
@@ -38,7 +59,6 @@ class TestQueryHandbookDegradation:
 class TestQueryHandbookHappyPath:
     def test_returns_string_answer(self, tmp_path: Path):
         """When the store exists, query_handbook returns a string."""
-        # Create the directory so the existence check passes.
         persist_dir = str(tmp_path / "chroma")
         Path(persist_dir).mkdir()
 
@@ -52,14 +72,15 @@ class TestQueryHandbookHappyPath:
             patch("src.services.rag._get_persist_dir", return_value=persist_dir),
             patch("src.services.rag._build_query_engine", return_value=mock_engine),
         ):
-            # Clear lru_cache before each call so our mock is used.
             from src.services import rag
-            rag._build_query_engine.cache_clear() if hasattr(rag._build_query_engine, "cache_clear") else None
+            if hasattr(rag._build_query_engine, "cache_clear"):
+                rag._build_query_engine.cache_clear()
 
             result = rag.query_handbook("What are the quiet hours?")
 
         assert isinstance(result, str)
         assert len(result) > 0
+        assert "Quiet hours" in result
 
     def test_engine_receives_exact_query(self, tmp_path: Path):
         persist_dir = str(tmp_path / "chroma2")
@@ -81,6 +102,42 @@ class TestQueryHandbookHappyPath:
             rag.query_handbook(question)
 
         mock_engine.query.assert_called_once_with(question)
+
+
+# ---------------------------------------------------------------------------
+# retrieve_context tests
+# ---------------------------------------------------------------------------
+
+class TestRetrieveContext:
+    def test_retrieve_context_returns_chunks(self, tmp_path: Path):
+        persist_dir = str(tmp_path / "chroma_ctx")
+        Path(persist_dir).mkdir()
+
+        mock_retriever = MagicMock()
+        mock_retriever.retrieve.return_value = [
+            _FakeNode(
+                "Quiet hours are 22:00-06:00 on weekdays.",
+                {"source_file": "handbook.pdf", "page_number": 12, "section_title": "Quiet hours"},
+                score=0.92,
+            )
+        ]
+
+        with (
+            patch("src.services.rag._get_persist_dir", return_value=persist_dir),
+            patch("src.services.rag._build_retriever", return_value=mock_retriever),
+        ):
+            from src.services import rag
+            chunks = rag.retrieve_context("What are the quiet hours?", top_k=5)
+
+        assert len(chunks) == 1
+        assert chunks[0].text == "Quiet hours are 22:00-06:00 on weekdays."
+        assert chunks[0].source_file == "handbook.pdf"
+        assert chunks[0].page_number == 12
+        assert chunks[0].section_title == "Quiet hours"
+        assert chunks[0].score == 0.92
+        chunk_dict = chunks[0].to_dict()
+        assert chunk_dict["source_file"] == "handbook.pdf"
+        assert chunk_dict["score"] == 0.92
 
 
 # ---------------------------------------------------------------------------
@@ -155,5 +212,3 @@ class TestMultiTenantRetrieval:
 
         mock_build_engine.assert_called_once_with(persist_dir, building_id="vinhomes_central")
         assert res == "Filtered building answer"
-
-

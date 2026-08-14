@@ -1,0 +1,141 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from src.backend.domain.conversations.enums import ConversationHandoffStatus
+from src.backend.domain.tickets.enums import TicketPriority, TicketSource, TicketStatus
+from src.backend.infrastructure.db.base import Base, TimestampMixin, UuidPrimaryKeyMixin, utc_now
+
+if TYPE_CHECKING:
+    from src.backend.infrastructure.db.models.ai_workflows import AIWorkflow
+    from src.backend.infrastructure.db.models.announcements import Announcement
+    from src.backend.infrastructure.db.models.conversations import Conversation, Message
+    from src.backend.infrastructure.db.models.identity import UserAccount
+    from src.backend.infrastructure.db.models.residents import Resident, Unit
+
+
+class Ticket(UuidPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "tickets"
+    __table_args__ = (
+        CheckConstraint("source IN ('form', 'chat')", name="ck_ticket_source"),
+        CheckConstraint(
+            "status IN ('submitted', 'approved', 'in_progress', 'resolved', 'rejected', 'cancelled')",
+            name="ck_ticket_status",
+        ),
+        CheckConstraint("priority IN ('low', 'medium', 'high', 'urgent')", name="ck_ticket_priority"),
+        UniqueConstraint("resident_id", "idempotency_key", name="uq_ticket_resident_idempotency"),
+        Index("ix_ticket_resident_status", "resident_id", "status"),
+        Index("ix_ticket_unit_status", "unit_id", "status"),
+        Index("ix_ticket_assignee_status", "assigned_to_id", "status"),
+        Index("uq_ticket_conversation_id", "conversation_id", unique=True),
+    )
+
+    ticket_code: Mapped[str] = mapped_column(String(40), unique=True, index=True)
+    resident_id: Mapped[str] = mapped_column(String(36), ForeignKey("residents.id"), index=True)
+    unit_id: Mapped[str] = mapped_column(String(36), ForeignKey("units.id"), index=True)
+    conversation_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=False
+    )
+    source: Mapped[str] = mapped_column(String(20), default=TicketSource.FORM.value, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default=TicketStatus.SUBMITTED.value, index=True, nullable=False)
+    category: Mapped[str] = mapped_column(String(100), index=True)
+    priority: Mapped[str] = mapped_column(String(20), default=TicketPriority.MEDIUM.value, index=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text)
+    location: Mapped[str] = mapped_column(String(255))
+    idempotency_key: Mapped[str | None] = mapped_column(String(100))
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    assigned_to_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("user_accounts.id", ondelete="SET NULL"), index=True
+    )
+    assigned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+
+    resident: Mapped[Resident] = relationship(back_populates="tickets")
+    unit: Mapped[Unit] = relationship(back_populates="tickets")
+    conversation: Mapped[Conversation] = relationship(back_populates="ticket", uselist=False)
+    assignee: Mapped[UserAccount | None] = relationship()
+    events: Mapped[list[TicketEvent]] = relationship(
+        back_populates="ticket", cascade="all, delete-orphan", order_by="TicketEvent.created_at"
+    )
+    attachments: Mapped[list[TicketAttachment]] = relationship(back_populates="ticket", cascade="all, delete-orphan")
+
+    @property
+    def handoff_status(self) -> str:
+        if self.conversation is None:
+            return ConversationHandoffStatus.BOT_ACTIVE.value
+        return self.conversation.handoff_status
+
+    @property
+    def assigned_manager_id(self) -> str | None:
+        return self.conversation.assigned_manager_id if self.conversation else None
+
+    @property
+    def conversation_version(self) -> int:
+        return self.conversation.conversation_version if self.conversation else 0
+
+
+class TicketEvent(UuidPrimaryKeyMixin, Base):
+    __tablename__ = "ticket_events"
+    __table_args__ = (
+        CheckConstraint(
+            "actor_type IN ('anonymous', 'resident', 'management', 'system')", name="ck_ticket_event_actor_type"
+        ),
+        Index("ix_ticket_event_ticket_created", "ticket_id", "created_at"),
+    )
+
+    ticket_id: Mapped[str] = mapped_column(String(36), ForeignKey("tickets.id", ondelete="CASCADE"), index=True)
+    event_type: Mapped[str] = mapped_column(String(50))
+    actor_type: Mapped[str] = mapped_column(String(20))
+    actor_id: Mapped[str | None] = mapped_column(String(100))
+    from_status: Mapped[str | None] = mapped_column(String(30))
+    to_status: Mapped[str | None] = mapped_column(String(30))
+    comment: Mapped[str | None] = mapped_column(Text)
+    payload: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    ticket: Mapped[Ticket] = relationship(back_populates="events")
+
+
+class TicketAttachment(UuidPrimaryKeyMixin, Base):
+    __tablename__ = "ticket_attachments"
+
+    uploader_id: Mapped[str] = mapped_column(String(100), index=True)
+    ticket_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("tickets.id", ondelete="CASCADE"), index=True
+    )
+    message_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("messages.id", ondelete="SET NULL"), index=True
+    )
+    announcement_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("announcements.id", ondelete="CASCADE"), index=True
+    )
+    workflow_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("ai_workflows.id", ondelete="SET NULL"), index=True
+    )
+    filename: Mapped[str] = mapped_column(String(255))
+    storage_path: Mapped[str] = mapped_column(String(500))
+    mime_type: Mapped[str | None] = mapped_column(String(100))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    ticket: Mapped[Ticket | None] = relationship(back_populates="attachments")
+    message: Mapped[Message | None] = relationship(back_populates="attachments")
+    announcement: Mapped[Announcement | None] = relationship(back_populates="attachments")
+    workflow: Mapped[AIWorkflow | None] = relationship(back_populates="attachments")

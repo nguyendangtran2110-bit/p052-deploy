@@ -690,7 +690,3 @@ if __name__ == "__main__":
         audit=args.audit,
         building_id=args.building_id,
     )
-
-
-
-

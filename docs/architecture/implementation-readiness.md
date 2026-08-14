@@ -28,7 +28,7 @@ The authoritative PRD and architecture now agree on rule-only `ZaloLinkPolicy v1
 - Durable notification campaign, audience preview/revalidation, fan-out, and read-state boundary.
 - Versioned onboarding seeds, resident enrollment, and explicit migration behavior.
 - Profile/contact ownership, verified edits, and password/session rules.
-- WCAG 2.2 AA, responsive role shells, and minimum viewport/breakpoints.
+- WCAG 2.2 AA, desktop-first role shells, the 1024 CSS px minimum product viewport, and explicit mobile/tablet UX exclusion.
 - At-least-once worker/outbox semantics for reminders and notification fan-out.
 - Single-replica read-only Chroma runtime and replacement behavior.
 - Deployment, migrations, observability, health, backup, and rollback shape.
@@ -85,7 +85,7 @@ This item does not block architecture completion or local implementation work; i
 
 1. Establish PostgreSQL, Alembic, module skeletons, shared error model, and audit primitives.
 2. Implement identity, local claims/invitations, abstract registry/OTP adapters, sessions, RBAC, and scope refresh predicates.
-3. Scaffold the Next.js web client, API client, role shells, WCAG foundation, and responsive layout tokens.
+3. Scaffold the Next.js web client, API client, desktop-first role shells, WCAG foundation, and desktop layout tokens.
 4. Implement resident/manager profiles, verified contact/password changes, admin pending activation, and admin-controlled corrections/scope projection.
 5. Implement the account-unique draft table/API, generation/version checks, resume/atomic-replace/discard flows, assistant patch provenance, single-flight frontend saving, and atomic submit/clear with durable same-key retry.
 6. Implement submitted ticket snapshots, event history, observed-version open command, optimistic transitions, and conflict notifications.

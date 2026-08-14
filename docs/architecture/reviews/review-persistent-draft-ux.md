@@ -1,7 +1,7 @@
 # Persistent Draft UX and Frontend/API Seam Review
 
 **Reviewer:** Sally, UX Designer  
-**Scope:** Persistent account-owned ticket draft, manual/assistant sharing, session and device continuity, conflict recovery, submission ambiguity, mobile-first accessibility, and Zalo fallback language.  
+**Scope:** Persistent account-owned ticket draft, manual/assistant sharing, session and device continuity, conflict recovery, submission ambiguity, desktop-first accessibility, and Zalo fallback language.  
 **Verdict:** **PASS WITH CONCERNS.** The architecture now has a coherent single-draft source of truth and resolves the earlier cross-session/idempotency gaps. The findings below do not require a different storage architecture, but UX-001 through UX-004 must be made explicit before persistent-draft frontend stories are accepted.
 
 ## Findings
@@ -32,7 +32,7 @@ The frontend owns an in-memory edit buffer and shows `saving`, `saved`, `offline
 
 On `ticket_draft_conflict`, the UI preserves attempted changes and offers `Use latest saved draft` or `Review and apply my changes` ([frontend-architecture.md](../frontend-architecture.md), Concurrent editing). The contract correctly forbids silent merge, but “review and apply” is not defined. Subject, content, and urgency can each differ, and sending a full stale local object as one patch could overwrite fields accepted by the other session.
 
-**Required UX/API rule:** present a mobile-friendly per-field comparison against the returned server draft, default each conflict to the latest saved value, and let the resident explicitly choose which local field values to apply. Build the next patch only from chosen fields against the returned current version. If another conflict occurs, repeat the review; never auto-force or provide a blanket “overwrite latest” action. Preserve unsent local text until the resident resolves or intentionally discards it.
+**Required UX/API rule:** present a clear desktop per-field comparison against the returned server draft, default each conflict to the latest saved value, and let the resident explicitly choose which local field values to apply. Build the next patch only from chosen fields against the returned current version. If another conflict occurs, repeat the review; never auto-force or provide a blanket “overwrite latest” action. Preserve unsent local text until the resident resolves or intentionally discards it.
 
 #### UX-004 - Assistant patches need draft-version provenance
 
@@ -59,11 +59,11 @@ The submission status endpoint and atomic submit/delete transaction resolve the 
 
 ### OPTIONAL / UX SPECIFICATION
 
-#### UX-007 - Mobile and screen-reader behavior needs component-level acceptance cases
+#### UX-007 - Desktop zoom/reflow and screen-reader behavior needs component-level acceptance cases
 
-The WCAG 2.2 AA interaction matrix is a good architecture baseline, but the persistent-draft experience needs testable mobile patterns:
+The WCAG 2.2 AA interaction matrix is a good architecture baseline, but the persistent-draft experience needs testable desktop and zoom/reflow patterns:
 
-- At 360px, resume/replace and discard confirmations must keep the safe action visible and avoid side-by-side comparison layouts.
+- At the 1024 CSS px minimum desktop viewport and under required zoom/reflow, resume/replace and discard confirmations keep the safe action visible and avoid layouts that clip either comparison value.
 - Save-status announcements must be debounced; announcing `saving`/`saved` on every keystroke will overwhelm screen-reader users.
 - `Offline/unavailable` and conflict states must be adjacent to the affected form and remain understandable without color.
 - The conflict review must preserve long Vietnamese content, keyboard position, and focus when applying selected fields.
@@ -95,7 +95,7 @@ Avoid wording such as “Zalo profile does not exist,” “account not found,�
 
 1. New-ticket intent versus direct-resume route/state diagram, including assistant entry.
 2. Autosave queue and save-status state machine.
-3. Field-level concurrent-conflict reconciliation wireflow at 360px and desktop widths.
+3. Field-level concurrent-conflict reconciliation wireflow at 1024, 1280, and 1440 CSS px plus required desktop zoom/reflow.
 4. Session-expiry/same-account/different-account transition flow.
 5. Submission pending/ambiguous/failure recovery flow.
 6. Accessible Vietnamese copy matrix for resume, replace, discard, offline, conflict, and pending submission states.

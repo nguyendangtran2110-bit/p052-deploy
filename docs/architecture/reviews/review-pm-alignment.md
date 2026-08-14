@@ -8,7 +8,7 @@
 
 **BLOCKED for implementation handoff.**
 
-The architecture direction is substantially aligned with the latest approved MVP intent. The ticket lifecycle, transient ticket workspace, manager scope, historical ticket access, Zalo boundary, registration model, and responsive/accessibility baseline are represented clearly and concretely.
+The architecture direction is substantially aligned with the latest approved MVP intent. The ticket lifecycle, transient ticket workspace, manager scope, historical ticket access, Zalo boundary, registration model, and desktop-layout/accessibility baseline are represented clearly and concretely.
 
 The blocking problem is not the architecture's core shape. It is that the architecture currently contradicts higher-authority product artifacts and leaves several approved product behaviors without executable contracts. Under `AGENTS.md`, implementation agents must follow the approved PRD before architecture. They therefore cannot safely treat this architecture as authoritative until the product sources are reconciled.
 
@@ -22,7 +22,7 @@ The architecture correctly follows the latest user decisions, but the referenced
 - ticket viewing not changing status;
 - persistent ticket drafts across authenticated sessions;
 - a completion note for `Resolved`;
-- unresolved authentication, ticket, Zalo, and responsive decisions that the user has since approved.
+- unresolved authentication, ticket, Zalo, and frontend-layout decisions that the user has since approved.
 
 The repository-level [PRODUCT.md](../../../PRODUCT.md) also still specifies the old `DRAFT -> SUBMITTED -> APPROVED -> IN_PROGRESS -> RESOLVED` lifecycle, a Zalo OA/group workflow, one-building scope, resolution notes, and PostgreSQL with pgvector. Those are incompatible with the architecture's four-state lifecycle, outbound-only personal Zalo link, multi-building manager scope, no resolved note, and retained Chroma boundary.
 
@@ -128,7 +128,7 @@ The following architecture inputs match the approved MVP intent and should remai
 - missing/invalid Zalo uses the `Notify` fallback from ticket detail;
 - notifications persist a type and read/unread state;
 - WCAG 2.2 AA is binding;
-- resident flows are mobile-first, while manager flows are desktop-first and responsive.
+- resident and manager flows are desktop-first from a 1024 CSS px minimum product viewport; mobile and tablet UX/UI are out of scope while WCAG desktop zoom/reflow remains binding.
 
 ## Brownfield Technology Reality Check
 
