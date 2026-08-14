@@ -88,7 +88,7 @@ const routeTitles: Array<[RegExp, string]> = [
   [/^\/recovery$/, "Recover access"],
   [/^\/resident\/onboarding$/, "Resident onboarding"],
   [/^\/resident\/benefits$/, "Resident benefits"],
-  [/^\/resident\/assistant$/, "Building assistant"],
+  [/^\/resident\/assistant$/, "Homie Agent"],
   [/^\/resident\/tickets$/, "Resident tickets"],
   [/^\/resident\/tickets\/new$/, "Create ticket"],
   [/^\/resident\/tickets\/[^/]+$/, "Resident ticket detail"],

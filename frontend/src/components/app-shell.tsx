@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { BellIcon, ChatIcon, GiftIcon, HomeIcon, MoonIcon, StepsIcon, SunIcon, TicketIcon, UserIcon, UsersIcon } from "@/src/components/icons";
+import { BellIcon, ChatIcon, GiftIcon, HomeIcon, MoonIcon, StepsIcon, SunIcon, TicketIcon, UsersIcon } from "@/src/components/icons";
+import { HomieAgent } from "@/src/components/homie-agent";
 import { useApp } from "@/src/components/providers";
 import { logout } from "@/src/lib/session";
 import type { Role } from "@/src/mock/data";
@@ -11,10 +12,9 @@ import type { Role } from "@/src/mock/data";
 const residentNavigation = [
   { href: "/resident/onboarding", label: "Onboarding", icon: StepsIcon },
   { href: "/resident/benefits", label: "Benefits", icon: GiftIcon },
-  { href: "/resident/assistant", label: "Assistant", icon: ChatIcon },
+  { href: "/resident/assistant", label: "Homie Agent", icon: ChatIcon },
   { href: "/resident/tickets", label: "Tickets", icon: TicketIcon },
   { href: "/resident/notifications", label: "Notifications", icon: BellIcon },
-  { href: "/resident/profile", label: "Profile", icon: UserIcon },
 ];
 
 const managerNavigation = [
@@ -23,7 +23,6 @@ const managerNavigation = [
   { href: "/manager/onboarding", label: "Onboarding", icon: StepsIcon },
   { href: "/manager/tickets", label: "Tickets", icon: TicketIcon },
   { href: "/manager/notifications", label: "Notifications", icon: BellIcon },
-  { href: "/manager/profile", label: "Profile", icon: UserIcon },
 ];
 
 export function AppShell({ role, children }: { role: Role; children: React.ReactNode }) {
@@ -45,7 +44,7 @@ export function AppShell({ role, children }: { role: Role; children: React.React
     <div className={`app-shell app-shell-${role}`}>
       <a className="skip-link" href="#main-content">Skip to content</a>
       <aside className="sidebar">
-        <Link className="brand" href={role === "resident" ? "/resident/onboarding" : "/manager/dashboard"}>
+        <Link className="brand" href="/">
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
           <span>OnBxrd</span>
         </Link>
@@ -65,10 +64,10 @@ export function AppShell({ role, children }: { role: Role; children: React.React
             {theme === "light" ? <MoonIcon /> : <SunIcon />}
             <span>{theme === "light" ? "Dark theme" : "Light theme"}</span>
           </button>
-          <div className="account-plate">
+          <Link className="account-plate" href={role === "resident" ? "/resident/profile" : "/manager/profile"} aria-label={`Open profile for ${account.name}`}>
             <span className="avatar">{account.name.slice(0, 1)}</span>
             <span><strong>{account.name}</strong><small>Synthetic demo</small></span>
-          </div>
+          </Link>
           <button className="logout-button" onClick={() => { logout(); router.replace("/login"); }}>Sign out</button>
         </div>
       </aside>
@@ -79,6 +78,7 @@ export function AppShell({ role, children }: { role: Role; children: React.React
         <button className="logout-button" onClick={() => { logout(); router.replace("/login"); }}>Sign out</button>
       </div>
       <main id="main-content" className="app-main" tabIndex={-1}>{children}</main>
+      <HomieAgent role={role} />
     </div>
   );
 }

@@ -56,6 +56,7 @@ export default function LoginPage() {
       </section>
       <section className="auth-panel reveal reveal-2" aria-labelledby="login-title">
         <div>
+          <Link className="auth-home-link" href="/">Back to OnBxrd home</Link>
           <h2 id="login-title">Welcome back</h2>
           <p>Sign in to your Resident or Manager workspace.</p>
         </div>
