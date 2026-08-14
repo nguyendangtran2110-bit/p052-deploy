@@ -9,23 +9,21 @@ import hashlib
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from llama_index.core import Document
 
 # Import helpers directly — avoids running the __main__ block.
 from scripts.ingest_handbook import (
-    compute_file_hash,
-    quality_gate,
     MIN_NODE_WORDS,
-    evaluate_ocr_quality,
-    run_audit_scan,
-    extract_page_tables_as_markdown,
-    ocr_pdf_page_with_qwen,
-    load_pdf_document_hybrid,
     MIN_PDF_PAGE_WORDS,
+    compute_file_hash,
+    evaluate_ocr_quality,
     export_pdf_to_markdown,
+    extract_page_tables_as_markdown,
+    load_pdf_document_hybrid,
+    ocr_pdf_page_with_qwen,
+    quality_gate,
+    run_audit_scan,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures

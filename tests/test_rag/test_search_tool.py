@@ -7,8 +7,6 @@ exercising ChromaDB or OpenAI.
 
 from unittest.mock import patch
 
-import pytest
-
 
 class TestSearchKnowledgeTool:
     def test_tool_is_callable(self):

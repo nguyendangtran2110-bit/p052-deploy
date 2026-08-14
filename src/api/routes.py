@@ -160,4 +160,4 @@ async def contact_ticket_resident(ticket_id: str, request: ManagerActionRequest)
         return mvp_service.contact_resident(ticket_id, request.actor_role)
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-__all__ = ["router", "api_router"]
+__all__ = ["router"]

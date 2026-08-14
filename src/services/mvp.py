@@ -9,7 +9,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-
 KEYWORDS = {
     "plumbing": ("nước", "rò", "ống", "bồn rửa", "vòi"),
     "safety": ("cháy", "khói", "gas"),

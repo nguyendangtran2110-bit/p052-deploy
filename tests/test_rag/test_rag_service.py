@@ -8,9 +8,6 @@ OpenAI is NOT called.
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
 # ---------------------------------------------------------------------------
@@ -177,6 +174,7 @@ class TestChromaDualMode:
         persist_dir = str(tmp_path / "chroma_local")
 
         client = get_chroma_client(mock_settings, persist_dir)
+        assert client is not None
         mock_persistent.assert_called_once_with(path=persist_dir)
 
     @patch("chromadb.HttpClient")
@@ -189,6 +187,7 @@ class TestChromaDualMode:
         mock_settings.chroma_server_ssl = False
 
         client = get_chroma_client(mock_settings, "./data/chroma")
+        assert client is not None
         mock_http.assert_called_once_with(host="chromadb", port=8000, ssl=False)
 
 
