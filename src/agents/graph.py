@@ -98,7 +98,13 @@ class ProductionAgent:
             model=settings.model_name,
             api_key=settings.openai_api_key,
             temperature=settings.llm_temperature,
-        ).with_structured_output(AgentStructuredResult)
+        ).with_structured_output(
+            AgentStructuredResult,
+            # The action payload is intentionally an open-ended object. Use
+            # tool/function calling instead of OpenAI strict JSON Schema, which
+            # rejects dynamic object fields without additionalProperties=false.
+            method="function_calling",
+        )
         context = {
             "actor_role": state.get("actor_role"),
             "workflow_type": state.get("workflow_type"),
@@ -112,6 +118,7 @@ class ProductionAgent:
         }
         system = (
             "You are the OnBxrd resident/management assistant. Return only the structured schema. "
+            "assistant_message is mandatory: always provide a concise, user-facing response in the user's language. "
             "Extract facts from the newest message and merge them with workflow_draft. "
             "Never invent UUIDs, audience identifiers, citations, or attachment IDs. "
             "For resident_ticket require category, priority, title, description, location and unit_id. "

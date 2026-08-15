@@ -88,7 +88,9 @@ class AgentStructuredResult(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     intent: str = "handbook_question"
-    assistant_message: str = ""
+    assistant_message: str = Field(
+        description="A concise, user-facing response in the user's language. Must not be empty."
+    )
     draft: dict[str, Any] = Field(default_factory=dict)
     missing_fields: list[str] = Field(default_factory=list)
     action: AgentAction | None = None
