@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, BookOpen, Bot, Check, HelpCircle, Info, MessageCircle, Paperclip, Send, Sparkles, Ticket, WandSparkles } from "lucide-react";
+import { AlertTriangle, BookOpen, Bot, Check, HelpCircle, Info, MessageCircle, Paperclip, Plus, Sparkles, Ticket, WandSparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
-import { ChatAttachments } from "@/components/chat-attachments";
+import { ChatComposer } from "@/components/chat-composer";
 import { Badge, Button, Card, IconButton, PageHeader } from "@/components/ui";
 import { useAIWorkflow, useResidentAssistantConversation } from "@/features/ai-chat/queries";
 import { isApiError, USE_MOCKS } from "@/lib/api-client";
@@ -205,6 +205,18 @@ export default function ResidentChatPage() {
     }
   }
 
+  function startNewWorkflow() {
+    setConversationId(undefined);
+    setWorkflowId(undefined);
+    setWorkflow(null);
+    setMessages([]);
+    setDraft("");
+    setAttachmentIds([]);
+    setErrorMessage(null);
+    retryKey.current = null;
+    router.replace("/app/chat", { scroll: false });
+  }
+
   async function download(id: string) {
     try {
       const response = await downloadAttachment(id);
@@ -232,13 +244,12 @@ export default function ResidentChatPage() {
           {workflowQuery.isError && <div className="error-state">Could not load the workflow. The server remains the source of truth.</div>}
           {messages.length === 0 && !conversation.isError && <div className="chat-empty"><div className="bot-avatar"><WandSparkles size={19} /></div><h2>What do you need help with?</h2><p>Ask about handbook rules, amenities, or describe a problem in your unit.</p></div>}
           {messages.map((message) => <ChatMessage key={message.id} message={message} onDownload={download} />)}
-          {pending && <div className="message"><div className="bot-avatar" style={{ width: 27, height: 27 }}><Bot size={14} /></div><div className="typing"><span /><span /><span /></div></div>}
+          {pending && <div className="message message-assistant"><div className="message-body"><div className="message-author"><div className="bot-avatar"><Bot size={14} /></div><span>OnBxrd Assistant</span></div><div className="typing"><span /><span /><span /></div></div></div>}
           {errorMessage && <div className="error-state" role="alert">{errorMessage}</div>}
-          {workflow && <WorkflowCard workflow={workflow} action={currentAction} pending={pending} onConfirm={() => void submit("Confirm ticket creation", true)} onCancel={() => void cancelWorkflow()} onDownload={download} />}
+          {workflow && <WorkflowCard workflow={workflow} action={currentAction} pending={pending} onConfirm={() => void submit("Confirm ticket creation", true)} onCancel={() => void cancelWorkflow()} onStartNew={startNewWorkflow} onDownload={download} />}
         </div>
-        {!handoffActive && <><ChatAttachments workflowId={workflow?.workflow_id || workflowId} disabled={pending || terminal} clearSignal={clearAttachmentsSignal} onChange={setAttachmentIds} onUploadingChange={setAttachmentsUploading} /><form className="composer" onSubmit={(event) => { event.preventDefault(); void submit(); }}><textarea value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Ask a question or describe a problem..." rows={1} disabled={pending || terminal || attachmentsUploading} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} /><Button aria-label="Send message" type="submit" disabled={pending || terminal || attachmentsUploading || !draft.trim() || !selectedUnitId}><Send size={16} /> <span className="desktop-only">Send</span></Button></form></>}
+        {!handoffActive && <ChatComposer id="resident-assistant-message" value={draft} onChange={setDraft} onSubmit={() => submit()} workflowId={workflow?.workflow_id || workflowId} disabled={pending || terminal || !selectedUnitId} pending={pending} attachmentsUploading={attachmentsUploading} clearAttachmentsSignal={clearAttachmentsSignal} onAttachmentChange={setAttachmentIds} onUploadingChange={setAttachmentsUploading} />}
         {handoffActive && <div className="assistant-note" style={{ margin: 12 }}>The manager reply is shown in this conversation. The resident assistant is paused until management hands the conversation back.</div>}
-        {attachmentIds.length > 0 && <div className="composer-attachments">{attachmentIds.length} uploaded attachment(s) will be sent with the next message.</div>}
       </section>
     </div>
   </AppShell>;
@@ -247,12 +258,15 @@ export default function ResidentChatPage() {
 function ChatMessage({ message, onDownload }: { message: DisplayMessage; onDownload: (id: string) => Promise<void> }) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
-  return <div className={`message message-${message.role}`}><>{!isUser && !isSystem && <div className="bot-avatar" style={{ width: 27, height: 27, flex: "0 0 auto" }}>{message.role === "management" ? <MessageCircle size={14} /> : <Bot size={14} />}</div>}</><div><div className="message-bubble">{message.content}{message.citations?.length > 0 && <div className="citation-list">{message.citations.map((citation, index) => <span className="citation" key={`${citation.title}-${index}`}><BookOpen size={12} />{citation.title}{citation.section ? ` · ${citation.section}` : ""}{citation.page ? ` · p. ${citation.page}` : ""}</span>)}</div>}{message.attachment_ids?.map((id) => <button className="message-attachment-link" type="button" key={id} onClick={() => void onDownload(id)}><Paperclip size={12} />Attachment</button>)}</div><div className="message-meta">{isUser ? "You" : isSystem ? "System" : message.role === "management" ? "Management" : "OnBxrd Assistant"} · {fromNow(message.created_at)}</div></div></div>;
+  const isAssistant = !isUser && !isSystem;
+  const authorLabel = message.role === "management" ? "Management" : "OnBxrd Assistant";
+  return <div className={`message message-${message.role}`}><div className="message-body">{isAssistant && <div className="message-author"><div className="bot-avatar">{message.role === "management" ? <MessageCircle size={14} /> : <Bot size={14} />}</div><span>{authorLabel}</span></div>}<div className="message-bubble"><div className="message-content">{message.content}</div>{message.citations?.length > 0 && <div className="citation-list">{message.citations.map((citation, index) => <span className="citation" key={`${citation.title}-${index}`}><BookOpen size={12} />{citation.title}{citation.section ? ` · ${citation.section}` : ""}{citation.page ? ` · p. ${citation.page}` : ""}</span>)}</div>}</div>{message.attachment_ids?.length ? <div className="message-attachments">{message.attachment_ids.map((id) => <button className="message-attachment-link" type="button" key={id} onClick={() => void onDownload(id)}><Paperclip size={12} />Attachment</button>)}</div> : null}<div className="message-meta">{isUser ? "You · " : isSystem ? "System · " : ""}{fromNow(message.created_at)}</div></div></div>;
 }
 
-function WorkflowCard({ workflow, action, pending, onConfirm, onCancel, onDownload }: { workflow: AIWorkflowResponse; action: AIAction | null; pending: boolean; onConfirm: () => void; onCancel: () => void; onDownload: (id: string) => Promise<void> }) {
-  if (workflow.state === "completed" && workflow.ticket) return <div className="action-card"><strong><Check size={14} style={{ verticalAlign: "-2px" }} /> Ticket {workflow.ticket.ticket_code} created</strong><p>The ticket is now available in your ticket list.</p><Link href={`/app/tickets/${workflow.ticket.id}`}><Button size="sm"><Ticket size={14} /> Open ticket</Button></Link></div>;
-  if (workflow.state === "cancelled") return <div className="assistant-note">This workflow was cancelled. No ticket was created.</div>;
+function WorkflowCard({ workflow, action, pending, onConfirm, onCancel, onStartNew, onDownload }: { workflow: AIWorkflowResponse; action: AIAction | null; pending: boolean; onConfirm: () => void; onCancel: () => void; onStartNew: () => void; onDownload: (id: string) => Promise<void> }) {
+  if (workflow.state === "collecting" && !action && !workflow.ticket) return null;
+  if (workflow.state === "completed" && workflow.ticket) return <div className="action-card"><strong><Check size={14} style={{ verticalAlign: "-2px" }} /> Ticket {workflow.ticket.ticket_code} created</strong><p>The ticket is now available in your ticket list.</p><div className="workflow-actions"><Link href={`/app/tickets/${workflow.ticket.id}`}><Button size="sm"><Ticket size={14} /> Open ticket</Button></Link><Button size="sm" variant="outline" onClick={onStartNew}><Plus size={14} /> Start another ticket</Button></div></div>;
+  if (workflow.state === "cancelled") return <div className="assistant-note"><p>This workflow was cancelled. No ticket was created.</p><Button size="sm" variant="outline" onClick={onStartNew}><Plus size={14} /> Start new ticket</Button></div>;
   if (workflow.state === "failed") return <div className="action-card"><strong><AlertTriangle size={14} style={{ verticalAlign: "-2px" }} /> The action failed</strong><p>Review the latest draft and retry after the backend error is resolved.</p>{action && <Button size="sm" onClick={onConfirm} disabled={pending}><Sparkles size={14} /> Retry creation</Button>}</div>;
   const attachmentIds = workflowAttachmentIds(workflow);
   return <div className="action-card workflow-panel"><div><strong><Sparkles size={14} style={{ verticalAlign: "-2px" }} /> Ticket draft</strong><Badge tone={stateTone(workflow.state)}>{workflow.state}</Badge></div>{workflow.missing_fields.length > 0 && <div className="workflow-missing">Still needed: {workflow.missing_fields.join(", ")}</div>}<div className="workflow-grid">{[["Category", "category"], ["Priority", "priority"], ["Title", "title"], ["Location", "location"], ["Description", "description"]].map(([label, key]) => <div className="workflow-field" key={key}><span>{label}</span><strong>{draftValue(workflow, key)}</strong></div>)}</div>{attachmentIds.length > 0 && <><p className="field-hint">Attachments are linked to the workflow and will be linked to the ticket after confirmation.</p><div className="citation-list">{attachmentIds.map((id) => <button className="message-attachment-link" type="button" key={id} onClick={() => void onDownload(id)}><Paperclip size={12} />Attachment</button>)}</div></>}<div className="workflow-actions">{action?.requires_confirmation && workflow.state === "awaiting_confirmation" && <Button size="sm" onClick={onConfirm} disabled={pending || workflow.missing_fields.length > 0}>Confirm and create ticket</Button>}{workflow.state !== "completed" && <Button size="sm" variant="outline" onClick={onCancel} disabled={pending}>Cancel workflow</Button>}</div></div>;

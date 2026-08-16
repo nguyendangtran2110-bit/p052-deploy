@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, Check, Paperclip, RefreshCw, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { Badge, IconButton, ProgressBar } from "@/components/ui";
 import { uploadAttachment, validateAttachment } from "@/lib/data";
 import { formatFileSize } from "@/lib/format";
@@ -24,11 +24,14 @@ interface ChatAttachmentsProps {
   disabled?: boolean;
   maxFiles?: number;
   clearSignal?: number;
+  compact?: boolean;
+  hidePicker?: boolean;
+  inputRef?: RefObject<HTMLInputElement | null>;
   onChange: (attachmentIds: string[]) => void;
   onUploadingChange?: (uploading: boolean) => void;
 }
 
-export function ChatAttachments({ workflowId, disabled = false, maxFiles = 10, clearSignal = 0, onChange, onUploadingChange }: ChatAttachmentsProps) {
+export function ChatAttachments({ workflowId, disabled = false, maxFiles = 10, clearSignal = 0, compact = false, hidePicker = false, inputRef, onChange, onUploadingChange }: ChatAttachmentsProps) {
   const [items, setItems] = useState<ChatAttachmentItem[]>([]);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const callbackRef = useRef(onChange);
@@ -93,12 +96,14 @@ export function ChatAttachments({ workflowId, disabled = false, maxFiles = 10, c
     setItems((current) => current.filter((item) => item.id !== id));
   }
 
-  return <div className="chat-attachments">
-    <label className="attachment-picker" title="Attach files">
+  const pickerDisabled = disabled || items.length >= maxFiles;
+  return <div className={`chat-attachments${compact ? " chat-attachments-compact" : ""}`}>
+    {!hidePicker && <label className={compact ? "composer-attachment-button" : "attachment-picker"} title="Attach files" aria-label={compact ? "Attach files" : undefined} role="button" tabIndex={pickerDisabled ? -1 : 0} aria-disabled={pickerDisabled || undefined} onKeyDown={(event) => { if ((event.key === "Enter" || event.key === " ") && !pickerDisabled) { event.preventDefault(); (event.currentTarget.querySelector("input") as HTMLInputElement | null)?.click(); } }}>
       <Paperclip size={15} />
-      <span>Attach</span>
-      <input type="file" hidden multiple accept="image/*,.pdf,.doc,.docx,.txt" disabled={disabled || items.length >= maxFiles} onChange={(event) => { addFiles(event.target.files); event.currentTarget.value = ""; }} />
-    </label>
+      <span className={compact ? "sr-only" : undefined}>Attach</span>
+      <input ref={inputRef} type="file" hidden multiple accept="image/*,.pdf,.doc,.docx,.txt" disabled={pickerDisabled} onChange={(event) => { addFiles(event.target.files); event.currentTarget.value = ""; }} />
+    </label>}
+    {hidePicker && <input ref={inputRef} type="file" hidden multiple accept="image/*,.pdf,.doc,.docx,.txt" disabled={pickerDisabled} onChange={(event) => { addFiles(event.target.files); event.currentTarget.value = ""; }} />}
     {items.map((item) => <div className="chat-attachment-row" key={item.id}>
       <div className="chat-attachment-copy"><strong title={item.filename}>{item.filename}</strong><span>{formatFileSize(item.size_bytes)}</span>{item.status === "uploading" && <ProgressBar value={item.progress} tone="teal" />}</div>
       {item.status === "uploading" && <Badge tone="info">{item.progress}%</Badge>}

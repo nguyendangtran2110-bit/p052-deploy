@@ -73,6 +73,17 @@ class AnnouncementDraft(BaseModel):
     attachment_ids: list[UUID] = Field(default_factory=list, max_length=10)
 
 
+AgentIntent = Literal[
+    "handbook_question",
+    "ticket_question",
+    "create_ticket",
+    "clarification_response",
+    "create_announcement",
+    "announcement_edit",
+    "publish_announcement",
+]
+
+
 class AgentAction(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -87,7 +98,7 @@ class AgentStructuredResult(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    intent: str = "handbook_question"
+    intent: AgentIntent = "handbook_question"
     assistant_message: str = Field(
         description="A concise, user-facing response in the user's language. Must not be empty."
     )
@@ -104,7 +115,7 @@ class AgentResult(TypedDict, total=False):
     workflow_type: str | None
     state: str | None
     workflow_version: int | None
-    intent: str
+    intent: AgentIntent
     assistant_message: str
     response: str
     draft: dict[str, Any]

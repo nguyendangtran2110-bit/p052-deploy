@@ -291,6 +291,10 @@ function demoWorkflowMessage(content: string, workflowId: string, state: AIWorkf
   };
 }
 
+function hasResidentTicketIntent(message: string) {
+  return /ticket|maintenance|repair|problem|issue|report|broken|leak|sửa|hỏng|sự cố|báo cáo/i.test(message);
+}
+
 function mockResidentWorkflow(payload: ChatInput): AIWorkflowResponse {
   const workflowId = payload.workflow_id ?? demoResidentWorkflowId;
   const conversationId = payload.conversation_id ?? "00000000-0000-0000-0000-000000000301";
@@ -303,6 +307,24 @@ function mockResidentWorkflow(payload: ChatInput): AIWorkflowResponse {
     location: "Cần xác nhận vị trí",
     attachment_ids: payload.attachment_ids ?? [],
   };
+  if (!payload.confirm_action && !hasResidentTicketIntent(payload.message)) {
+    const version = (payload.workflow_version ?? 0) + 1;
+    return {
+      conversation_id: conversationId,
+      workflow_id: workflowId,
+      workflow_type: "resident_ticket",
+      state: "collecting",
+      workflow_version: version,
+      message: demoWorkflowMessage("I can answer handbook questions or help you report a resident issue when you are ready.", workflowId, "collecting", version),
+      draft: {},
+      missing_fields: [],
+      action: null,
+      citations: [],
+      ticket: null,
+      announcement: null,
+      error: null,
+    };
+  }
   if (payload.confirm_action) {
     return {
       conversation_id: conversationId,
@@ -360,6 +382,10 @@ let demoManagerWorkflow: AIWorkflowConversationResponse = {
   error: null,
 };
 
+function hasAnnouncementIntent(message: string) {
+  return /announcement|notice|draft|publish|title|content|audience|resident|maintenance|thông báo|bảo trì|cư dân|gửi/i.test(message);
+}
+
 function mockManagerAssistantMessage(payload: AIWorkflowMessageInput): AIWorkflowResponse {
   const version = demoManagerWorkflow.workflow_version + 1;
   const isCreateConfirmation = payload.confirm_action && payload.confirmed_action_id === demoManagerCreateActionId;
@@ -372,6 +398,15 @@ function mockManagerAssistantMessage(payload: AIWorkflowMessageInput): AIWorkflo
       action: { type: "published", action_id: demoManagerPublishActionId, requires_confirmation: false, payload: { announcement_id: demoAnnouncements[0].id } },
       announcement: { ...demoAnnouncements[0], status: "published" },
       message: demoWorkflowMessage("Announcement đã được publish thành công.", demoManagerWorkflowId, "published", version),
+    };
+    demoManagerWorkflow = { ...result, messages: [...demoManagerWorkflow.messages, result.message!], action: result.action };
+    return result;
+  }
+  if (!payload.confirm_action && !hasAnnouncementIntent(payload.message)) {
+    const result: AIWorkflowResponse = {
+      ...demoManagerWorkflow,
+      workflow_version: version,
+      message: demoWorkflowMessage("Describe the announcement you want to prepare, and I will collect the required details.", demoManagerWorkflowId, demoManagerWorkflow.state, version),
     };
     demoManagerWorkflow = { ...result, messages: [...demoManagerWorkflow.messages, result.message!], action: result.action };
     return result;

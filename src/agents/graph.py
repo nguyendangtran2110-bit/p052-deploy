@@ -64,32 +64,6 @@ class ProductionAgent:
         normalized["handbook_results"] = ProductionAgent._redact_value(list(state.get("handbook_results") or [])[:5])
         return normalized
 
-    def classify_intent(self, state: dict[str, Any]) -> str:
-        message = str(state.get("message") or state.get("query") or "")
-        workflow_type = state.get("workflow_type")
-        workflow_state = state.get("workflow_state")
-        draft = state.get("workflow_draft") if isinstance(state.get("workflow_draft"), dict) else {}
-        if workflow_type == "manager_announcement":
-            if workflow_state == "awaiting_publish_confirmation" and self._mentions_publish(message):
-                return "publish_announcement"
-            if not self._looks_like_announcement(
-                message,
-                draft,
-                workflow_state,
-                state.get("pending_action"),
-            ):
-                return "handbook_question"
-            return "announcement_edit" if workflow_state == "awaiting_publish_confirmation" else "create_announcement"
-        if workflow_type == "resident_ticket":
-            if state.get("metadata", {}).get("ticket"):
-                return "ticket_question"
-            return "clarification_response" if draft else "create_ticket"
-        if state.get("metadata", {}).get("ticket") and not self._looks_like_ticket(message, draft):
-            return "ticket_question"
-        if self._looks_like_ticket(message, draft):
-            return "create_ticket"
-        return "handbook_question"
-
     async def _invoke_llm(self, state: dict[str, Any], settings, *, strict: bool = False) -> dict[str, Any]:
         from langchain_core.messages import HumanMessage, SystemMessage
         from langchain_openai import ChatOpenAI
@@ -121,6 +95,12 @@ class ProductionAgent:
             "assistant_message is mandatory: always provide a concise, user-facing response in the user's language. "
             "Extract facts from the newest message and merge them with workflow_draft. "
             "Never invent UUIDs, audience identifiers, citations, or attachment IDs. "
+            "Classify the newest user message yourself using the intent enum in the schema. "
+            "For manager_announcement, choose create_announcement when the user asks to notify, draft or send a notice; "
+            "choose announcement_edit when editing an existing draft; choose publish_announcement only for explicit publish confirmation; "
+            "choose handbook_question only when the user is asking for information and is not requesting an announcement action. "
+            "For example, 'Thong bao cho cu dan ngay mai co lich bao tri dinh ky' is create_announcement, "
+            "while 'What time does the pool close?' is handbook_question. "
             "For resident_ticket require category, priority, title, description, location and unit_id. "
             "For manager_announcement require title, content and scopes. "
             "Use only retrieved handbook context for policy and amenity answers. "
@@ -154,6 +134,8 @@ class ProductionAgent:
         completed.setdefault("action", None)
         completed.setdefault("citations", [])
         completed.setdefault("error", None)
+        if completed.get("intent") == "handbook_question":
+            completed["citations"] = ProductionAgent._trusted_citations(state.get("handbook_results"))
         completed["workflow_id"] = state.get("workflow_id")
         completed["workflow_type"] = state.get("workflow_type") or ProductionAgent._infer_workflow_type(completed)
         completed["workflow_version"] = state.get("workflow_version")
@@ -171,6 +153,13 @@ class ProductionAgent:
             completed["action"] = action
         if completed["attachment_ids"]:
             draft["attachment_ids"] = completed["attachment_ids"]
+        if completed.get("workflow_type") == "manager_announcement" and not draft.get("scopes"):
+            inferred_scopes = ProductionAgent._infer_announcement_scopes(str(state.get("message") or state.get("query") or ""))
+            if inferred_scopes:
+                draft["scopes"] = inferred_scopes
+                completed["missing_fields"] = [
+                    field for field in completed["missing_fields"] if field != "scopes"
+                ]
         workflow_intent = completed.get("intent") in {
             "create_ticket",
             "clarification_response",
@@ -233,6 +222,15 @@ class ProductionAgent:
                 if value and value not in values:
                     values.append(value)
         return values
+
+    @staticmethod
+    def _trusted_citations(handbook_results: Any) -> list[dict[str, Any]]:
+        citations: list[dict[str, Any]] = []
+        for item in handbook_results or []:
+            citation = item.get("citation") if isinstance(item, dict) else None
+            if isinstance(citation, dict) and citation not in citations:
+                citations.append(citation)
+        return citations
 
     @staticmethod
     def _safe_messages(messages: Any) -> list[dict[str, Any]]:
@@ -692,6 +690,24 @@ class ProductionAgent:
                     if project_match:
                         draft["scopes"] = [{"scope_type": "project", "project_code": project_match.group(1).upper()}]
 
+        if not draft.get("scopes"):
+            inferred_scopes = ProductionAgent._infer_announcement_scopes(message)
+            if inferred_scopes:
+                draft["scopes"] = inferred_scopes
+
+    @staticmethod
+    def _infer_announcement_scopes(message: str) -> list[dict[str, str]]:
+        folded = ProductionAgent._fold(message)
+        building_match = re.search(r"\b(?:toa|building)\s+([a-z0-9]+)\b", folded, re.IGNORECASE)
+        if building_match:
+            return [{"scope_type": "building", "building": building_match.group(1).upper()}]
+        project_match = re.search(r"\b(?:du an|project)\s+([a-z0-9_-]+)\b", folded, re.IGNORECASE)
+        if project_match:
+            return [{"scope_type": "project", "project_code": project_match.group(1).upper()}]
+        if re.search(r"\b(?:toan bo|tat ca)\s+(?:cu dan|dan cu)\b", folded) or re.search(r"\b(?:cho|den|ap dung cho)\s+(?:cu dan|dan cu)\b", folded):
+            return [{"scope_type": "all_residents"}]
+        return []
+
     @staticmethod
     def _looks_like_ticket(message: str, draft: dict[str, Any]) -> bool:
         if draft:
@@ -786,8 +802,11 @@ class ProductionAgent:
 
     @staticmethod
     def _fold(value: str) -> str:
+        # NFD does not decompose the Vietnamese đ character, so translate it
+        # before the ASCII conversion used by the deterministic extractor.
+        value = value.casefold().replace("đ", "d")
         return " ".join(
-            unicodedata.normalize("NFD", value.casefold())
+            unicodedata.normalize("NFD", value)
             .encode("ascii", "ignore")
             .decode("ascii")
             .split()
@@ -844,14 +863,6 @@ def _load_context_node(state: AgentState) -> AgentState:
     return _runtime.prepare_state(dict(state))
 
 
-def _classify_intent_node(state: AgentState) -> dict[str, Any]:
-    return {"intent": _runtime.classify_intent(dict(state))}
-
-
-def _route_workflow_node(state: AgentState) -> dict[str, Any]:
-    return {"analysis": state.get("intent") or "handbook_question"}
-
-
 async def _assistant_node(state: AgentState) -> AgentState:
     result = await _runtime.ainvoke(dict(state))
     return {**state, **result}
@@ -875,40 +886,19 @@ def _persist_result_node(state: AgentState) -> dict[str, Any]:
     return {"error": state.get("error")}
 
 
-def _workflow_route(state: AgentState) -> str:
-    intent = state.get("analysis") or "handbook_question"
-    if intent == "handbook_question":
-        return "handbook_qa"
-    if intent in {"create_announcement", "announcement_edit", "publish_announcement"}:
-        return "manager_announcement_extract"
-    return "resident_ticket_extract"
-
-
 def build_graph():
     graph = StateGraph(AgentState)
     graph.add_node("load_context", _load_context_node)
-    graph.add_node("classify_intent", _classify_intent_node)
-    graph.add_node("route_workflow", _route_workflow_node)
-    graph.add_node("handbook_qa", _assistant_node)
-    graph.add_node("resident_ticket_extract", _assistant_node)
-    graph.add_node("manager_announcement_extract", _assistant_node)
+    # The LLM classifies intent and extracts the workflow in one structured
+    # response. The deterministic _fallback() is used only when the LLM is
+    # unavailable or both structured-output attempts fail.
+    graph.add_node("assistant", _assistant_node)
     graph.add_node("merge_draft", _merge_draft_node)
     graph.add_node("validate_required_fields", _validate_required_fields_node)
     graph.add_node("persist_result", _persist_result_node)
     graph.add_edge(START, "load_context")
-    graph.add_edge("load_context", "classify_intent")
-    graph.add_edge("classify_intent", "route_workflow")
-    graph.add_conditional_edges(
-        "route_workflow",
-        _workflow_route,
-        {
-            "handbook_qa": "handbook_qa",
-            "resident_ticket_extract": "resident_ticket_extract",
-            "manager_announcement_extract": "manager_announcement_extract",
-        },
-    )
-    for branch in ("handbook_qa", "resident_ticket_extract", "manager_announcement_extract"):
-        graph.add_edge(branch, "merge_draft")
+    graph.add_edge("load_context", "assistant")
+    graph.add_edge("assistant", "merge_draft")
     graph.add_edge("merge_draft", "validate_required_fields")
     graph.add_edge("validate_required_fields", "persist_result")
     graph.add_edge("persist_result", END)

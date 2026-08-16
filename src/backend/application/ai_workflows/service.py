@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unicodedata
 from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID, uuid4
@@ -252,7 +253,7 @@ class AIWorkflowService:
         user_message: Message,
         result: dict[str, Any],
     ) -> WorkflowOutcome:
-        normalized = self._normalize_result(result)
+        normalized = self._normalize_result(result, workflow_type=workflow_type)
         if workflow is None:
             workflow = await self._create_workflow_for_conversation(conversation, workflow_type, actor)
         else:
@@ -277,7 +278,10 @@ class AIWorkflowService:
                 raise ConflictError("This AI workflow action is already being processed")
         requested_attachment_ids = self._merge_ids(command.attachment_ids)
         await self.attachments.bind_to_workflow(requested_attachment_ids, workflow.id, actor)
-        merged_draft = self._merge_draft(workflow.draft or {}, normalized.draft, normalized.action)
+        merged_draft = self._canonicalize_draft(
+            self._merge_draft(workflow.draft or {}, normalized.draft, normalized.action),
+            workflow_type,
+        )
         if workflow_type is AIWorkflowType.RESIDENT_TICKET and command.unit_id:
             merged_draft.setdefault("unit_id", command.unit_id)
         if workflow_type is AIWorkflowType.RESIDENT_TICKET and not merged_draft.get("priority"):
@@ -286,7 +290,7 @@ class AIWorkflowService:
         workflow.attachment_ids = attachment_ids
 
         pending_action = workflow.pending_action if isinstance(workflow.pending_action, dict) else None
-        candidate_action = normalized.action or pending_action
+        candidate_action = self._canonicalize_action_type(normalized.action or pending_action, workflow_type)
         read_only_result = normalized.intent in {"handbook_question", "ticket_question"} and normalized.action is None
         if completed_action is not None:
             candidate_action = {
@@ -296,17 +300,14 @@ class AIWorkflowService:
                 "payload": completed_action.response_payload or {},
             }
         if (
-            candidate_action
+            completed_action is None
             and pending_action
             and command.confirmed_action_id
             and command.confirmed_action_id == str(pending_action.get("action_id"))
-            and (
-                candidate_action.get("type") == pending_action.get("type")
-                or candidate_action.get("type")
-                in {"create_ticket", "create_announcement_draft", "update_announcement", "publish_announcement"}
-            )
         ):
-            candidate_action = {**candidate_action, "action_id": pending_action["action_id"]}
+            # The action ID is the user's explicit approval. Do not let a
+            # fresh LLM response replace a pending create with publish.
+            candidate_action = dict(pending_action)
         action = None if read_only_result else self._normalize_action(candidate_action, workflow_type, merged_draft)
         missing_fields = [] if read_only_result else self._required_missing(workflow_type, merged_draft)
         if normalized.missing_fields and not read_only_result:
@@ -316,6 +317,9 @@ class AIWorkflowService:
             )
         if normalized.error:
             error_fields = [str(field) for field in normalized.error.get("fields", []) if field]
+            if "priority" in error_fields and not self._is_valid_priority(merged_draft.get("priority"), workflow_type):
+                merged_draft.pop("priority", None)
+                missing_fields = self._required_missing(workflow_type, merged_draft)
             workflow.state = AIWorkflowState.COLLECTING.value
             workflow.pending_action = None
             workflow.last_error = {"type": str(normalized.error.get("type") or "agent_error")}
@@ -783,7 +787,7 @@ class AIWorkflowService:
         )
 
     @staticmethod
-    def _normalize_result(result: dict[str, Any]) -> WorkflowAgentResult:
+    def _normalize_result(result: dict[str, Any], *, workflow_type: AIWorkflowType) -> WorkflowAgentResult:
         if not isinstance(result, dict):
             raise ValidationError("Agent returned an invalid result")
         try:
@@ -797,6 +801,19 @@ class AIWorkflowService:
                 draft = {**draft, **legacy_draft}
         if action and isinstance(action.get("payload"), dict):
             draft = {**draft, **action["payload"]}
+        draft = AIWorkflowService._canonicalize_draft(draft, workflow_type)
+        error = validated.error
+        if isinstance(error, dict) and isinstance(error.get("fields"), list):
+            unresolved_fields = []
+            for field in error["fields"]:
+                field_name = str(field)
+                if field_name == "priority" and AIWorkflowService._is_valid_priority(
+                    draft.get("priority"), workflow_type
+                ):
+                    continue
+                if field_name not in unresolved_fields:
+                    unresolved_fields.append(field_name)
+            error = {**error, "fields": unresolved_fields} if unresolved_fields else None
         return WorkflowAgentResult(
             response=validated.assistant_message or validated.response or "",
             intent=validated.intent,
@@ -805,7 +822,7 @@ class AIWorkflowService:
             action=action,
             citations=list(validated.citations),
             attachment_ids=[str(value) for value in validated.attachment_ids],
-            error=validated.error,
+            error=error,
         )
 
     @staticmethod
@@ -819,6 +836,52 @@ class AIWorkflowService:
                 if value is not None and value != "":
                     merged[key] = value
         return merged
+
+    @staticmethod
+    def _canonicalize_draft(draft: dict[str, Any], workflow_type: AIWorkflowType) -> dict[str, Any]:
+        normalized = dict(draft)
+        value = normalized.get("priority")
+        if not isinstance(value, str):
+            return normalized
+        folded = "".join(
+            character
+            for character in unicodedata.normalize("NFKD", value.strip().lower())
+            if not unicodedata.combining(character)
+        )
+        aliases = (
+            {
+                "low": "low",
+                "thap": "low",
+                "medium": "medium",
+                "trung binh": "medium",
+                "high": "high",
+                "cao": "high",
+                "urgent": "urgent",
+                "emergency": "urgent",
+                "khan cap": "urgent",
+            }
+            if workflow_type is AIWorkflowType.RESIDENT_TICKET
+            else {
+                "normal": "normal",
+                "binh thuong": "normal",
+                "important": "important",
+                "quan trong": "important",
+                "urgent": "urgent",
+                "emergency": "urgent",
+                "khan cap": "urgent",
+            }
+        )
+        normalized["priority"] = aliases.get(folded, value.strip())
+        return normalized
+
+    @staticmethod
+    def _is_valid_priority(value: Any, workflow_type: AIWorkflowType) -> bool:
+        allowed = (
+            {"low", "medium", "high", "urgent"}
+            if workflow_type is AIWorkflowType.RESIDENT_TICKET
+            else {"normal", "important", "urgent"}
+        )
+        return value in allowed
 
     @staticmethod
     def _required_missing(workflow_type: AIWorkflowType, draft: dict[str, Any]) -> list[str]:
@@ -844,13 +907,36 @@ class AIWorkflowService:
                 }
             else:
                 return None
-        normalized = dict(action)
+        normalized = AIWorkflowService._canonicalize_action_type(action, workflow_type)
+        if (
+            workflow_type is AIWorkflowType.MANAGER_ANNOUNCEMENT
+            and normalized.get("type") == "ask_clarification"
+            and not AIWorkflowService._required_missing(workflow_type, draft)
+        ):
+            normalized = {
+                **normalized,
+                "type": "create_announcement_draft",
+                "requires_confirmation": True,
+                "payload": draft,
+            }
         normalized["action_id"] = str(normalized.get("action_id") or uuid4())
         if normalized.get("requires_confirmation") is None:
             normalized["requires_confirmation"] = normalized.get("type") in {
                 "create_ticket", "create_announcement_draft", "update_announcement", "publish_announcement"
             }
         normalized.setdefault("payload", draft)
+        return normalized
+
+    @staticmethod
+    def _canonicalize_action_type(action: dict[str, Any] | None, workflow_type: AIWorkflowType) -> dict[str, Any] | None:
+        if action is None:
+            return None
+        normalized = dict(action)
+        if workflow_type is AIWorkflowType.MANAGER_ANNOUNCEMENT and normalized.get("type") in {
+            "create_announcement",
+            "preview_announcement",
+        }:
+            normalized["type"] = "create_announcement_draft"
         return normalized
 
     @staticmethod
