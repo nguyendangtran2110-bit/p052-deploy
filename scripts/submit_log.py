@@ -19,11 +19,32 @@ import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 
+def _load_ai_log_env_fallback() -> None:
+    """Load only the hook settings when python-dotenv is unavailable."""
+    env_path = Path(".env")
+    if not env_path.is_file():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.removeprefix("export ").strip()
+        if key not in {"AI_LOG_SERVER", "AI_LOG_API_KEY", "AI_LOG_DIR"}:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
+
+
 try:
     from dotenv import load_dotenv
-    load_dotenv()
 except ImportError:
-    pass
+    _load_ai_log_env_fallback()
+else:
+    load_dotenv()
 
 SERVER_URL = os.environ.get("AI_LOG_SERVER", "")
 API_KEY = os.environ.get("AI_LOG_API_KEY", "")

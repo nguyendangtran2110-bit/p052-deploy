@@ -113,7 +113,7 @@ async def get_ticket_conversation(
     )
 
 
-@router.post("/{ticket_id}/messages", response_model=ChatMessageResponse)
+@router.post("/{ticket_id}/messages", response_model=ChatMessageResponse, response_model_exclude_none=True)
 async def send_ticket_message(
     ticket_id: UUID,
     request: ChatMessageRequest,
@@ -139,6 +139,7 @@ async def send_ticket_message(
     return ChatMessageResponse(
         conversation_id=outcome.conversation_id,
         response=outcome.response,
+        analysis=outcome.analysis or None,
         citations=outcome.citations,
         action=outcome.action,
         ticket=TicketResponse.model_validate(outcome.ticket) if outcome.ticket else None,

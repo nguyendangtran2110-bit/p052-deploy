@@ -8,6 +8,7 @@ from src.backend.api.routes import (
     chat,
     conversations,
     knowledge,
+    legacy,
     management,
     realtime,
     residents,
@@ -22,6 +23,7 @@ api_router.include_router(announcements.management_router)
 api_router.include_router(ai_workflows.router)
 api_router.include_router(ai_workflows.workflow_router)
 api_router.include_router(attachments.router)
+api_router.include_router(legacy.router)
 api_router.include_router(realtime.router)
 api_router.include_router(management.router)
 api_router.include_router(chat.router)
@@ -34,4 +36,4 @@ api_router.include_router(units.router)
 
 @api_router.get("/status", tags=["system"])
 async def status():
-    return {"status": "ready", "agent": "LangGraph Agent", "api_version": "v1"}
+    return {"status": "ready", "agent": "LangGraph Agent v1.0", "api_version": "v1"}

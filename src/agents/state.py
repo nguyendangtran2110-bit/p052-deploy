@@ -4,41 +4,24 @@ from typing import TypedDict
 
 
 class AgentState(TypedDict, total=False):
-    """State schema cho LangGraph agent.
+    """State schema cho LangGraph RAG agent.
 
     Mỗi node đọc và ghi vào state này.
     total=False cho phép tất cả fields là optional.
     """
 
-    query: str
-    message: str
-    actor_role: str
-    actor_id: str
-    resident_id: str | None
-    conversation_id: str
-    workflow_id: str | None
-    workflow_type: str | None
-    workflow_version: int | None
-    confirmed_action_id: str | None
-    confirm_action: bool
-    selected_unit_id: str | None
-    workflow_attachment_ids: list[str]
-    messages: list[dict]
-    workflow_draft: dict
-    workflow_state: str | None
-    pending_action: dict | None
-    handbook_results: list[dict]
-    context: str
-    analysis: str
-    response: str
-    assistant_message: str
-    intent: str
-    draft: dict
-    missing_fields: list[str]
-    action: dict | None
-    state: str | None
-    citations: list[dict]
-    attachment_ids: list[str]
-    error_details: dict | None
-    error: dict | None
+    # Input
+    query: str                    # Câu hỏi từ user
+    chat_history: list[dict]      # Lịch sử hội thoại
+
+    # RAG Pipeline
+    retrieved_chunks: list[dict]  # Chunks tìm được từ ChromaDB
+    rag_response: dict            # Structured response từ Groq/Qwen (RAGResponse)
+
+    # Output
+    response: str                 # Final text response
+    analysis: str                 # Backward-compatible analysis field
+
+    # Error handling
+    error: str
     metadata: dict

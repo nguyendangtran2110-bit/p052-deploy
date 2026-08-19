@@ -9,6 +9,9 @@ from src.backend.schemas.tickets import TicketResponse
 class ChatMessageResponse(BaseModel):
     conversation_id: UUID
     response: str
+    # Kept for clients of the original /chat endpoint. The modular API does
+    # not expose internal reasoning beyond this optional compatibility field.
+    analysis: str | None = None
     citations: list[dict[str, Any]] = Field(default_factory=list)
     action: dict[str, Any] | None = None
     ticket: TicketResponse | None = None

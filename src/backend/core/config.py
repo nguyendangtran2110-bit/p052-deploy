@@ -66,7 +66,14 @@ class Settings(BaseSettings):
 
     # LLM
     openai_api_key: str = ""
+    # Legacy Qwen/DashScope and vector-store settings remain available for the
+    # original LangGraph/RAG adapter while the modular backend uses the same
+    # settings object.
+    qwen_api_key: str = ""
+    qwen_api_base: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+    openai_api_base: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
     model_name: str = "gpt-4o-mini"
+    embedding_model_name: str = "text-embedding-v4"
     llm_temperature: float = Field(default=0.1, ge=0.0, le=2.0)
 
     # Database
@@ -82,6 +89,7 @@ class Settings(BaseSettings):
     handbook_chunk_max_chars: int = Field(default=4500, ge=1000, le=12000)
     handbook_context_top_k: int = Field(default=5, ge=1, le=10)
     handbook_context_min_score: float = Field(default=1.5, ge=0.0, le=100.0)
+    chroma_persist_dir: str = "./data/chroma"
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, gt=0)
     embedding_dimensions: int = Field(default=1536, gt=0)
 

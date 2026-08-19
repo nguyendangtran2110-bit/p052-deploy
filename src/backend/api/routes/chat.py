@@ -29,8 +29,8 @@ def _message_payload(message) -> dict:
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-@router.post("", response_model=ChatMessageResponse)
-@router.post("/messages", response_model=ChatMessageResponse)
+@router.post("", response_model=ChatMessageResponse, response_model_exclude_none=True)
+@router.post("/messages", response_model=ChatMessageResponse, response_model_exclude_none=True)
 async def send_message(
     request: ChatMessageRequest,
     session: AsyncSession = Depends(get_db_session),
@@ -55,6 +55,7 @@ async def send_message(
     return ChatMessageResponse(
         conversation_id=outcome.conversation_id,
         response=outcome.response,
+        analysis=outcome.analysis or None,
         citations=outcome.citations,
         action=outcome.action,
         ticket=TicketResponse.model_validate(outcome.ticket) if outcome.ticket else None,

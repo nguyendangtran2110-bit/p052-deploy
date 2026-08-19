@@ -158,6 +158,7 @@ class ChatService:
             return ChatOutcome(
                 conversation_id=outcome.conversation.id,
                 response=outcome.assistant_message.content,
+                analysis=str(result.get("analysis") or ""),
                 citations=outcome.citations,
                 action=action,
                 ticket=outcome.ticket,
@@ -224,6 +225,7 @@ class ChatService:
         return ChatOutcome(
             conversation_id=conversation.id,
             response=response,
+            analysis=str(result.get("analysis") or ""),
             citations=citations,
             action=action,
             ticket=ticket,

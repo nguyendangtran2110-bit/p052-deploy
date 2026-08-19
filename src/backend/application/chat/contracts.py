@@ -24,6 +24,7 @@ class ChatCommand:
 class ChatOutcome:
     conversation_id: str
     response: str
+    analysis: str = ""
     citations: list[dict[str, Any]] = field(default_factory=list)
     action: dict[str, Any] | None = None
     ticket: Any | None = None
