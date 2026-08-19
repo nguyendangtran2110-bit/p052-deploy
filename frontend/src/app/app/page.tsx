@@ -15,9 +15,9 @@ export default function ResidentHomePage() {
   const unread = useUnreadCount();
   const announcements = useAnnouncements({ limit: 2 });
   const name = profile.data?.full_name?.split(" ").slice(-1)[0] ?? "bạn";
-  const primaryUnit = profile.data?.units.find((unit) => unit.is_primary) ?? profile.data?.units[0];
-  const openTickets = tickets.data?.items.filter((ticket) => !["resolved", "rejected", "cancelled"].includes(ticket.status)) ?? [];
-  const recentAnnouncements = announcements.data?.items.slice(0, 2) ?? [];
+  const primaryUnit = profile.data?.units?.find((unit) => unit.is_primary) ?? profile.data?.units?.[0];
+  const openTickets = (tickets.data?.items ?? []).filter((ticket) => !["resolved", "rejected", "cancelled"].includes(ticket.status));
+  const recentAnnouncements = (announcements.data?.items ?? []).slice(0, 2);
 
   return <AppShell><div className="dashboard-grid">
     <PageHeader eyebrow="Resident space" title={`Chào ${name}, hôm nay bạn cần gì?`} description="Theo dõi yêu cầu, hỏi nhanh handbook và nhận thông báo mới từ ban quản lý." actions={<><Link href="/app/chat"><Button><Bot size={17} /> Hỏi chatbot</Button></Link><Link href="/app/tickets/new"><Button variant="outline"><FilePlus2 size={17} /> Tạo ticket</Button></Link></>} />
