@@ -1,0 +1,163 @@
+{
+  "seed": 20260819,
+  "splits": {
+    "train": {
+      "examples": 2000,
+      "scenario_families": {
+        "announcement_all_residents": 83,
+        "announcement_building": 83,
+        "announcement_cancel": 83,
+        "announcement_edit": 83,
+        "announcement_missing_content": 83,
+        "announcement_missing_scope": 83,
+        "announcement_publish": 83,
+        "confirmation_without_pending": 83,
+        "handbook_grounded": 83,
+        "handbook_no_result": 83,
+        "manager_ticket_violation": 83,
+        "prompt_injection": 83,
+        "resident_announcement_violation": 83,
+        "ticket_cancel": 84,
+        "ticket_complete": 84,
+        "ticket_correction": 84,
+        "ticket_followup_location": 84,
+        "ticket_indirect": 83,
+        "ticket_missing_category": 84,
+        "ticket_missing_location": 84,
+        "ticket_multiple_issues": 84,
+        "ticket_status": 84,
+        "ticket_trusted_attachment": 83,
+        "ticket_untrusted_attachment": 83
+      },
+      "languages": {
+        "en": 417,
+        "vi": 1583
+      },
+      "intents": {
+        "announcement_edit": 83,
+        "clarification_response": 251,
+        "create_announcement": 415,
+        "create_ticket": 669,
+        "handbook_question": 415,
+        "publish_announcement": 83,
+        "ticket_question": 84
+      },
+      "actions": {
+        "ask_clarification": 501,
+        "cancelled": 167,
+        "create_announcement_draft": 166,
+        "create_ticket": 501,
+        "none": 499,
+        "publish_announcement": 83,
+        "update_announcement": 83
+      }
+    },
+    "validation": {
+      "examples": 400,
+      "scenario_families": {
+        "announcement_all_residents": 17,
+        "announcement_building": 17,
+        "announcement_cancel": 17,
+        "announcement_edit": 17,
+        "announcement_missing_content": 17,
+        "announcement_missing_scope": 17,
+        "announcement_publish": 17,
+        "confirmation_without_pending": 17,
+        "handbook_grounded": 16,
+        "handbook_no_result": 16,
+        "manager_ticket_violation": 16,
+        "prompt_injection": 16,
+        "resident_announcement_violation": 16,
+        "ticket_cancel": 17,
+        "ticket_complete": 17,
+        "ticket_correction": 17,
+        "ticket_followup_location": 17,
+        "ticket_indirect": 16,
+        "ticket_missing_category": 17,
+        "ticket_missing_location": 17,
+        "ticket_multiple_issues": 17,
+        "ticket_status": 17,
+        "ticket_trusted_attachment": 16,
+        "ticket_untrusted_attachment": 16
+      },
+      "languages": {
+        "en": 84,
+        "vi": 316
+      },
+      "intents": {
+        "announcement_edit": 17,
+        "clarification_response": 51,
+        "create_announcement": 85,
+        "create_ticket": 133,
+        "handbook_question": 80,
+        "publish_announcement": 17,
+        "ticket_question": 17
+      },
+      "actions": {
+        "ask_clarification": 102,
+        "cancelled": 34,
+        "create_announcement_draft": 34,
+        "create_ticket": 99,
+        "none": 97,
+        "publish_announcement": 17,
+        "update_announcement": 17
+      }
+    },
+    "test": {
+      "examples": 600,
+      "scenario_families": {
+        "announcement_all_residents": 25,
+        "announcement_building": 25,
+        "announcement_cancel": 25,
+        "announcement_edit": 25,
+        "announcement_missing_content": 25,
+        "announcement_missing_scope": 25,
+        "announcement_publish": 25,
+        "confirmation_without_pending": 25,
+        "handbook_grounded": 25,
+        "handbook_no_result": 25,
+        "manager_ticket_violation": 25,
+        "prompt_injection": 25,
+        "resident_announcement_violation": 25,
+        "ticket_cancel": 25,
+        "ticket_complete": 25,
+        "ticket_correction": 25,
+        "ticket_followup_location": 25,
+        "ticket_indirect": 25,
+        "ticket_missing_category": 25,
+        "ticket_missing_location": 25,
+        "ticket_multiple_issues": 25,
+        "ticket_status": 25,
+        "ticket_trusted_attachment": 25,
+        "ticket_untrusted_attachment": 25
+      },
+      "languages": {
+        "en": 125,
+        "vi": 475
+      },
+      "intents": {
+        "announcement_edit": 25,
+        "clarification_response": 75,
+        "create_announcement": 125,
+        "create_ticket": 200,
+        "handbook_question": 125,
+        "publish_announcement": 25,
+        "ticket_question": 25
+      },
+      "actions": {
+        "ask_clarification": 150,
+        "cancelled": 50,
+        "create_announcement_draft": 50,
+        "create_ticket": 150,
+        "none": 150,
+        "publish_announcement": 25,
+        "update_announcement": 25
+      }
+    }
+  },
+  "totals": {
+    "examples": 3000,
+    "scenario_families": 24,
+    "unique_inputs": 3000
+  }
+}
