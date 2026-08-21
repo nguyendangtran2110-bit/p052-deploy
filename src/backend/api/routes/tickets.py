@@ -157,6 +157,9 @@ async def send_ticket_message(
             "intent": outcome.message.intent,
             "citations": outcome.message.citations,
             "action_payload": outcome.message.action_payload,
+            "workflow_id": outcome.message.workflow_id,
+            "workflow_state": outcome.message.workflow_state,
+            "workflow_version": outcome.message.workflow_version,
             "attachment_ids": [
                 attachment.id for attachment in outcome.message.__dict__.get("attachments", [])
             ],

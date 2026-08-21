@@ -1,5 +1,32 @@
+from pathlib import Path
+
 import pytest
 
+from src.backend.application.knowledge.search import KnowledgeSearchService
+
+
+def test_local_handbook_search_ranks_relevant_chunk():
+    handbook = Path(".test-handbook-search.md")
+    handbook.write_text(
+        "# Handbook\n\n"
+        "**2.12. Vat nuoi**\n\n"
+        "Cac loai vat nuoi khong duoc phep nuoi bao gom dong vat co doc va Pitbull.\n\n"
+        "**2.13. Khach**\n\n"
+        "Khach phai dang ky voi Ban Quan Ly khi ra vao.\n",
+        encoding="utf-8",
+    )
+    try:
+        service = KnowledgeSearchService(None)
+        service.context_file = handbook
+
+        results = service._search_local("Are pets such as Pitbull allowed?", limit=3)
+
+        assert results
+        assert "Pitbull" in results[0]["content"]
+        assert results[0]["citation"]["source_type"] == "local_file"
+        assert results[0]["citation"]["line_start"] <= results[0]["citation"]["line_end"]
+    finally:
+        handbook.unlink(missing_ok=True)
 
 @pytest.mark.asyncio
 async def test_management_can_upload_and_list_handbook(client, management_headers):

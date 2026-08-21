@@ -230,7 +230,9 @@ class AttachmentService:
 
     @staticmethod
     def _authorize_workflow(workflow: AIWorkflow, actor: ActorContext) -> None:
-        if actor.is_management and workflow.owner_actor_id == actor.actor_id:
+        if actor.is_management and (
+            actor.management_role is ManagementRole.ADMIN or workflow.owner_actor_id == actor.actor_id
+        ):
             return
         if actor.role is ActorRole.RESIDENT and workflow.owner_resident_id == actor.resident_id:
             return

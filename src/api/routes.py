@@ -1,6 +1,6 @@
-from uuid import uuid4
+"""Backward-compatible router import."""
 
-from fastapi import APIRouter, HTTPException
+from src.backend.api.router import api_router as router
 
 from src.agents.graph import agent, rag_agent
 from src.models.schemas import (
@@ -160,4 +160,6 @@ async def contact_ticket_resident(ticket_id: str, request: ManagerActionRequest)
         return mvp_service.contact_resident(ticket_id, request.actor_role)
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
+
+
 __all__ = ["router"]

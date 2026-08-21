@@ -42,6 +42,32 @@ class ResidentWorkflowAgent:
         }
 
 
+class ResidentPriorityAliasAgent:
+    def __init__(self, unit_id: str):
+        self.unit_id = unit_id
+
+    async def ainvoke(self, _state):
+        return {
+            "response": "Thông tin đã đủ. Vui lòng xác nhận tạo ticket.",
+            "intent": "create_ticket",
+            "draft": {
+                "unit_id": self.unit_id,
+                "category": "plumbing",
+                "priority": "Medium",
+                "title": "Rò rỉ nước",
+                "description": "Nước chảy dưới bồn rửa.",
+                "location": "Bếp",
+            },
+            "missing_fields": [],
+            "error": {"type": "invalid_draft", "fields": ["priority"]},
+            "action": {
+                "type": "create_ticket",
+                "action_id": "00000000-0000-0000-0000-000000000003",
+                "requires_confirmation": True,
+            },
+        }
+
+
 class ManagerWorkflowAgent:
     def __init__(self):
         self.calls = 0
@@ -81,6 +107,55 @@ class ManagerWorkflowAgent:
             "action": {
                 "type": "publish_announcement",
                 "action_id": "00000000-0000-0000-0000-000000000012",
+                "requires_confirmation": True,
+            },
+        }
+
+
+class ManagerHandbookAgent:
+    async def ainvoke(self, _state):
+        return {
+            "response": "The pool closes at 21:00.",
+            "intent": "handbook_question",
+            "draft": {},
+            "missing_fields": [],
+            "action": None,
+            "citations": [{"title": "Handbook", "page": 18}],
+        }
+
+
+class ManagerMismatchedConfirmationAgent:
+    def __init__(self):
+        self.calls = 0
+
+    async def ainvoke(self, _state):
+        self.calls += 1
+        if self.calls == 1:
+            return {
+                "response": "Xac nhan tao draft announcement?",
+                "intent": "create_announcement",
+                "draft": {
+                    "title": "Lich bao tri dinh ky",
+                    "content": "Ngay mai co lich bao tri dinh ky.",
+                    "type": "maintenance",
+                    "priority": "normal",
+                    "scopes": [{"scope_type": "all_residents"}],
+                },
+                "missing_fields": [],
+                "action": {
+                    "type": "create_announcement_draft",
+                    "action_id": "00000000-0000-0000-0000-000000000031",
+                    "requires_confirmation": True,
+                },
+            }
+        return {
+            "response": "Dang publish announcement.",
+            "intent": "publish_announcement",
+            "draft": {},
+            "missing_fields": [],
+            "action": {
+                "type": "publish_announcement",
+                "action_id": "00000000-0000-0000-0000-000000000032",
                 "requires_confirmation": True,
             },
         }
@@ -132,6 +207,147 @@ async def test_resident_workflow_collects_then_confirms_once(client, resident_un
         assert confirmed.json()["state"] == "completed"
         assert confirmed.json()["ticket"]["source"] == "chat"
         assert confirmed.json()["ticket"]["location"] == "Bếp"
+        conversation = await client.get(
+            f"/api/v1/conversations/{confirmed.json()['conversation_id']}",
+            headers=resident_headers,
+        )
+        assert conversation.status_code == 200, conversation.text
+        assert conversation.json()["ticket"]["id"] == confirmed.json()["ticket"]["id"]
+    finally:
+        app.dependency_overrides.pop(get_agent_runtime, None)
+
+
+@pytest.mark.asyncio
+async def test_resident_workflow_normalizes_priority_alias(client, resident_unit, resident_headers):
+    app.dependency_overrides[get_agent_runtime] = lambda: ResidentPriorityAliasAgent(resident_unit["unit_id"])
+    try:
+        response = await client.post(
+            "/api/v1/chat/messages",
+            headers=resident_headers,
+            json={"message": "Tạo ticket rò rỉ nước", "unit_id": resident_unit["unit_id"]},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["draft"]["priority"] == "medium"
+        assert "priority" not in response.json()["missing_fields"]
+    finally:
+        app.dependency_overrides.pop(get_agent_runtime, None)
+
+
+@pytest.mark.asyncio
+async def test_manager_handbook_question_does_not_create_announcement_action(client, management_headers):
+    app.dependency_overrides[get_agent_runtime] = ManagerHandbookAgent
+    try:
+        created = await client.post("/api/v1/management/assistant/conversations", headers=management_headers)
+        assert created.status_code == 201, created.text
+        conversation_id = created.json()["conversation_id"]
+        workflow_id = created.json()["workflow_id"]
+
+        response = await client.post(
+            f"/api/v1/management/assistant/conversations/{conversation_id}/messages",
+            headers=management_headers,
+            json={
+                "message": "What time does the pool close?",
+                "workflow_id": workflow_id,
+                "workflow_version": 0,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["state"] == "collecting"
+        assert response.json()["missing_fields"] == []
+        assert response.json()["action"] is None
+        assert response.json()["announcement"] is None
+    finally:
+        app.dependency_overrides.pop(get_agent_runtime, None)
+
+
+@pytest.mark.asyncio
+async def test_manager_workflow_recovers_complete_draft_after_scope_clarification(
+    client, management_headers
+):
+    class ManagerScopeClarificationAgent:
+        async def ainvoke(self, _state):
+            return {
+                "response": "Xac nhan tao draft announcement?",
+                "intent": "create_announcement",
+                "draft": {
+                    "title": "Lich bao tri dinh ky",
+                    "content": "Ngay mai co lich bao tri dinh ky.",
+                    "type": "maintenance",
+                    "priority": "normal",
+                    "scopes": [{"scope_type": "all_residents"}],
+                },
+                "missing_fields": ["scopes"],
+                "action": {
+                    "type": "ask_clarification",
+                    "action_id": "00000000-0000-0000-0000-000000000021",
+                    "requires_confirmation": False,
+                    "payload": {"field": "scopes"},
+                },
+            }
+
+    app.dependency_overrides[get_agent_runtime] = ManagerScopeClarificationAgent
+    try:
+        created = await client.post(
+            "/api/v1/management/assistant/conversations", headers=management_headers
+        )
+        assert created.status_code == 201, created.text
+        response = await client.post(
+            f"/api/v1/management/assistant/conversations/{created.json()['conversation_id']}/messages",
+            headers=management_headers,
+            json={
+                "message": "Tao announcement cho cu dan",
+                "workflow_id": created.json()["workflow_id"],
+                "workflow_version": 0,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["state"] == "awaiting_confirmation"
+        assert response.json()["missing_fields"] == []
+        assert response.json()["action"]["type"] == "create_announcement_draft"
+    finally:
+        app.dependency_overrides.pop(get_agent_runtime, None)
+
+
+@pytest.mark.asyncio
+async def test_manager_confirmation_keeps_pending_create_action(client, management_headers):
+    agent = ManagerMismatchedConfirmationAgent()
+    app.dependency_overrides[get_agent_runtime] = lambda: agent
+    try:
+        created = await client.post(
+            "/api/v1/management/assistant/conversations", headers=management_headers
+        )
+        assert created.status_code == 201, created.text
+        conversation_id = created.json()["conversation_id"]
+        workflow_id = created.json()["workflow_id"]
+
+        preview = await client.post(
+            f"/api/v1/management/assistant/conversations/{conversation_id}/messages",
+            headers=management_headers,
+            json={
+                "message": "Tao announcement cho cu dan",
+                "workflow_id": workflow_id,
+                "workflow_version": 0,
+            },
+        )
+        assert preview.status_code == 200, preview.text
+
+        draft = await client.post(
+            f"/api/v1/management/assistant/conversations/{conversation_id}/messages",
+            headers=management_headers,
+            json={
+                "message": "Confirm draft creation",
+                "workflow_id": workflow_id,
+                "workflow_version": preview.json()["workflow_version"],
+                "confirmed_action_id": preview.json()["action"]["action_id"],
+                "confirm_action": True,
+            },
+        )
+        assert draft.status_code == 200, draft.text
+        assert draft.json()["state"] == "awaiting_publish_confirmation"
+        assert draft.json()["announcement"]["status"] == "draft"
+        assert draft.json()["action"]["next_action"]["type"] == "publish_announcement"
     finally:
         app.dependency_overrides.pop(get_agent_runtime, None)
 

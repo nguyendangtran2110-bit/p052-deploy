@@ -21,6 +21,7 @@ class ConversationRepository:
             .options(
                 selectinload(Conversation.messages).selectinload(Message.attachments),
                 selectinload(Conversation.ticket).selectinload(Ticket.conversation),
+                selectinload(Conversation.ticket).selectinload(Ticket.events),
                 selectinload(Conversation.ticket).selectinload(Ticket.attachments),
             )
             .where(Conversation.id == conversation_id)

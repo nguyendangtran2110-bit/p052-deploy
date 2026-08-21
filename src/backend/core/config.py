@@ -87,6 +87,12 @@ class Settings(BaseSettings):
 
     # Knowledge base
     knowledge_storage_dir: Path = Path("./data/handbooks")
+    # Temporary local handbook context used before the production retriever is ready.
+    # Set to an empty value to disable the file fallback.
+    handbook_context_file: str = "./data/handbook1.md"
+    handbook_chunk_max_chars: int = Field(default=4500, ge=1000, le=12000)
+    handbook_context_top_k: int = Field(default=5, ge=1, le=10)
+    handbook_context_min_score: float = Field(default=1.5, ge=0.0, le=100.0)
     chroma_persist_dir: str = "./data/chroma"
     chroma_server_host: str = ""
     chroma_server_port: int = Field(default=8000, ge=1, le=65535)
