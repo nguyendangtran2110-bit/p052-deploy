@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 
-from src.api.routes import router as rag_router
 from src.backend.api.routes import (
     ai_workflows,
     announcements,
@@ -11,6 +10,7 @@ from src.backend.api.routes import (
     knowledge,
     legacy,
     management,
+    rag,
     realtime,
     residents,
     tickets,
@@ -25,7 +25,7 @@ api_router.include_router(ai_workflows.router)
 api_router.include_router(ai_workflows.workflow_router)
 api_router.include_router(attachments.router)
 api_router.include_router(legacy.router)
-api_router.include_router(rag_router)
+api_router.include_router(rag.router)
 api_router.include_router(realtime.router)
 api_router.include_router(management.router)
 api_router.include_router(chat.router)

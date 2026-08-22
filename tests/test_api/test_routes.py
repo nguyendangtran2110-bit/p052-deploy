@@ -49,7 +49,7 @@ async def test_rag_chat_returns_retrieved_chunk_details(client, monkeypatch):
                 ],
             }
 
-    monkeypatch.setattr("src.api.routes.rag_agent", FakeRagAgent())
+    monkeypatch.setattr("src.backend.api.routes.rag.rag_agent", FakeRagAgent())
 
     response = await client.post("/api/v1/rag/chat", json={"message": "giờ mở cửa hồ bơi"})
 
