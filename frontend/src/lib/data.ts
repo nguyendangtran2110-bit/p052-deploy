@@ -34,6 +34,10 @@ import type {
   KnowledgeFilters,
   ListResponse,
   ManagementResident,
+  ManagementOnboardingResponse,
+  OnboardingItem,
+  OnboardingUpdateStatus,
+  ResidentOnboardingResponse,
   ResidentProfile,
   Ticket,
   Unit,
@@ -119,6 +123,20 @@ export function logoutAll() {
 
 export function fetchResidentProfile() {
   return mockOr(demoProfile, () => get<ResidentProfile>("/residents/me"));
+}
+
+export function fetchResidentOnboarding(unitId?: string) {
+  const filters = unitId ? `?unit_id=${encodeURIComponent(unitId)}` : "";
+  return mockOr<ResidentOnboardingResponse>({ items: [] }, () => get<ResidentOnboardingResponse>(`/onboarding${filters}`));
+}
+
+export function updateOnboardingItem(itemId: string, status: OnboardingUpdateStatus) {
+  const apiStatus = status === "skipped" ? "not_applicable" : status;
+  return mockOr<OnboardingItem>({ id: itemId, code: "", category: "guidance", item_type: "task", title: "", summary: "", handbook_reference: null, is_required: false, sort_order: 0, status: apiStatus, acted_at: null, updated_at: new Date().toISOString() }, () => patch<OnboardingItem>(`/onboarding/items/${itemId}`, { status: apiStatus }));
+}
+
+export function fetchManagementOnboarding(filters: { search?: string; building?: string; is_completed?: boolean; offset?: number; limit?: number } = {}) {
+  return mockOr<ManagementOnboardingResponse>({ items: [], total: 0, offset: filters.offset ?? 0, limit: filters.limit ?? 50 }, () => get<ManagementOnboardingResponse>(`/management/onboarding${queryString(filters)}`));
 }
 
 export function fetchTickets(filters: Record<string, QueryValue> = {}) {

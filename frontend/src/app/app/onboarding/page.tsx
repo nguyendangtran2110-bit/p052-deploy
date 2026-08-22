@@ -1,63 +1,27 @@
 "use client";
 
-import Link from "next/link";
-import { BookOpen, Check, Circle, ExternalLink, Home, Info, RotateCcw } from "lucide-react";
+import { Check, ClipboardCheck, Circle, Clock3, Eye, EyeOff, MinusCircle } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { Badge, Button, Card, EmptyState, PageHeader, ProgressBar } from "@/components/ui";
-import { useOnboarding, useUpdateOnboardingItem } from "@/features/onboarding/queries";
-import type { OnboardingCategory, OnboardingChecklist, OnboardingItem } from "@/types";
-import { useUiStore } from "@/stores/ui-store";
-
-const categoryLabels: Record<OnboardingCategory, string> = {
-  handover: "Handover",
-  utilities: "Utilities",
-  guidance: "Information",
-};
-
-const categoryOrder: OnboardingCategory[] = ["handover", "utilities", "guidance"];
+import { Badge, Button, Card, EmptyState, PageHeader } from "@/components/ui";
+import { ErrorState } from "@/components/feedback";
+import { useResidentOnboarding, useUpdateOnboardingItem } from "@/features/onboarding/queries";
+import type { OnboardingItem, OnboardingUpdateStatus } from "@/types";
+import type { CSSProperties } from "react";
 
 export default function ResidentOnboardingPage() {
-  const onboarding = useOnboarding();
+  const onboarding = useResidentOnboarding();
   const update = useUpdateOnboardingItem();
-  const showToast = useUiStore((state) => state.showToast);
+  const checklists = onboarding.data?.items ?? [];
+  const totalItems = checklists.reduce((total, checklist) => total + checklist.required_item_count, 0);
+  const completedItems = checklists.reduce((total, checklist) => total + checklist.completed_item_count, 0);
 
-  async function changeStatus(item: OnboardingItem, status: OnboardingItem["status"]) {
-    try {
-      await update.mutateAsync({ itemId: item.id, status });
-    } catch (error) {
-      showToast({ tone: "error", message: error instanceof Error ? error.message : "Could not update checklist." });
-    }
-  }
-
-  return <AppShell>
-    <PageHeader
-      eyebrow="Resident / Move-in"
-      title="Your move-in checklist"
-      description="Track practical handover tasks and read the key information for your apartment. Management can see your progress, but does not need to approve each item."
-      actions={<Link href="/app/chat"><Button variant="outline"><BookOpen size={16} /> Ask the assistant</Button></Link>}
-    />
-    {onboarding.isLoading ? <div className="empty-state"><p>Loading checklist...</p></div> : onboarding.isError ? <div className="error-state"><Info size={18} /><div><strong>Could not load your checklist.</strong><p>Try again after checking that your account has an active unit.</p></div></div> : onboarding.data?.items.length ? <div className="dashboard-grid">{onboarding.data.items.map((checklist) => <ChecklistCard key={checklist.id} checklist={checklist} onChange={changeStatus} updating={update.isPending} />)}</div> : <EmptyState icon={<Home size={20} />} title="No active unit yet" description="Your move-in checklist appears after management links an active unit to your resident profile." />}
+  return <AppShell><PageHeader eyebrow="Resident space / Onboarding" title="Your building welcome" description="Work through the checklist attached to your verified home. Updates are saved to OnBxrd." actions={checklists.length ? <Badge tone="info">{completedItems} / {totalItems} complete</Badge> : undefined} />
+    {onboarding.isLoading ? <Card><div className="loading-copy" role="status">Loading your onboarding checklist…</div></Card> : onboarding.isError ? <ErrorState message="We could not load onboarding for your current account scope." onRetry={() => void onboarding.refetch()} /> : !checklists.length ? <Card><EmptyState icon={<ClipboardCheck size={22} />} title="No onboarding checklist yet" description="Your building team has not published an onboarding checklist for this account." /></Card> : <div className="onboarding-list">{checklists.map((checklist) => <Card key={checklist.id}><div className="onboarding-card-heading"><div><div className="eyebrow">{checklist.unit.building} · {checklist.unit.unit_number}</div><h2>Welcome checklist</h2><p>{checklist.completed_item_count} of {checklist.required_item_count} required steps complete · updated {new Date(checklist.updated_at).toLocaleDateString("en-GB")}</p></div><div className="onboarding-progress" style={{ "--onboarding-progress": `${checklist.progress_percent}%` } as CSSProperties} aria-label={`${checklist.progress_percent}% complete`}><strong>{checklist.progress_percent}%</strong><span /></div></div><div className="onboarding-items">{checklist.items.slice().sort((a, b) => a.sort_order - b.sort_order).map((item) => <OnboardingItemRow key={item.id} item={item} pending={update.isPending && update.variables?.id === item.id} onStatus={(status) => update.mutate({ id: item.id, status })} />)}</div></Card>)}</div>}
   </AppShell>;
 }
 
-function ChecklistCard({ checklist, onChange, updating }: { checklist: OnboardingChecklist; onChange: (item: OnboardingItem, status: OnboardingItem["status"]) => Promise<void>; updating: boolean }) {
-  const grouped = categoryOrder.map((category) => ({ category, items: checklist.items.filter((item) => item.category === category) })).filter((group) => group.items.length);
-  return <Card>
-    <div className="section-heading">
-      <div><div style={{ display: "flex", alignItems: "center", gap: 8 }}><Home size={16} color="var(--teal)" /><h2>{checklist.unit.unit_number}</h2><Badge tone="neutral">Building {checklist.unit.building}</Badge></div><p>{checklist.completed_item_count} of {checklist.required_item_count} required items completed</p></div>
-      <strong style={{ color: "var(--teal)", fontSize: 22 }}>{checklist.progress_percent}%</strong>
-    </div>
-    <ProgressBar value={checklist.progress_percent} />
-    <div style={{ display: "grid", gap: 20, marginTop: 24 }}>{grouped.map((group) => <section key={group.category}><div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}><span className="eyebrow">{categoryLabels[group.category]}</span></div><div style={{ display: "grid", gap: 8 }}>{group.items.map((item) => <ChecklistItem key={item.id} item={item} onChange={onChange} updating={updating} />)}</div></section>)}</div>
-  </Card>;
-}
-
-function ChecklistItem({ item, onChange, updating }: { item: OnboardingItem; onChange: (item: OnboardingItem, status: OnboardingItem["status"]) => Promise<void>; updating: boolean }) {
-  const isDone = item.item_type === "task" ? ["completed", "not_applicable"].includes(item.status) : item.status === "read";
-  const nextStatus = item.item_type === "task" ? (isDone ? "pending" : "completed") : (isDone ? "unread" : "read");
-  return <div style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "13px 0", borderTop: "1px solid var(--line)" }}>
-    <div style={{ width: 28, height: 28, display: "grid", placeItems: "center", flex: "0 0 auto", color: isDone ? "var(--teal)" : "#9aa9ad", background: isDone ? "var(--mint)" : "#f3f6f6", borderRadius: 8 }}>{isDone ? <Check size={16} /> : item.item_type === "information" ? <BookOpen size={15} /> : <Circle size={14} />}</div>
-    <div style={{ minWidth: 0, flex: 1 }}><div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}><strong style={{ color: "var(--ink-strong)", fontSize: 13 }}>{item.title}</strong>{item.is_required && <Badge tone="info">Required</Badge>}{isDone && <Badge tone="success">{item.item_type === "task" ? "Completed" : "Read"}</Badge>}</div><p style={{ marginTop: 5, color: "var(--muted)", fontSize: 12, lineHeight: 1.45 }}>{item.summary}</p>{item.handbook_reference && <Link href={`/app/chat?topic=${encodeURIComponent(item.handbook_reference)}`} style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 7, color: "var(--teal)", fontSize: 11, fontWeight: 700 }}><ExternalLink size={12} /> Ask about this</Link>}</div>
-    <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}><Button variant={isDone ? "ghost" : "secondary"} size="sm" disabled={updating} onClick={() => void onChange(item, nextStatus)}>{isDone ? <><RotateCcw size={13} /> Undo</> : <><Check size={13} /> {item.item_type === "task" ? "Complete" : "Mark read"}</>}</Button>{item.item_type === "task" && !isDone && <Button variant="ghost" size="sm" disabled={updating} onClick={() => void onChange(item, "not_applicable")}>N/A</Button>}</div>
-  </div>;
+function OnboardingItemRow({ item, pending, onStatus }: { item: OnboardingItem; pending: boolean; onStatus: (status: OnboardingUpdateStatus) => void }) {
+  const icon = item.status === "completed" ? <Check size={17} /> : item.status === "read" ? <Eye size={17} /> : item.status === "not_applicable" ? <MinusCircle size={17} /> : item.status === "unread" ? <Circle size={17} /> : <Clock3 size={17} />;
+  const label = item.status === "completed" ? "Completed" : item.status === "read" ? "Read" : item.status === "not_applicable" ? "Skipped" : item.status === "unread" ? "Unread" : "Pending";
+  return <article className={`onboarding-item onboarding-item-${item.status}`}><span className="onboarding-item-icon" aria-hidden="true">{icon}</span><div className="onboarding-item-copy"><div className="onboarding-item-title"><h3>{item.title}</h3><Badge tone={item.status === "completed" || item.status === "read" ? "success" : item.status === "not_applicable" ? "neutral" : "warning"}>{label}</Badge></div><p>{item.summary}</p>{item.handbook_reference && <small>Reference: {item.handbook_reference}</small>}</div>{item.item_type === "task" ? <label className="onboarding-status-control"><span className="sr-only">Status for {item.title}</span><select value={item.status === "not_applicable" ? "skipped" : item.status} disabled={pending} onChange={(event) => onStatus(event.target.value as "pending" | "completed" | "skipped")}><option value="pending">Pending</option><option value="completed">Completed</option><option value="skipped">Skipped</option></select></label> : <Button variant="outline" disabled={pending} onClick={() => onStatus(item.status === "read" ? "unread" : "read")}>{item.status === "read" ? <EyeOff size={15} /> : <Eye size={15} />}{item.status === "read" ? "Mark unread" : "Mark as read"}</Button>}</article>;
 }

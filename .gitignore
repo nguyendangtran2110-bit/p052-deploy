@@ -65,23 +65,31 @@ pnpm-debug.log*
 *.pyc
 *.pyo
 
-# AI logs — tracked structure, ignored content
-.ai-log/*.jsonl
-.ai-log/archive/
-
-frontend_spec.md
-frontend_error_spec.md
-frontend_backend_connect_spec.md
-# AI logs - retain only the directory placeholder
+# AI Loghook & AI Logs
+.ai-log/
 .ai-log/*
 !.ai-log/.gitkeep
-docs/superpowers/
-
-# Test log file
-test_log.txt
-
-# AI Log Hook smoke-test marker
 .codex-ai-log-hook-test
+test_log.txt
+scripts/_pyrun.sh
+scripts/_pyrun.cmd
+scripts/log_hook.py
+scripts/log_antigravity.py
+scripts/log_codex_sessions.py
+scripts/log_cursor_hook.sh
+scripts/log_manual.py
+scripts/submit_log.py
+scripts/setup_hooks.sh
+scripts/setup_hooks.ps1
+.codex/hooks.json
+.cursor/hooks.json
+.claude/settings.json
+.gemini/settings.json
+.github/hooks/
+.agents/rules/ai-log-hook.md
+.agents/workflows/log.md
+tests/test_ai_log_hooks.py
+docs/superpowers/
 
 # Local agent team manifest
 agents_team.txt
