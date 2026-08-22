@@ -9,6 +9,7 @@ from src.backend.api.routes import (
     conversations,
     knowledge,
     management,
+    onboarding,
     realtime,
     residents,
     tickets,
@@ -24,6 +25,8 @@ api_router.include_router(ai_workflows.workflow_router)
 api_router.include_router(attachments.router)
 api_router.include_router(realtime.router)
 api_router.include_router(management.router)
+api_router.include_router(onboarding.resident_router)
+api_router.include_router(onboarding.management_router)
 api_router.include_router(chat.router)
 api_router.include_router(conversations.router)
 api_router.include_router(tickets.router)

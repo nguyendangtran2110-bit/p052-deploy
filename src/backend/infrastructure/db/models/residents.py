@@ -12,6 +12,7 @@ from src.backend.infrastructure.db.base import Base, TimestampMixin, UuidPrimary
 if TYPE_CHECKING:
     from src.backend.infrastructure.db.models.conversations import Conversation
     from src.backend.infrastructure.db.models.identity import UserAccount
+    from src.backend.infrastructure.db.models.onboarding import ResidentOnboardingChecklist
     from src.backend.infrastructure.db.models.tickets import Ticket
 
 
@@ -28,6 +29,9 @@ class Resident(UuidPrimaryKeyMixin, TimestampMixin, Base):
     unit_links: Mapped[list[ResidentUnit]] = relationship(back_populates="resident", cascade="all, delete-orphan")
     conversations: Mapped[list[Conversation]] = relationship(back_populates="resident")
     tickets: Mapped[list[Ticket]] = relationship(back_populates="resident")
+    onboarding_checklists: Mapped[list[ResidentOnboardingChecklist]] = relationship(
+        back_populates="resident", cascade="all, delete-orphan"
+    )
 
 
 class Unit(UuidPrimaryKeyMixin, TimestampMixin, Base):
@@ -43,6 +47,9 @@ class Unit(UuidPrimaryKeyMixin, TimestampMixin, Base):
     resident_links: Mapped[list[ResidentUnit]] = relationship(back_populates="unit", cascade="all, delete-orphan")
     conversations: Mapped[list[Conversation]] = relationship(back_populates="unit")
     tickets: Mapped[list[Ticket]] = relationship(back_populates="unit")
+    onboarding_checklists: Mapped[list[ResidentOnboardingChecklist]] = relationship(
+        back_populates="unit", cascade="all, delete-orphan"
+    )
 
 
 class ResidentUnit(Base):

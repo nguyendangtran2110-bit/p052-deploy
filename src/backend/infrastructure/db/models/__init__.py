@@ -14,6 +14,12 @@ from src.backend.infrastructure.db.models.identity import (
     UserAccount,
 )
 from src.backend.infrastructure.db.models.knowledge import KnowledgeChunk, KnowledgeDocument
+from src.backend.infrastructure.db.models.onboarding import (
+    OnboardingChecklistTemplate,
+    OnboardingChecklistTemplateItem,
+    ResidentOnboardingChecklist,
+    ResidentOnboardingItem,
+)
 from src.backend.infrastructure.db.models.residents import Resident, ResidentUnit, Unit
 from src.backend.infrastructure.db.models.tickets import Ticket, TicketAttachment, TicketEvent
 
@@ -30,9 +36,13 @@ __all__ = [
     "KnowledgeDocument",
     "ManagementProfile",
     "Message",
+    "OnboardingChecklistTemplate",
+    "OnboardingChecklistTemplateItem",
     "PasswordResetToken",
     "RefreshSession",
     "Resident",
+    "ResidentOnboardingChecklist",
+    "ResidentOnboardingItem",
     "ResidentUnit",
     "Ticket",
     "TicketAttachment",
