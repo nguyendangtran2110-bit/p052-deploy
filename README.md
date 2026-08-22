@@ -194,7 +194,6 @@ bất kỳ markdown viewer/editor nào (VS Code, Obsidian, GitHub UI, …).
 
 - 📖 **Technical Guidebook:** [phoenix.note.transformerlabs.ai/technical-book](https://phoenix.note.transformerlabs.ai/technical-book)
 - 🏫 **AI20K Program:** VinUni AI20K Build Phase
-- 👨‍🏫 **Mentor:** Đặng Hải Lộc
 
 ## 📄 License
 

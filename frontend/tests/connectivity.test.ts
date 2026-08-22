@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseApiError } from "@/lib/api-client";
 import { parseSseChunk } from "@/lib/realtime";
-import { assignTicket, createAnnouncement, createManagerAssistantConversation, createTicket, fetchConversationById, fetchHandoffs, sendChat, sendManagerAssistantMessage, sendResidentAssistantMessage, updateAnnouncement, uploadAttachment } from "@/lib/data";
+import { assignTicket, createAnnouncement, createManagerAssistantConversation, createTicket, fetchConversationById, fetchHandoffs, fetchManagementOnboarding, fetchResidentOnboarding, sendChat, sendManagerAssistantMessage, sendResidentAssistantMessage, updateAnnouncement, updateOnboardingItem, uploadAttachment } from "@/lib/data";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -136,6 +136,41 @@ describe("backend connection adapters", () => {
     expect(presignBody).not.toHaveProperty("message_id");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect((fetchMock.mock.calls[1][1] as RequestInit).method).toBe("PUT");
+  });
+
+  it("loads resident onboarding through the scoped API route", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await fetchResidentOnboarding("unit/one");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/onboarding?unit_id=unit%2Fone");
+  });
+
+  it("serializes management onboarding filters without client-side scope guessing", async () => {
+    const response = { items: [], total: 0, offset: 0, limit: 25 };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(response), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await fetchManagementOnboarding({ search: "A-01", building: "North", is_completed: false, limit: 25 });
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/management/onboarding?");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("search=A-01");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("building=North");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("is_completed=false");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("limit=25");
+  });
+
+  it("maps the UI skipped status to the backend onboarding status", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "item-1" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await updateOnboardingItem("item-1", "skipped");
+    const request = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(String(request.body))).toEqual({ status: "not_applicable" });
+  });
+
+  it.each(["read", "unread"] as const)("sends the backend-supported %s information status unchanged", async (status) => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "item-1", status }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await updateOnboardingItem("item-1", status);
+    const request = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(String(request.body))).toEqual({ status });
   });
 });
 

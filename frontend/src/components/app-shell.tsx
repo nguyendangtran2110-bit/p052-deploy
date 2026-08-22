@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, BookOpen, Bot, Building2, ChevronDown, FileText, Home, LayoutDashboard, LifeBuoy, LogOut, Menu, MessageCircle, Megaphone, Settings, Shield, UserCog, Users, X } from "lucide-react";
+import { Bell, BookOpen, Bot, Building2, CheckSquare, ChevronDown, FileText, Gift, Home, LayoutDashboard, LifeBuoy, LogOut, Menu, MessageCircle, Megaphone, Settings, Shield, UserCog, UserRound, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, IconButton, WorkspaceLoading, cn } from "@/components/ui";
 import { ConnectionPill, ToastViewport } from "@/components/feedback";
@@ -15,9 +15,12 @@ import { initials } from "@/lib/format";
 import { aiChatKeys } from "@/features/ai-chat/queries";
 import { useUiStore } from "@/stores/ui-store";
 import type { Account } from "@/types";
+import { ThemeControl } from "@/components/theme-control";
 
 const residentNav = [
   { href: "/app", label: "Tổng quan", icon: Home },
+  { href: "/app/onboarding", label: "Onboarding", icon: CheckSquare },
+  { href: "/app/benefits", label: "Benefits", icon: Gift },
   { href: "/app/chat", label: "Hỏi chatbot", icon: MessageCircle },
   { href: "/app/tickets", label: "Tickets", icon: FileText },
   { href: "/app/announcements", label: "Thông báo", icon: Bell },
@@ -26,13 +29,16 @@ const residentNav = [
 
 const managementNav = [
   { href: "/management", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/management/onboarding", label: "Onboarding", icon: CheckSquare },
   { href: "/management/tickets", label: "Ticket queue", icon: FileText },
   { href: "/management/conversations", label: "Handoff", icon: MessageCircle },
   { href: "/management/assistant", label: "AI announcement assistant", icon: Bot },
   { href: "/management/residents", label: "Residents", icon: Users },
   { href: "/management/announcements", label: "Announcements", icon: Megaphone },
+  { href: "/management/notifications", label: "Notifications", icon: Bell },
   { href: "/management/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/management/units", label: "Units", icon: Building2 },
+  { href: "/management/profile", label: "Profile", icon: UserRound },
 ];
 
 function eventId(event: RealtimeEvent, ...keys: string[]) {
@@ -155,7 +161,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (!hydrated) return <WorkspaceLoading />;
 
+  const notificationsHref = isManagement ? "/management/notifications" : "/app/announcements";
   return <div className={cn("app-frame", isManagement && "management-frame")}>
+    <a className="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
     <aside className={cn("sidebar", sidebarOpen && "sidebar-open")}>
       <div className="brand"><div className="brand-mark">O</div><div><strong>OnBxrd</strong><span>{isManagement ? "Operations" : "Resident space"}</span></div><IconButton label="Đóng menu" className="mobile-only close-sidebar" onClick={() => setSidebarOpen(false)}><X size={18} /></IconButton></div>
       <div className="workspace-switcher"><div className="workspace-icon">{isManagement ? <Shield size={16} /> : <Home size={16} />}</div><div><span>Workspace</span><strong>{isManagement ? "Management" : "Resident workspace"}</strong></div><ChevronDown size={15} /></div>
@@ -165,8 +173,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="sidebar-user"><div className="avatar avatar-small">{initials(displayName)}</div><div className="user-copy"><strong>{displayName}</strong><span>{roleLabel}</span></div><IconButton label="Đăng xuất" onClick={handleLogout}><LogOut size={16} /></IconButton></div>
     </aside>
     {sidebarOpen && <button className="sidebar-overlay mobile-only" aria-label="Đóng menu" onClick={() => setSidebarOpen(false)} />}
-    <main className="app-main">
-      <header className="topbar"><div className="topbar-left"><IconButton label="Mở menu" className="mobile-only" onClick={() => setSidebarOpen(true)}><Menu size={20} /></IconButton><div className="mobile-brand"><div className="brand-mark">O</div><strong>OnBxrd</strong></div><ConnectionPill state={connection} /></div><div className="topbar-actions"><button className="notification-button" aria-label="Thông báo"><Bell size={19} /><span /></button><div className="topbar-profile"><div className="avatar avatar-small">{initials(displayName)}</div><span>{displayName}</span><ChevronDown size={15} /></div></div></header>
+    <main id="main-content" className="app-main">
+      <header className="topbar"><div className="topbar-left"><IconButton label="Mở menu" className="mobile-only" onClick={() => setSidebarOpen(true)}><Menu size={20} /></IconButton><div className="mobile-brand"><div className="brand-mark">O</div><strong>OnBxrd</strong></div><ConnectionPill state={connection} /></div><div className="topbar-actions"><ThemeControl compact /><Link className="notification-button" href={notificationsHref} aria-label={isManagement ? "Mở notifications" : "Mở announcements"}><Bell size={19} /><span /></Link><div className="topbar-profile"><div className="avatar avatar-small">{initials(displayName)}</div><span>{displayName}</span><ChevronDown size={15} /></div></div></header>
       <div className="page-content">{children}</div>
     </main>
     <ToastViewport />
