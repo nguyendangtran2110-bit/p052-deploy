@@ -147,10 +147,15 @@ else:
     print('Đã có LLaMA-Factory:', LLAMA_FACTORY_DIR)
 
 %cd {LLAMA_FACTORY_DIR}
-!pip install -q hatchling setuptools wheel
-!pip install -q -e ".[torch,metrics]"
-!pip install -q bitsandbytes accelerate peft transformers huggingface_hub
-!llamafactory-cli version""")
+!pip install -q uv
+!uv pip install --system -q hatchling setuptools wheel
+!uv pip install --system -q -e ".[torch,metrics]"
+!uv pip install --system -q bitsandbytes accelerate peft transformers huggingface_hub jsonschema kagglehub sentencepiece
+!llamafactory-cli version
+
+import sys
+if str(LLAMA_FACTORY_DIR / 'src') not in sys.path:
+    sys.path.insert(0, str(LLAMA_FACTORY_DIR / 'src'))""")
 
     # 4. Tìm dataset linh hoạt
     add_md("""## 3. Tìm và nạp Dataset từ Kaggle Input""")
