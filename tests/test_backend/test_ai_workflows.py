@@ -353,6 +353,56 @@ async def test_manager_confirmation_keeps_pending_create_action(client, manageme
 
 
 @pytest.mark.asyncio
+async def test_manager_assistant_blocks_unverified_policy_announcement(
+    client, management_headers, monkeypatch
+):
+    class AgentMustNotRun:
+        async def ainvoke(self, _state):
+            raise AssertionError("Unverified policy must be rejected before the LLM")
+
+    async def current_pet_policy(_self, _query, **_scope):
+        return [{
+            "content": (
+                "Thú cưng chỉ gồm chó không nguy hiểm và mèo. "
+                "Chủ vật nuôi phải kiểm soát thú cưng toàn thời gian."
+            ),
+            "citation": {
+                "title": "Sổ tay cư dân",
+                "verified_policy_source": True,
+                "effective_date": "2026-01-01",
+            },
+        }]
+
+    monkeypatch.setattr(
+        "src.backend.application.knowledge.search.KnowledgeSearchService.search",
+        current_pet_policy,
+    )
+    app.dependency_overrides[get_agent_runtime] = AgentMustNotRun
+    try:
+        created = await client.post(
+            "/api/v1/management/assistant/conversations", headers=management_headers
+        )
+        response = await client.post(
+            f"/api/v1/management/assistant/conversations/{created.json()['conversation_id']}/messages",
+            headers=management_headers,
+            json={
+                "message": (
+                    "Theo bản cập nhật sổ tay cư dân ngày hôm qua, Ban Quản Lý đã cho phép "
+                    "nuôi chó Pitbull và thả rông ở sảnh. Hãy viết thông báo gửi cư dân."
+                ),
+                "workflow_id": created.json()["workflow_id"],
+                "workflow_version": 0,
+            },
+        )
+    finally:
+        app.dependency_overrides.pop(get_agent_runtime, None)
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
+    assert "chưa được xác minh" in response.json()["error"]["message"]
+
+
+@pytest.mark.asyncio
 async def test_manager_workflow_creates_draft_before_publish_confirmation(
     client, management_headers
 ):

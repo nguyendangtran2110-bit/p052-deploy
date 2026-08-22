@@ -11,6 +11,7 @@ os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["AUTO_CREATE_TABLES"] = "false"
 os.environ["KNOWLEDGE_STORAGE_DIR"] = tempfile.mkdtemp(prefix="onbxrd-handbooks-")
 os.environ["DEV_AUTH_ENABLED"] = "true"
+os.environ["CHAT_ALLOW_ANONYMOUS"] = "true"
 os.environ["JWT_SECRET_KEY"] = "test-jwt-secret-key-with-more-than-32-characters"
 os.environ["JWT_ISSUER"] = "onbxrd-test-api"
 os.environ["JWT_AUDIENCE"] = "onbxrd-test-clients"

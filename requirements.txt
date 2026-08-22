@@ -50,5 +50,10 @@ pytest-asyncio>=0.24.0
 pytest-cov>=5.0.0
 httpx>=0.28.0
 
+# Guardrail evaluation
+deepeval==4.1.10
+jailbreakbench==0.1.0
+setuptools<81
+
 # AWS S3
 aioboto3>=13.0.0,<14.0.0

@@ -79,6 +79,12 @@ class Settings(BaseSettings):
     groq_model_name: str = "llama-3.3-70b-versatile"
     embedding_model_name: str = "text-embedding-v4"
     llm_temperature: float = Field(default=0.1, ge=0.0, le=2.0)
+    chat_allow_anonymous: bool = False
+    chat_rate_limit_enabled: bool = True
+    chat_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    chat_rate_limit_anonymous_requests: int = Field(default=20, ge=1, le=1000)
+    chat_rate_limit_authenticated_requests: int = Field(default=60, ge=1, le=5000)
+    chat_output_max_chars: int = Field(default=8000, ge=500, le=50000)
 
     # Database
     database_url: str = "sqlite+aiosqlite:///./data/app.db"

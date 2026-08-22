@@ -28,6 +28,7 @@ from src.backend.application.realtime import (
 )
 from src.backend.application.tickets.contracts import CreateTicketCommand
 from src.backend.application.tickets.service import TicketService
+from src.backend.core.config import get_settings
 from src.backend.domain.ai_workflows.enums import AIWorkflowActionStatus, AIWorkflowState, AIWorkflowType
 from src.backend.domain.announcements.enums import AnnouncementPriority, AnnouncementScopeType, AnnouncementType
 from src.backend.domain.common.auth import ActorContext
@@ -44,6 +45,11 @@ from src.backend.domain.tickets.enums import TicketPriority, TicketSource
 from src.backend.infrastructure.db.base import utc_now
 from src.backend.infrastructure.db.models import AIWorkflow, AIWorkflowAction, Announcement, Conversation, Message, Unit
 from src.backend.infrastructure.db.repositories import ConversationRepository
+from src.backend.security.chat_guardrails import (
+    enforce_grounded_policy_announcement,
+    sanitize_model_output,
+    sanitize_user_text,
+)
 
 
 class TicketDraftModel(BaseModel):
@@ -175,6 +181,7 @@ class AIWorkflowService:
         agent: Any,
     ) -> WorkflowOutcome:
         self._require_manager(actor)
+        safe_user_message = sanitize_user_text(command.message).safe_text
         conversation, workflow = await self.get_conversation_workflow(conversation_id, actor)
         if conversation.conversation_type != "manager_assistant":
             raise ConflictError("Conversation is not a manager assistant conversation")
@@ -197,14 +204,15 @@ class AIWorkflowService:
         messages = await self.conversations.list_messages(conversation.id)
         unit = await self.session.get(Unit, conversation.unit_id) if conversation.unit_id else None
         handbook_results = await self.knowledge.search(
-            command.message,
+            safe_user_message,
             project_code=unit.project_code if unit else None,
             building=unit.building if unit else None,
         )
+        enforce_grounded_policy_announcement(safe_user_message, handbook_results)
         result = await agent.ainvoke(
             {
-                "query": command.message,
-                "message": command.message,
+                "query": safe_user_message,
+                "message": safe_user_message,
                 "actor_role": actor.role.value,
                 "actor_id": actor.actor_id,
                 "resident_id": None,
@@ -232,6 +240,20 @@ class AIWorkflowService:
                 "handbook_results": handbook_results,
             }
         )
+        result_draft = result.get("draft") if isinstance(result, dict) else None
+        result_action = result.get("action") if isinstance(result, dict) else None
+        result_payload = result_action.get("payload") if isinstance(result_action, dict) else None
+        generated_policy_text = " ".join(
+            str(value)
+            for source in (workflow.draft, result_draft, result_payload)
+            if isinstance(source, dict)
+            for key, value in source.items()
+            if key in {"title", "content"} and value
+        )
+        if generated_policy_text:
+            enforce_grounded_policy_announcement(
+                f"{safe_user_message}\n{generated_policy_text}", handbook_results
+            )
         return await self.process_agent_result(
             conversation=conversation,
             workflow=workflow,
@@ -448,6 +470,9 @@ class AIWorkflowService:
             "Không thể hoàn tất thao tác lúc này. Vui lòng xác nhận lại để thử lại."
             if execution_error is not None
             else normalized.response or self._default_response(workflow_type, workflow.state, missing_fields)
+        )
+        assistant_content = sanitize_model_output(
+            assistant_content, max_chars=get_settings().chat_output_max_chars
         )
         assistant = Message(
             conversation_id=conversation.id,

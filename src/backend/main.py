@@ -8,6 +8,7 @@ from src.backend.api.router import api_router
 from src.backend.core.config import get_settings
 from src.backend.domain.common.errors import AuthenticationError, DomainError
 from src.backend.infrastructure.db.session import close_db, init_db
+from src.backend.security.rate_limit import ChatRateLimitMiddleware
 
 
 @asynccontextmanager
@@ -33,6 +34,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ChatRateLimitMiddleware)
 app.include_router(api_router, prefix="/api/v1")
 
 

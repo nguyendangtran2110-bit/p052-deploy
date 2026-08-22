@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from collections.abc import AsyncIterator
 
@@ -9,12 +10,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.backend.api.dependencies import get_actor_context, get_agent_runtime
 from src.backend.application.chat.contracts import AgentRuntime, ChatCommand
 from src.backend.application.chat.service import ChatService
+from src.backend.core.config import get_settings
 from src.backend.domain.common.auth import ActorContext
+from src.backend.domain.common.errors import AuthenticationError
+from src.backend.domain.identity.enums import ActorRole
 from src.backend.infrastructure.db.session import SessionFactory, get_db_session
 from src.backend.schemas.chat import ChatMessageRequest, ChatMessageResponse
 from src.backend.schemas.tickets import TicketResponse
+from src.backend.security.chat_guardrails import sanitize_model_output, sanitize_user_text
 from src.services.groq_llm import stream_rag_answer
 from src.services.rag import retrieve_context
+
+logger = logging.getLogger(__name__)
 
 
 def _message_payload(message) -> dict:
@@ -79,7 +86,8 @@ async def _stream_rag_message(
 ) -> AsyncIterator[str]:
     """Stream RAG output, then persist the completed assistant response."""
     try:
-        chunks = [chunk.to_dict() for chunk in retrieve_context(request.message, top_k=5)]
+        safe_query = sanitize_user_text(request.message).safe_text
+        chunks = [chunk.to_dict() for chunk in retrieve_context(safe_query, top_k=5)]
         citations = [
             {
                 "title": chunk.get("source_file", ""),
@@ -91,9 +99,10 @@ async def _stream_rag_message(
 
         answer_parts: list[str] = []
         if chunks:
-            for token in stream_rag_answer(request.message, chunks, []):
+            # Buffer the provider stream so no unreviewed model text reaches the
+            # client. SSE framing is retained for frontend compatibility.
+            for token in stream_rag_answer(safe_query, chunks, []):
                 answer_parts.append(token)
-                yield _sse({"type": "token", "content": token})
         else:
             answer_parts.append(
                 "Thông tin hiện có chưa đủ để xác định chính xác câu trả lời. "
@@ -101,7 +110,11 @@ async def _stream_rag_message(
             )
             yield _sse({"type": "token", "content": answer_parts[0]})
 
-        answer = "".join(answer_parts).strip()
+        answer = sanitize_model_output(
+            "".join(answer_parts), max_chars=get_settings().chat_output_max_chars
+        )
+        for offset in range(0, len(answer), 160):
+            yield _sse({"type": "token", "content": answer[offset : offset + 160]})
         # Streaming continues after FastAPI has released request-scoped
         # dependencies, so persistence must use a fresh session.
         async with SessionFactory() as persist_session:
@@ -127,8 +140,9 @@ async def _stream_rag_message(
                 "message": _message_payload(outcome.message) if outcome.message else None,
             }
         yield _sse(done_payload)
-    except Exception as exc:
-        yield _sse({"type": "error", "message": str(exc)})
+    except Exception:
+        logger.exception("Guarded RAG stream failed")
+        yield _sse({"type": "error", "message": "Không thể hoàn tất phản hồi lúc này. Vui lòng thử lại sau."})
 
 
 @router.post("", response_model=ChatMessageResponse, response_model_exclude_none=True)
@@ -140,6 +154,10 @@ async def send_message(
     actor: ActorContext = Depends(get_actor_context),
     agent: AgentRuntime = Depends(get_agent_runtime),
 ) -> ChatMessageResponse | StreamingResponse:
+    settings = get_settings()
+    sanitize_user_text(request.message)
+    if actor.role is ActorRole.ANONYMOUS and not settings.chat_allow_anonymous:
+        raise AuthenticationError("Authentication is required to use chatbot")
     if _wants_stream(http_request, request):
         return StreamingResponse(
             _stream_rag_message(request, actor),
