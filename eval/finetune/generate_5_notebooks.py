@@ -712,6 +712,14 @@ else:
             "language_info": {
                 "name": "python",
                 "version": "3.11"
+            },
+            "kaggle": {
+                "accelerator": "gpu",
+                "gpuType": "T4x2",
+                "dataSources": [],
+                "isGpuEnabled": True,
+                "isInternetEnabled": True,
+                "language": "python"
             }
         },
         "nbformat": 4,
