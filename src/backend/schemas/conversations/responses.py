@@ -87,3 +87,23 @@ class ConversationListResponse(BaseModel):
     total: int
     offset: int
     limit: int
+
+
+class ResidentConversationSummaryResponse(BaseModel):
+    conversation_id: UUID
+    unit_id: UUID | None
+    status: ConversationStatus
+    handoff_status: ConversationHandoffStatus
+    assigned_manager_id: str | None
+    conversation_version: int
+    last_message_at: datetime
+    last_message_role: MessageRole | None
+    last_message_preview: str | None
+    message_count: int
+
+
+class ResidentConversationListResponse(BaseModel):
+    items: list[ResidentConversationSummaryResponse]
+    total: int
+    offset: int
+    limit: int

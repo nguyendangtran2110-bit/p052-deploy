@@ -68,6 +68,7 @@ rejected by production configuration.
 | `POST` | `/api/v1/units` | Management creates a unit |
 | `POST` | `/api/v1/residents/{id}/units` | Management links a resident to a unit |
 | `GET` | `/api/v1/residents/me` | Resident profile and accessible units |
+| `GET` | `/api/v1/conversations` | Resident normal-chat history; supports `offset` and `limit`, excludes ticket conversations |
 | `GET` | `/api/v1/conversations/{id}` | Conversation detail for its resident or management |
 | `POST` | `/api/v1/tickets` | Create a ticket from the normal form flow |
 | `GET` | `/api/v1/tickets` | List own tickets or management queue; supports `handoff_status` |
@@ -112,6 +113,13 @@ endpoint with the current version; the action is audited as a system message. Ha
 returns the conversation to `bot_active`.
 Send an `Idempotency-Key` header with form ticket requests. Chat requests use the `idempotency_key` body field because
 confirmation is part of the conversation command.
+
+The normal-chat history endpoint is resident-only and returns lightweight summaries ordered by the most recent
+message. Each item includes `conversation_id`, `unit_id`, conversation/handoff status, assignment metadata,
+`conversation_version`, `last_message_at`, `last_message_role`, a 200-character `last_message_preview`, and
+`message_count`. Use `GET /api/v1/conversations/{id}` to load the complete message history after the resident opens
+a conversation. Ticket-linked conversations are intentionally omitted because they are displayed through the ticket
+history endpoints.
 
 ### Attachments and realtime
 

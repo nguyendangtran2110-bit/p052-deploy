@@ -470,3 +470,76 @@ async def test_manager_can_explicitly_take_over_without_a_lease(
     assert takeover.json()["assigned_manager_id"] == "manager-002"
     assert takeover.json()["handoff_status"] == "management_active"
     assert takeover.json()["message"]["intent"] == "management_takeover"
+
+
+@pytest.mark.asyncio
+async def test_resident_can_list_normal_chat_history_without_ticket_conversations(
+    client, resident_unit, resident_headers, management_headers
+):
+    app.dependency_overrides[get_agent_runtime] = HandbookAgent
+    try:
+        first = await client.post(
+            "/api/v1/chat/messages",
+            json={
+                "message": "What time does the pool close?",
+                "unit_id": resident_unit["unit_id"],
+            },
+            headers=resident_headers,
+        )
+        second = await client.post(
+            "/api/v1/chat/messages",
+            json={
+                "message": "Are pets allowed in common areas?",
+                "unit_id": resident_unit["unit_id"],
+            },
+            headers=resident_headers,
+        )
+    finally:
+        app.dependency_overrides.pop(get_agent_runtime, None)
+
+    ticket = await client.post(
+        "/api/v1/tickets",
+        json={
+            "unit_id": resident_unit["unit_id"],
+            "category": "plumbing",
+            "priority": "medium",
+            "title": "Leaking faucet",
+            "description": "The kitchen faucet is leaking.",
+            "location": "Kitchen",
+        },
+        headers=resident_headers,
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert ticket.status_code == 201
+    first_id = first.json()["conversation_id"]
+    second_id = second.json()["conversation_id"]
+    ticket_conversation_id = ticket.json()["conversation_id"]
+
+    page = await client.get(
+        "/api/v1/conversations?offset=0&limit=1",
+        headers=resident_headers,
+    )
+    next_page = await client.get(
+        "/api/v1/conversations?offset=1&limit=1",
+        headers=resident_headers,
+    )
+    forbidden = await client.get(
+        "/api/v1/conversations",
+        headers=management_headers,
+    )
+
+    assert page.status_code == 200
+    assert page.json()["total"] == 2
+    assert len(page.json()["items"]) == 1
+    assert page.json()["items"][0]["conversation_id"] == second_id
+    assert page.json()["items"][0]["message_count"] == 2
+    assert page.json()["items"][0]["last_message_preview"] == "The pool is open from 06:00 to 21:00."
+
+    assert next_page.status_code == 200
+    assert next_page.json()["items"][0]["conversation_id"] == first_id
+    assert ticket_conversation_id not in {
+        item["conversation_id"] for item in page.json()["items"] + next_page.json()["items"]
+    }
+    assert forbidden.status_code == 401

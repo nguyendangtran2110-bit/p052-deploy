@@ -25,6 +25,21 @@ class ConversationService:
         self._authorize_read(conversation, actor)
         return conversation
 
+    async def list_resident_support(
+        self,
+        actor: ActorContext,
+        *,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> tuple[list[dict], int]:
+        if actor.role.value != "resident" or not actor.resident_id:
+            raise AuthorizationError("Resident permission is required")
+        return await self.conversations.list_resident_support(
+            actor.resident_id,
+            offset=offset,
+            limit=limit,
+        )
+
     async def list_handoffs(
         self,
         actor: ActorContext,

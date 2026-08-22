@@ -40,6 +40,60 @@ class ConversationRepository:
         messages.reverse()
         return messages
 
+    async def list_resident_support(
+        self,
+        resident_id: str,
+        *,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> tuple[list[dict], int]:
+        """List normal resident conversations without loading full message history."""
+        ticket_exists = select(Ticket.id).where(Ticket.conversation_id == Conversation.id).exists()
+        filters = (
+            Conversation.resident_id == resident_id,
+            Conversation.conversation_type == "resident_support",
+            ~ticket_exists,
+        )
+        last_message_content = (
+            select(Message.content)
+            .where(Message.conversation_id == Conversation.id)
+            .order_by(Message.created_at.desc(), Message.id.desc())
+            .limit(1)
+            .scalar_subquery()
+        )
+        last_message_role = (
+            select(Message.role)
+            .where(Message.conversation_id == Conversation.id)
+            .order_by(Message.created_at.desc(), Message.id.desc())
+            .limit(1)
+            .scalar_subquery()
+        )
+        message_count = (
+            select(func.count(Message.id))
+            .where(Message.conversation_id == Conversation.id)
+            .scalar_subquery()
+        )
+        statement = (
+            select(Conversation, last_message_content, last_message_role, message_count)
+            .where(*filters)
+            .order_by(Conversation.last_message_at.desc(), Conversation.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        rows = list((await self.session.execute(statement)).all())
+        count_statement = select(func.count(Conversation.id)).where(*filters)
+        total = int((await self.session.scalar(count_statement)) or 0)
+        items = [
+            {
+                "conversation": conversation,
+                "last_message_preview": content[:200] if content else None,
+                "last_message_role": role,
+                "message_count": int(count or 0),
+            }
+            for conversation, content, role, count in rows
+        ]
+        return items, total
+
     async def assign_for_management_message(
         self,
         conversation_id: str,
