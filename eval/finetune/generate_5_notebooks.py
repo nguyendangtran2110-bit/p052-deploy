@@ -35,18 +35,25 @@ def make_tailored_notebook(
     inference_custom_logic: str = ""
 ) -> dict:
     cells = []
+    cell_idx = 0
 
     def add_md(text: str):
+        nonlocal cell_idx
+        cell_idx += 1
         cells.append({
             "cell_type": "markdown",
+            "id": f"md_{cell_idx:03d}",
             "metadata": {},
             "source": [line + "\n" for line in text.strip().split("\n")]
         })
 
     def add_code(code: str):
+        nonlocal cell_idx
+        cell_idx += 1
         cells.append({
             "cell_type": "code",
             "execution_count": None,
+            "id": f"code_{cell_idx:03d}",
             "metadata": {},
             "outputs": [],
             "source": [line + "\n" for line in code.strip().split("\n")]
