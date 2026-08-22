@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     # settings object.
     qwen_api_key: str = ""
     qwen_api_base: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-    openai_api_base: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+    openai_api_base: str = "https://api.openai.com/v1"
     model_name: str = "gpt-4o-mini"
     qwen_model_name: str = "qwen3.5-plus"
     groq_api_key: str = ""

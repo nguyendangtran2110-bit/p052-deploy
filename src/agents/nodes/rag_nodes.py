@@ -9,7 +9,7 @@ from src.services.groq_llm import generate_rag_answer
 from src.services.rag import retrieve_context
 
 FALLBACK_TEXT = (
-    "Xin lỗi, tôi không tìm thấy thông tin liên quan trong Sổ Tay Cư Dân. "
+    "Thông tin hiện có chưa đủ để xác định chính xác câu trả lời. "
     "Vui lòng liên hệ Ban Quản Lý tòa nhà để được hỗ trợ."
 )
 

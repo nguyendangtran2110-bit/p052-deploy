@@ -1,9 +1,9 @@
 """
-LLM service with Groq primary and Qwen fallback for RAG generation.
+LLM service with OpenAI primary and Qwen/Groq fallbacks for RAG generation.
 
 This module handles the LLM generation step of the RAG pipeline:
 - Takes retrieved chunks from ChromaDB as context
-- Uses Groq first, then Qwen/DashScope via OpenAI-compatible clients
+- Uses OpenAI first, then Qwen/DashScope and Groq via OpenAI-compatible clients
 - Returns structured output via Pydantic models
 
 Usage:
@@ -43,18 +43,18 @@ class RAGResponse(BaseModel):
 # System Prompt
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """Bạn là trợ lý AI thân thiện của chung cư Phú Đông Sky Garden. Nhiệm vụ của bạn là trả lời câu hỏi của cư dân dựa trên nội dung Sổ Tay Cư Dân.
+SYSTEM_PROMPT = """Bạn là trợ lý AI thân thiện của chung cư Phú Đông Sky Garden. Hãy trả lời trực tiếp câu hỏi của cư dân bằng thông tin được cung cấp.
 
 QUY TẮC:
-1. CHỈ trả lời dựa trên thông tin trong các đoạn trích được cung cấp (context).
-2. Nếu thông tin không có trong context, hãy nói rõ rằng bạn không tìm thấy thông tin đó trong sổ tay và đề nghị cư dân liên hệ Ban Quản Lý.
-3. Trả lời bằng tiếng Việt, ngắn gọn, rõ ràng, lịch sự.
-4. Nếu câu hỏi liên quan đến khẩn cấp (cháy, rò rỉ gas, mất điện toàn tòa), nhắc nhở cư dân gọi hotline ngay.
-5. Trích dẫn nguồn cụ thể (chương, mục, trang) khi có thể.
+1. Chỉ sử dụng thông tin trong các đoạn dữ liệu được cung cấp; không tự bịa chi tiết.
+2. Không nhắc đến context, đoạn trích, hệ thống RAG, Sổ Tay Cư Dân hay quy trình tìm kiếm trong câu trả lời.
+3. Trả lời bằng tiếng Việt, ngắn gọn, rõ ràng, lịch sự và đi thẳng vào nội dung.
+4. Nếu thông tin chưa đủ để kết luận, nói tự nhiên rằng "Thông tin hiện có chưa đủ để xác định chính xác" và đề nghị cư dân liên hệ Ban Quản Lý.
+5. Nếu câu hỏi liên quan đến khẩn cấp (cháy, rò rỉ gas, mất điện toàn tòa), nhắc nhở cư dân gọi hotline ngay.
 
 ĐỊNH DẠNG TRẢ LỜI:
 - Trả lời trực tiếp câu hỏi
-- Ghi rõ nguồn tham khảo
+- Chỉ nêu nguồn tham khảo khi người dùng yêu cầu hoặc khi nguồn giúp làm rõ câu trả lời
 """
 
 
@@ -69,20 +69,25 @@ def _has_usable_api_key(api_key: str) -> bool:
 def _chat_providers(settings) -> list[tuple[str, OpenAI, str]]:
     providers = []
 
+    if _has_usable_api_key(settings.openai_api_key):
+        providers.append((
+            "openai",
+            OpenAI(api_key=settings.openai_api_key.strip(), base_url=settings.openai_api_base),
+            settings.model_name,
+        ))
+
+    if _has_usable_api_key(settings.qwen_api_key):
+        providers.append((
+            "qwen",
+            OpenAI(api_key=settings.qwen_api_key.strip(), base_url=settings.qwen_api_base),
+            settings.qwen_model_name,
+        ))
+
     if _has_usable_api_key(settings.groq_api_key):
         providers.append((
             "groq",
             OpenAI(api_key=settings.groq_api_key.strip(), base_url=settings.groq_api_base),
             settings.groq_model_name,
-        ))
-
-    qwen_api_key = settings.qwen_api_key or settings.openai_api_key
-    qwen_base_url = settings.qwen_api_base or settings.openai_api_base
-    if _has_usable_api_key(qwen_api_key):
-        providers.append((
-            "qwen",
-            OpenAI(api_key=qwen_api_key.strip(), base_url=qwen_base_url),
-            settings.qwen_model_name,
         ))
 
     return providers
@@ -173,7 +178,7 @@ def generate_rag_answer(
     chat_history: list[dict] | None = None,
 ) -> RAGResponse:
     """
-    Generate a RAG answer using Groq first, then Qwen as backup.
+    Generate a RAG answer using OpenAI first, then Qwen/Groq as backups.
 
     Args:
         query: The user's question.
@@ -187,7 +192,7 @@ def generate_rag_answer(
     providers = _chat_providers(settings)
     if not providers:
         return RAGResponse(
-            answer="Lỗi cấu hình: cần thiết lập GROQ_API_KEY hoặc QWEN_API_KEY hợp lệ trong file .env.",
+            answer="Lỗi cấu hình: cần thiết lập OPENAI_API_KEY, QWEN_API_KEY hoặc GROQ_API_KEY hợp lệ trong file .env.",
             citations=[],
             confidence=0.0,
         )
@@ -236,7 +241,7 @@ def stream_rag_answer(
     chat_history: list[dict] | None = None,
 ) -> Iterator[str]:
     """
-    Stream a RAG answer token-by-token using Groq first, then Qwen as backup.
+    Stream a RAG answer token-by-token using OpenAI first, then Qwen/Groq as backups.
 
     This is intended for terminal or SSE-style consumers. It yields text
     chunks only; callers can use _extract_citations(chunks) after streaming
@@ -245,7 +250,7 @@ def stream_rag_answer(
     settings = get_settings()
     providers = _chat_providers(settings)
     if not providers:
-        yield "Lỗi cấu hình: cần thiết lập GROQ_API_KEY hoặc QWEN_API_KEY hợp lệ trong file .env."
+        yield "Lỗi cấu hình: cần thiết lập OPENAI_API_KEY, QWEN_API_KEY hoặc GROQ_API_KEY hợp lệ trong file .env."
         return
 
     messages = _build_messages(query, chunks, chat_history)

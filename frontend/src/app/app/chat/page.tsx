@@ -9,7 +9,7 @@ import { ChatComposer } from "@/components/chat-composer";
 import { Badge, Button, Card, IconButton, PageHeader } from "@/components/ui";
 import { useAIWorkflow, useResidentAssistantConversation } from "@/features/ai-chat/queries";
 import { isApiError, USE_MOCKS } from "@/lib/api-client";
-import { cancelAIWorkflow, downloadAttachment, isConflict, sendResidentAssistantMessage, type ChatInput } from "@/lib/data";
+import { cancelAIWorkflow, downloadAttachment, isConflict, sendResidentAssistantMessage, sendResidentAssistantMessageStream, type ChatInput } from "@/lib/data";
 import { getAccount } from "@/lib/auth-session";
 import { fromNow } from "@/lib/format";
 import { useResidentProfile } from "@/features/resident/queries";
@@ -64,6 +64,7 @@ export default function ResidentChatPage() {
   const [attachmentsUploading, setAttachmentsUploading] = useState(false);
   const [clearAttachmentsSignal, setClearAttachmentsSignal] = useState(0);
   const [pending, setPending] = useState(false);
+  const [streamingAnswer, setStreamingAnswer] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const retryKey = useRef<string | null>(null);
   const actionKeys = useRef(new Map<string, string>());
@@ -163,8 +164,11 @@ export default function ResidentChatPage() {
     if (confirm) appendUserMessage(content, []);
     else appendUserMessage(content, attachmentIds);
     try {
-      const response = await sendResidentAssistantMessage(payload);
-      setWorkflow(response);
+      const isHandbookQuestion = !/ticket|sự cố|hỏng|rò rỉ|sửa chữa|bảo trì|maintenance|broken|leak|repair/i.test(content);
+      const response = isHandbookQuestion
+        ? await sendResidentAssistantMessageStream(payload, (token) => setStreamingAnswer((current) => current + token))
+        : await sendResidentAssistantMessage(payload);
+      if (!isHandbookQuestion) setWorkflow(response as AIWorkflowResponse);
       if (response.conversation_id && response.workflow_id) {
         setConversationId(response.conversation_id);
         setWorkflowId(response.workflow_id);
@@ -172,6 +176,7 @@ export default function ResidentChatPage() {
       }
       if (response.message) setMessages((current) => [...current, response.message!]);
       setDraft("");
+      setStreamingAnswer("");
       setAttachmentIds([]);
       setClearAttachmentsSignal((value) => value + 1);
       retryKey.current = null;
@@ -188,6 +193,7 @@ export default function ResidentChatPage() {
       }
     } finally {
       setPending(false);
+      setStreamingAnswer("");
     }
   }
 
@@ -244,6 +250,7 @@ export default function ResidentChatPage() {
           {workflowQuery.isError && <div className="error-state">Could not load the workflow. The server remains the source of truth.</div>}
           {messages.length === 0 && !conversation.isError && <div className="chat-empty"><div className="bot-avatar"><WandSparkles size={19} /></div><h2>What do you need help with?</h2><p>Ask about handbook rules, amenities, or describe a problem in your unit.</p></div>}
           {messages.map((message) => <ChatMessage key={message.id} message={message} onDownload={download} />)}
+          {streamingAnswer && <div className="message message-assistant"><div className="message-body"><div className="message-author"><div className="bot-avatar"><Bot size={14} /></div><span>OnBxrd Assistant</span></div><div className="message-content">{streamingAnswer}</div></div></div>}
           {pending && <div className="message message-assistant"><div className="message-body"><div className="message-author"><div className="bot-avatar"><Bot size={14} /></div><span>OnBxrd Assistant</span></div><div className="typing"><span /><span /><span /></div></div></div>}
           {errorMessage && <div className="error-state" role="alert">{errorMessage}</div>}
           {workflow && <WorkflowCard workflow={workflow} action={currentAction} pending={pending} onConfirm={() => void submit("Confirm ticket creation", true)} onCancel={() => void cancelWorkflow()} onStartNew={startNewWorkflow} onDownload={download} />}

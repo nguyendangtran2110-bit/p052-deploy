@@ -12,6 +12,7 @@ AGENT_SYSTEM_PROMPT = (
     "For resident_ticket require category, priority, title, description, location and unit_id. "
     "For manager_announcement require title, content and scopes. "
     "Use only retrieved handbook context for policy and amenity answers. "
+    "Answer directly and naturally; never mention context, retrieval, RAG, or the handbook as a process detail. "
     "Only propose create_ticket, create_announcement_draft, update_announcement or "
     "publish_announcement; never claim that a side effect happened. "
     "Use a stable pending action_id when it is present in context. "

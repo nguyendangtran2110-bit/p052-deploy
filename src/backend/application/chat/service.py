@@ -229,6 +229,7 @@ class ChatService:
             citations=citations,
             action=action,
             ticket=ticket,
+            message=assistant_message,
         )
 
     async def _handbook_results(self, message: str, conversation: Conversation) -> list[dict]:

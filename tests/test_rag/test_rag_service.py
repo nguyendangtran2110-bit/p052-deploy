@@ -41,12 +41,17 @@ class TestQueryHandbookDegradation:
         # Should NOT raise; should contain a human-friendly message
         assert "not available" in result.lower() or "contact" in result.lower()
 
-    def test_retrieve_context_returns_empty_when_store_missing(self, tmp_path: Path):
+    def test_retrieve_context_uses_processed_files_when_store_missing(self, tmp_path: Path):
         missing_dir = str(tmp_path / "no_such_dir")
-        with patch("src.services.rag._get_persist_dir", return_value=missing_dir):
+        with (
+            patch("src.services.rag._get_persist_dir", return_value=missing_dir),
+            patch("src.services.rag.PROCESSED_DATA_DIR", tmp_path),
+        ):
+            (tmp_path / "handbook.md").write_text("Hồ bơi mở cửa từ 06:00 đến 22:00.", encoding="utf-8")
             from src.services import rag
-            chunks = rag.retrieve_context("What are the quiet hours?")
-        assert chunks == []
+            chunks = rag.retrieve_context("giờ mở cửa hồ bơi")
+        assert len(chunks) == 1
+        assert "06:00" in chunks[0].text
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +126,7 @@ class TestRetrieveContext:
 
         with (
             patch("src.services.rag._get_persist_dir", return_value=persist_dir),
+            patch("src.services.rag._collection_count", return_value=1),
             patch("src.services.rag._build_retriever", return_value=mock_retriever),
         ):
             from src.services import rag

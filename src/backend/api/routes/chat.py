@@ -1,13 +1,20 @@
-from fastapi import APIRouter, Depends
+import json
+import re
+from collections.abc import AsyncIterator
+
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.backend.api.dependencies import get_actor_context, get_agent_runtime
 from src.backend.application.chat.contracts import AgentRuntime, ChatCommand
 from src.backend.application.chat.service import ChatService
 from src.backend.domain.common.auth import ActorContext
-from src.backend.infrastructure.db.session import get_db_session
+from src.backend.infrastructure.db.session import SessionFactory, get_db_session
 from src.backend.schemas.chat import ChatMessageRequest, ChatMessageResponse
 from src.backend.schemas.tickets import TicketResponse
+from src.services.groq_llm import stream_rag_answer
+from src.services.rag import retrieve_context
 
 
 def _message_payload(message) -> dict:
@@ -29,14 +36,116 @@ def _message_payload(message) -> dict:
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
+class _StreamedRagAgent:
+    def __init__(self, answer: str, citations: list[dict]) -> None:
+        self.answer = answer
+        self.citations = citations
+
+    async def ainvoke(self, _state: dict) -> dict:
+        return {
+            "response": self.answer,
+            "assistant_message": self.answer,
+            "intent": "handbook_question",
+            "citations": self.citations,
+            "draft": {},
+            "missing_fields": [],
+            "action": None,
+        }
+
+
+def _wants_stream(request: Request, command: ChatMessageRequest) -> bool:
+    accept = request.headers.get("accept", "")
+    ticket_language = re.compile(
+        r"ticket|sự cố|hỏng|rò rỉ|sửa chữa|bảo trì|maintenance|broken|leak|repair",
+        re.IGNORECASE,
+    )
+    return (
+        "text/event-stream" in accept
+        and not command.confirm_action
+        and command.workflow_id is None
+        and command.ticket_id is None
+        and not command.attachment_ids
+        and not ticket_language.search(command.message)
+    )
+
+
+def _sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload, ensure_ascii=False, default=str)}\n\n"
+
+
+async def _stream_rag_message(
+    request: ChatMessageRequest,
+    actor: ActorContext,
+) -> AsyncIterator[str]:
+    """Stream RAG output, then persist the completed assistant response."""
+    try:
+        chunks = [chunk.to_dict() for chunk in retrieve_context(request.message, top_k=5)]
+        citations = [
+            {
+                "title": chunk.get("source_file", ""),
+                "section": chunk.get("section_title", ""),
+                "page": chunk.get("page_number") or None,
+            }
+            for chunk in chunks
+        ]
+
+        answer_parts: list[str] = []
+        if chunks:
+            for token in stream_rag_answer(request.message, chunks, []):
+                answer_parts.append(token)
+                yield _sse({"type": "token", "content": token})
+        else:
+            answer_parts.append(
+                "Thông tin hiện có chưa đủ để xác định chính xác câu trả lời. "
+                "Vui lòng liên hệ Ban Quản Lý tòa nhà để được hỗ trợ."
+            )
+            yield _sse({"type": "token", "content": answer_parts[0]})
+
+        answer = "".join(answer_parts).strip()
+        # Streaming continues after FastAPI has released request-scoped
+        # dependencies, so persistence must use a fresh session.
+        async with SessionFactory() as persist_session:
+            outcome = await ChatService(
+                persist_session,
+                _StreamedRagAgent(answer, citations),
+            ).send(
+                ChatCommand(
+                    message=request.message,
+                    conversation_id=str(request.conversation_id) if request.conversation_id else None,
+                    unit_id=str(request.unit_id) if request.unit_id else None,
+                    idempotency_key=request.idempotency_key,
+                ),
+                actor,
+            )
+            # Materialize ORM-backed fields while the persistence session is
+            # still active. The stream itself may outlive request dependencies.
+            done_payload = {
+                "type": "done",
+                "conversation_id": outcome.conversation_id,
+                "response": answer,
+                "citations": citations,
+                "message": _message_payload(outcome.message) if outcome.message else None,
+            }
+        yield _sse(done_payload)
+    except Exception as exc:
+        yield _sse({"type": "error", "message": str(exc)})
+
+
 @router.post("", response_model=ChatMessageResponse, response_model_exclude_none=True)
 @router.post("/messages", response_model=ChatMessageResponse, response_model_exclude_none=True)
 async def send_message(
     request: ChatMessageRequest,
+    http_request: Request,
     session: AsyncSession = Depends(get_db_session),
     actor: ActorContext = Depends(get_actor_context),
     agent: AgentRuntime = Depends(get_agent_runtime),
-) -> ChatMessageResponse:
+) -> ChatMessageResponse | StreamingResponse:
+    if _wants_stream(http_request, request):
+        return StreamingResponse(
+            _stream_rag_message(request, actor),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
     outcome = await ChatService(session, agent).send(
         ChatCommand(
             message=request.message,

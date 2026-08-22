@@ -1,4 +1,4 @@
-import { del, get, isApiError, patch, post, USE_MOCKS } from "@/lib/api-client";
+import { del, get, isApiError, patch, post, streamPost, USE_MOCKS } from "@/lib/api-client";
 import {
   demoAccount,
   demoAnnouncements,
@@ -455,6 +455,39 @@ export function sendResidentAssistantMessage(payload: ChatInput) {
     return Promise.resolve(response);
   }
   return post<ChatResponse>("/chat/messages", payload).then(normalizeResidentWorkflowResponse);
+}
+
+type ChatStreamEvent =
+  | { type: "token"; content: string }
+  | { type: "done"; conversation_id: string; response: string; citations: ChatResponse["citations"]; message?: ChatResponse["message"] | null }
+  | { type: "error"; message: string };
+
+export function sendResidentAssistantMessageStream(payload: ChatInput, onToken: (token: string) => void) {
+  if (USE_MOCKS) {
+    const response = sendResidentAssistantMessage(payload);
+    return response.then((value) => {
+      const content = "response" in value && typeof value.response === "string" ? value.response : value.message?.content ?? "";
+      onToken(content);
+      return value as ChatResponse;
+    });
+  }
+
+  let result: ChatResponse | null = null;
+  return streamPost<ChatStreamEvent>("/chat/messages", payload, (event) => {
+    if (event.type === "token") onToken(event.content);
+    if (event.type === "error") throw new Error(event.message);
+    if (event.type === "done") {
+      result = {
+        conversation_id: event.conversation_id,
+        response: event.response,
+        citations: event.citations,
+        message: event.message ?? null,
+      };
+    }
+  }).then(() => {
+    if (!result) throw new Error("Máy chủ kết thúc stream mà không có câu trả lời.");
+    return result;
+  });
 }
 
 export function createManagerAssistantConversation() {
