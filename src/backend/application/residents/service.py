@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.backend.application.onboarding.service import OnboardingService
 from src.backend.application.residents.contracts import CreateResidentCommand, CreateUnitCommand
 from src.backend.domain.common.errors import ConflictError, NotFoundError
 from src.backend.domain.residents.enums import ResidentUnitRole
@@ -70,6 +71,9 @@ class ResidentService:
         if existing:
             if existing.role != role.value or existing.is_primary != is_primary:
                 raise ConflictError("Resident is already linked to this unit with different attributes")
+            created = await OnboardingService(self.session).ensure_for_resident_unit(resident_id, unit)
+            if created:
+                await self._commit_or_conflict("Resident onboarding could not be initialized")
             return existing
 
         link = ResidentUnit(
@@ -79,6 +83,8 @@ class ResidentService:
             is_primary=is_primary,
         )
         self.session.add(link)
+        await self.session.flush()
+        await OnboardingService(self.session).ensure_for_resident_unit(resident_id, unit)
         await self._commit_or_conflict("Resident is already linked to this unit")
         return link
 

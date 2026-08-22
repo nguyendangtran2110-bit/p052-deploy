@@ -10,6 +10,7 @@ from src.backend.api.routes import (
     knowledge,
     legacy,
     management,
+    onboarding,
     rag,
     realtime,
     residents,
@@ -28,6 +29,8 @@ api_router.include_router(legacy.router)
 api_router.include_router(rag.router)
 api_router.include_router(realtime.router)
 api_router.include_router(management.router)
+api_router.include_router(onboarding.resident_router)
+api_router.include_router(onboarding.management_router)
 api_router.include_router(chat.router)
 api_router.include_router(conversations.router)
 api_router.include_router(tickets.router)

@@ -22,6 +22,10 @@ export type AnnouncementType =
 export type AnnouncementPriority = "normal" | "important" | "urgent";
 export type AnnouncementStatus = "draft" | "published" | "archived";
 export type AnnouncementScopeType = "all_residents" | "project" | "building" | "unit";
+export type OnboardingCategory = "handover" | "utilities" | "guidance";
+export type OnboardingItemType = "task" | "information";
+export type OnboardingItemStatus = "pending" | "completed" | "not_applicable" | "unread" | "read";
+export type OnboardingUpdateStatus = "pending" | "completed" | "skipped" | "unread" | "read";
 
 export interface ManagementProfile {
   employee_code: string;
@@ -82,6 +86,53 @@ export interface ResidentProfile {
   updated_at: string;
   units: ResidentUnit[];
 }
+
+export interface OnboardingUnit {
+  id: string;
+  project_code: string;
+  building: string;
+  floor?: string | null;
+  unit_number: string;
+}
+
+export interface OnboardingItem {
+  id: string;
+  code: string;
+  category: OnboardingCategory;
+  item_type: OnboardingItemType;
+  title: string;
+  summary: string;
+  handbook_reference?: string | null;
+  is_required: boolean;
+  sort_order: number;
+  status: OnboardingItemStatus;
+  acted_at?: string | null;
+  updated_at: string;
+}
+
+export interface OnboardingChecklist {
+  id: string;
+  resident_id: string;
+  unit_id: string;
+  unit: OnboardingUnit;
+  progress_percent: number;
+  required_item_count: number;
+  completed_item_count: number;
+  completed_at?: string | null;
+  updated_at: string;
+  items: OnboardingItem[];
+}
+
+export interface ResidentOnboardingResponse {
+  items: OnboardingChecklist[];
+}
+
+export interface ManagementOnboardingChecklist extends OnboardingChecklist {
+  resident_code: string;
+  resident_name: string;
+}
+
+export interface ManagementOnboardingResponse extends ListResponse<ManagementOnboardingChecklist> {}
 
 export interface TicketAttachment {
   id: string;
