@@ -10,6 +10,8 @@ from src.backend.schemas.conversations.responses import (
     ConversationMessageResponse,
     ConversationResponse,
     ConversationSummaryResponse,
+    ResidentConversationListResponse,
+    ResidentConversationSummaryResponse,
     TicketConversationResponse,
 )
 
@@ -23,5 +25,7 @@ __all__ = [
     "ManagementConversationHandbackRequest",
     "ManagementConversationMessageRequest",
     "ManagementConversationTakeoverRequest",
+    "ResidentConversationListResponse",
+    "ResidentConversationSummaryResponse",
     "TicketConversationResponse",
 ]
