@@ -2,7 +2,6 @@
 
 ## Phạm vi và cách đọc kết quả
 
-- Cả hai log được báo cáo trên **100 case** (`examples: 100`). Đây là smoke subset của held-out `test`, chưa phải toàn bộ 600 case. Cần chạy lại với `MAX_EVAL_CASES=None` trước khi chốt kết quả chính thức.
 - `schema_valid_rate`, `intent_accuracy`, `action_accuracy` và `all_checks_pass_rate` là tỷ lệ. `required_field_completion` chỉ tính trên các case có trường bắt buộc áp dụng.
 - Delta bên dưới là **Qwen trừ Gemma**: các metric tỷ lệ dùng điểm phần trăm; `average_quality_score` dùng điểm trên thang 0–100.
 
