@@ -15,6 +15,7 @@ from src.backend.application.auth.contracts import (
     PasswordResetRequestResult,
     ResidentRegistrationCommand,
 )
+from src.backend.application.onboarding.service import OnboardingService
 from src.backend.core.config import Settings
 from src.backend.domain.common.auth import ActorContext
 from src.backend.domain.common.errors import (
@@ -188,6 +189,7 @@ class AuthService:
             email_verified_at=now,
         )
         await self._add_account(account)
+        await OnboardingService(self.session).ensure_for_resident(resident.id)
         return await self._issue_and_commit(account, client)
 
     async def bootstrap_management(

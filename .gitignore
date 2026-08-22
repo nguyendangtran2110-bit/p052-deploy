@@ -118,6 +118,8 @@ ai_chat_agent_spec.md
 ai_chat_backend_spec.md
 ai_chat_frontend_spec.md
 so-tay-phu-dong-sky-garden.pdf
+/eval/finetune/canonical/*.jsonl
+/eval/finetune/openai/*.jsonl
 
 docs/frontend
 !docs/frontend/FRONTEND-SPEC.md
