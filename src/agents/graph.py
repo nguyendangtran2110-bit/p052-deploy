@@ -21,6 +21,11 @@ from src.backend.core.config import get_settings
 from src.backend.security.chat_guardrails import sanitize_user_text
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 class ProductionAgent:
     """LangGraph-compatible runtime with a safe local fallback.
 
@@ -30,18 +35,21 @@ class ProductionAgent:
 
     def _resolve_llm_config(self, settings) -> tuple[str, str | None, str] | None:
         """Resolve (api_key, base_url, model_name) using OpenAI, Qwen, or Groq."""
+        if getattr(settings, "app_env", "") == "test":
+            return None
+
         openai_key = settings.openai_api_key.strip()
-        if openai_key and not openai_key.startswith("sk-your-key"):
+        if openai_key and not openai_key.startswith(("sk-your-key", "your-openai")):
             return openai_key, settings.openai_api_base or None, settings.model_name
 
         qwen_key = settings.qwen_api_key.strip()
-        if qwen_key and not qwen_key.startswith("your-qwen"):
+        if qwen_key and not qwen_key.startswith(("your-qwen", "sk-your-key")):
             base_url = settings.qwen_api_base or "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
             model = settings.qwen_model_name or settings.model_name or "qwen-plus"
             return qwen_key, base_url, model
 
         groq_key = settings.groq_api_key.strip()
-        if groq_key and not groq_key.startswith("gsk_"):
+        if groq_key and not groq_key.startswith(("gsk_your", "your-groq")):
             base_url = settings.groq_api_base or "https://api.groq.com/openai/v1"
             model = settings.groq_model_name or "llama-3.3-70b-versatile"
             return groq_key, base_url, model
@@ -57,14 +65,15 @@ class ProductionAgent:
             try:
                 result = await self._invoke_llm(safe_state, settings, api_key=api_key, base_url=base_url, model_name=model_name)
                 return self._complete_result(result, safe_state)
-            except Exception:
+            except Exception as exc:
+                logger.warning("Primary LLM invocation failed (%s: %s), trying strict mode...", type(exc).__name__, exc)
                 try:
                     result = await self._invoke_llm(
                         safe_state, settings, api_key=api_key, base_url=base_url, model_name=model_name, strict=True
                     )
                     return self._complete_result(result, safe_state)
-                except Exception:
-                    pass
+                except Exception as strict_exc:
+                    logger.warning("Strict LLM invocation failed (%s: %s), falling back to offline handler.", type(strict_exc).__name__, strict_exc)
         return self._complete_result(self._fallback(safe_state), safe_state)
 
     @staticmethod
@@ -99,11 +108,16 @@ class ProductionAgent:
         from langchain_core.messages import HumanMessage, SystemMessage
         from langchain_openai import ChatOpenAI
 
+        extra_body: dict[str, Any] = {}
+        if base_url and "aliyuncs.com" in base_url:
+            extra_body["enable_thinking"] = False
+
         llm = ChatOpenAI(
             model=model_name,
             api_key=api_key,
             base_url=base_url,
             temperature=settings.llm_temperature,
+            extra_body=extra_body if extra_body else None,
         ).with_structured_output(
             AgentStructuredResult,
             method="function_calling",

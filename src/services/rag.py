@@ -79,16 +79,43 @@ def get_chroma_client(settings, persist_dir: str):
     return chromadb.PersistentClient(path=persist_dir)
 
 
+def is_qdrant_enabled(settings) -> bool:
+    """Check if Qdrant is selected or auto-detected via QDRANT_URL."""
+    store_type = getattr(settings, "vector_store_type", "auto")
+    if store_type == "qdrant":
+        return True
+    if store_type == "auto" and bool(getattr(settings, "qdrant_url", "")):
+        return True
+    return False
+
+
+def get_qdrant_client(settings):
+    """Instantiate a Qdrant client using configured cloud or local URL."""
+    from qdrant_client import QdrantClient
+
+    url = getattr(settings, "qdrant_url", "")
+    api_key = getattr(settings, "qdrant_api_key", "") or None
+    return QdrantClient(url=url, api_key=api_key)
+
+
 @lru_cache(maxsize=1)
-def _get_vector_index_cached(persist_dir: str, api_key: str, base_url: str, chroma_host: str, model_name: str):
+def _get_vector_index_cached(
+    persist_dir: str,
+    api_key: str,
+    base_url: str,
+    chroma_host: str,
+    model_name: str,
+    store_type: str = "auto",
+    qdrant_url: str = "",
+    qdrant_api_key: str = "",
+    qdrant_collection: str = "",
+):
     """
     Build and cache the LlamaIndex VectorStoreIndex.
-    Keyed by persist_dir, credentials, and host endpoints so dynamic setting updates
-    or test monkeypatching force a cache refresh rather than returning stale instances.
+    Supports both Qdrant (Cloud / Local) and ChromaDB.
     """
     from llama_index.core import VectorStoreIndex
     from llama_index.embeddings.openai import OpenAIEmbedding
-    from llama_index.vector_stores.chroma import ChromaVectorStore
 
     from src.config import get_settings
     settings = get_settings()
@@ -101,6 +128,17 @@ def _get_vector_index_cached(persist_dir: str, api_key: str, base_url: str, chro
         timeout=8.0,
         max_retries=1,
     )
+
+    if is_qdrant_enabled(settings):
+        from llama_index.vector_stores.qdrant import QdrantVectorStore
+        from qdrant_client import QdrantClient
+
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key or None)
+        collection = qdrant_collection or getattr(settings, "qdrant_collection_name", COLLECTION_NAME) or COLLECTION_NAME
+        vector_store = QdrantVectorStore(client=client, collection_name=collection)
+        return VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
+
+    from llama_index.vector_stores.chroma import ChromaVectorStore
 
     db = get_chroma_client(settings, persist_dir)
     chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
@@ -115,12 +153,32 @@ def _get_vector_index(persist_dir: str):
     base_url = settings.qwen_api_base or settings.openai_api_base
     chroma_host = getattr(settings, "chroma_server_host", "")
     model_name = settings.embedding_model_name
-    return _get_vector_index_cached(persist_dir, api_key, base_url, chroma_host, model_name)
+    store_type = getattr(settings, "vector_store_type", "auto")
+    qdrant_url = getattr(settings, "qdrant_url", "")
+    qdrant_api_key = getattr(settings, "qdrant_api_key", "")
+    qdrant_collection = getattr(settings, "qdrant_collection_name", COLLECTION_NAME)
+    return _get_vector_index_cached(
+        persist_dir,
+        api_key,
+        base_url,
+        chroma_host,
+        model_name,
+        store_type,
+        qdrant_url,
+        qdrant_api_key,
+        qdrant_collection,
+    )
 
 
 def _collection_count(settings, persist_dir: str) -> int:
     """Return the indexed document count without invoking the embedding API."""
     try:
+        if is_qdrant_enabled(settings):
+            client = get_qdrant_client(settings)
+            collection = getattr(settings, "qdrant_collection_name", COLLECTION_NAME) or COLLECTION_NAME
+            info = client.get_collection(collection_name=collection)
+            return info.points_count or 0
+
         db = get_chroma_client(settings, persist_dir)
         return db.get_or_create_collection(COLLECTION_NAME).count()
     except Exception:

@@ -217,3 +217,60 @@ class TestMultiTenantRetrieval:
 
         mock_build_engine.assert_called_once_with(persist_dir, building_id="vinhomes_central")
         assert res == "Filtered building answer"
+
+
+# ---------------------------------------------------------------------------
+# Qdrant Vector Store Mode
+# ---------------------------------------------------------------------------
+
+class TestQdrantMode:
+    def test_is_qdrant_enabled_detection(self):
+        from src.services.rag import is_qdrant_enabled
+
+        mock_settings = MagicMock()
+        mock_settings.vector_store_type = "auto"
+        mock_settings.qdrant_url = ""
+        assert is_qdrant_enabled(mock_settings) is False
+
+        mock_settings.qdrant_url = "https://example.cloud.qdrant.io:6333"
+        assert is_qdrant_enabled(mock_settings) is True
+
+        mock_settings.vector_store_type = "qdrant"
+        mock_settings.qdrant_url = ""
+        assert is_qdrant_enabled(mock_settings) is True
+
+        mock_settings.vector_store_type = "chroma"
+        mock_settings.qdrant_url = "https://example.cloud.qdrant.io:6333"
+        assert is_qdrant_enabled(mock_settings) is False
+
+    @patch("qdrant_client.QdrantClient")
+    def test_get_qdrant_client_instantiation(self, mock_qdrant_cls):
+        from src.services.rag import get_qdrant_client
+
+        mock_settings = MagicMock()
+        mock_settings.qdrant_url = "https://xyz.cloud.qdrant.io:6333"
+        mock_settings.qdrant_api_key = "test-qdrant-key"
+
+        client = get_qdrant_client(mock_settings)
+        assert client is not None
+        mock_qdrant_cls.assert_called_once_with(url="https://xyz.cloud.qdrant.io:6333", api_key="test-qdrant-key")
+
+    @patch("src.services.rag.get_qdrant_client")
+    def test_collection_count_with_qdrant(self, mock_get_client):
+        from src.services.rag import _collection_count
+
+        mock_settings = MagicMock()
+        mock_settings.vector_store_type = "qdrant"
+        mock_settings.qdrant_url = "https://xyz.cloud.qdrant.io:6333"
+        mock_settings.qdrant_collection_name = "resident_handbook"
+
+        mock_client = MagicMock()
+        mock_info = MagicMock()
+        mock_info.points_count = 42
+        mock_client.get_collection.return_value = mock_info
+        mock_get_client.return_value = mock_client
+
+        count = _collection_count(mock_settings, "./data/chroma")
+        assert count == 42
+        mock_client.get_collection.assert_called_once_with(collection_name="resident_handbook")
+

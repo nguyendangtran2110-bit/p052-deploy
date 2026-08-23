@@ -439,7 +439,6 @@ def resolve_building_id(filepath: Path, override_building_id: str = None) -> str
 
 
 def run_ingestion(
-
     dry_run: bool = False,
     force_rebuild: bool = False,
     file_path: str = None,
@@ -448,6 +447,7 @@ def run_ingestion(
     export_only: bool = False,
     audit: bool = False,
     building_id: str = "phu_dong_sky_garden",
+    store: str = "auto",
 ) -> None:
     if audit:
         run_audit_scan(PROCESSED_DATA_DIR)
@@ -456,13 +456,18 @@ def run_ingestion(
     settings = get_settings()
     persist_dir = settings.chroma_persist_dir
 
+    # Resolve target vector store backend
+    store_backend = store
+    if store_backend == "auto":
+        store_backend = "qdrant" if getattr(settings, "qdrant_url", "") else "chroma"
+
     all_raw_files = discover_target_files(file_path=file_path, dir_path=dir_path)
 
     print(f"[ingest] Discovered   : {len(all_raw_files)} document(s)")
     for f in all_raw_files:
         print(f"           - {f.relative_to(ROOT) if f.is_relative_to(ROOT) else f}")
     print(f"[ingest] Building ID  : {building_id}")
-    print(f"[ingest] Vector store : {persist_dir}")
+    print(f"[ingest] Vector store : {store_backend.upper()} ({getattr(settings, 'qdrant_url', persist_dir)})")
     print(f"[ingest] Collection   : {COLLECTION_NAME}")
     print(f"[ingest] Export MD    : {export_md}")
     if dry_run:
@@ -475,30 +480,53 @@ def run_ingestion(
         sys.exit(1)
 
     # ------------------------------------------------------------------
-    # 1. Connect to ChromaDB & check existing indexed files / hashes
+    # 1. Connect to Vector Store & check existing indexed files / hashes
     # ------------------------------------------------------------------
-    if not settings.chroma_server_host:
-        Path(persist_dir).mkdir(parents=True, exist_ok=True)
-    db = get_chroma_client(settings, persist_dir)
-
-    existing_collections = [c.name for c in db.list_collections()]
-    if force_rebuild and COLLECTION_NAME in existing_collections:
-        db.delete_collection(COLLECTION_NAME)
-        print(f"[ingest] Dropped existing collection '{COLLECTION_NAME}'.")
-        existing_collections.remove(COLLECTION_NAME)
-
-    chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
-    
-    # Map of source_file -> document_hash stored in vector DB
+    chroma_collection = None
+    qdrant_client = None
     indexed_hashes: dict[str, str] = {}
-    if COLLECTION_NAME in existing_collections:
-        try:
-            records = chroma_collection.get(include=["metadatas"])
-            for meta in records.get("metadatas", []) or []:
-                if meta and "source_file" in meta and "document_hash" in meta:
-                    indexed_hashes[meta["source_file"]] = meta["document_hash"]
-        except Exception as e:
-            print(f"[ingest] WARNING: Could not read existing collection metadata: {e}")
+
+    if store_backend == "qdrant":
+        from qdrant_client import QdrantClient
+        from qdrant_client.http import models as qmodels
+
+        qdrant_client = QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key or None)
+        collection_name = getattr(settings, "qdrant_collection_name", COLLECTION_NAME) or COLLECTION_NAME
+        
+        collections = [c.name for c in qdrant_client.get_collections().collections]
+        if force_rebuild and collection_name in collections:
+            qdrant_client.delete_collection(collection_name)
+            print(f"[ingest] Dropped existing Qdrant collection '{collection_name}'.")
+            collections.remove(collection_name)
+
+        if collection_name not in collections:
+            # 1536 is standard for OpenAI / Qwen text embeddings
+            dimensions = getattr(settings, "embedding_dimensions", 1536)
+            qdrant_client.create_collection(
+                collection_name=collection_name,
+                vectors_config=qmodels.VectorParams(size=dimensions, distance=qmodels.Distance.COSINE),
+            )
+            print(f"[ingest] Created Qdrant collection '{collection_name}' (dim={dimensions}).")
+    else:
+        if not settings.chroma_server_host:
+            Path(persist_dir).mkdir(parents=True, exist_ok=True)
+        db = get_chroma_client(settings, persist_dir)
+
+        existing_collections = [c.name for c in db.list_collections()]
+        if force_rebuild and COLLECTION_NAME in existing_collections:
+            db.delete_collection(COLLECTION_NAME)
+            print(f"[ingest] Dropped existing collection '{COLLECTION_NAME}'.")
+            existing_collections.remove(COLLECTION_NAME)
+
+        chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
+        if COLLECTION_NAME in existing_collections:
+            try:
+                records = chroma_collection.get(include=["metadatas"])
+                for meta in records.get("metadatas", []) or []:
+                    if meta and "source_file" in meta and "document_hash" in meta:
+                        indexed_hashes[meta["source_file"]] = meta["document_hash"]
+            except Exception as e:
+                print(f"[ingest] WARNING: Could not read existing collection metadata: {e}")
 
     # ------------------------------------------------------------------
     # 2. Apply incremental hash filtering
@@ -546,8 +574,6 @@ def run_ingestion(
                 d.metadata["document_hash"] = doc_hash
             raw_documents.extend(file_docs)
 
-
-
     print(f"[ingest] Loaded {len(raw_documents)} raw document page(s)/file(s) for processing.")
 
     if export_only:
@@ -571,7 +597,6 @@ def run_ingestion(
                 node.metadata["section_title"] = node.metadata.get("Header 2") or node.metadata.get("Header 1", "")
         nodes.extend(md_nodes)
         print(f"[ingest] Markdown / OCR nodes parsed: {len(md_nodes)}")
-
 
     if other_docs:
         sentence_parser = SentenceSplitter(chunk_size=512, chunk_overlap=64)
@@ -601,15 +626,22 @@ def run_ingestion(
     # ------------------------------------------------------------------
     # 6. Incremental Vector Store Indexing
     # ------------------------------------------------------------------
-    # Remove stale records for updated files before adding new nodes
-    for fname in files_to_remove:
-        try:
-            chroma_collection.delete(where={"source_file": fname})
-            print(f"[ingest] Removed stale vectors for updated file '{fname}'.")
-        except Exception as e:
-            print(f"[ingest] WARNING: Could not delete stale vectors for '{fname}': {e}")
+    if store_backend == "qdrant":
+        from llama_index.vector_stores.qdrant import QdrantVectorStore
 
-    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+        collection_name = getattr(settings, "qdrant_collection_name", COLLECTION_NAME) or COLLECTION_NAME
+        vector_store = QdrantVectorStore(client=qdrant_client, collection_name=collection_name)
+    else:
+        # Remove stale records for updated files before adding new nodes in Chroma
+        for fname in files_to_remove:
+            try:
+                chroma_collection.delete(where={"source_file": fname})
+                print(f"[ingest] Removed stale vectors for updated file '{fname}'.")
+            except Exception as e:
+                print(f"[ingest] WARNING: Could not delete stale vectors for '{fname}': {e}")
+
+        vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
     api_key = settings.qwen_api_key or settings.openai_api_key
@@ -624,7 +656,7 @@ def run_ingestion(
     print(f"[ingest] Embedding and indexing {len(valid_nodes)} nodes with model '{settings.embedding_model_name}' ...")
     VectorStoreIndex(valid_nodes, storage_context=storage_context, embed_model=embed_model)
 
-    print(f"[ingest] Done. Indexed {len(valid_nodes)} nodes into '{COLLECTION_NAME}' at '{persist_dir}'.")
+    print(f"[ingest] Done. Indexed {len(valid_nodes)} nodes into {store_backend.upper()} '{COLLECTION_NAME}'.")
 
 
 # ---------------------------------------------------------------------------
@@ -633,7 +665,7 @@ def run_ingestion(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Ingest resident handbook documents into the ChromaDB vector store."
+        description="Ingest resident handbook documents into the ChromaDB or Qdrant vector store."
     )
     parser.add_argument(
         "--file", "-f",
@@ -679,6 +711,12 @@ if __name__ == "__main__":
         default="phu_dong_sky_garden",
         help="Specify the building ID tag for multi-tenant isolation (default: 'phu_dong_sky_garden').",
     )
+    parser.add_argument(
+        "--store", "-s",
+        choices=("auto", "qdrant", "chroma"),
+        default="auto",
+        help="Target vector store engine: 'auto' (detects Qdrant if QDRANT_URL is set, else Chroma), 'qdrant', or 'chroma'.",
+    )
     args = parser.parse_args()
     run_ingestion(
         dry_run=args.dry_run,
@@ -689,4 +727,5 @@ if __name__ == "__main__":
         export_only=args.export_only,
         audit=args.audit,
         building_id=args.building_id,
+        store=args.store,
     )

@@ -142,3 +142,6 @@ eval/.deepeval-cache/
 
 # Local terminal transcript created by the `script` command.
 typescript
+
+.codegraph/
+

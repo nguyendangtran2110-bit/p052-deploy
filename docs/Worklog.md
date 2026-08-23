@@ -101,6 +101,38 @@
 
 **Tổng kết ngày:** Trần Đăng Nguyên hoàn thành tối ưu hóa và sửa lỗi triệt để cho RAG Ingestion Pipeline: khắc phục resource leak `pdf_doc.close()` tránh nuốt lỗi khi mở file hỏng, sửa logic quét thư mục `--dir` tùy chỉnh, đồng bộ hóa đầy đủ 9 trường metadata cho luồng fallback `SimpleDirectoryReader`, chuẩn hóa hợp đồng dữ liệu `warning_flags` dạng string và cập nhật unit test. Xây dựng toàn bộ tài liệu kiến trúc kỹ thuật chuẩn [`ingestion-pipeline.md`](architecture/ingestion-pipeline.md) quy định chi tiết sơ đồ luồng, bảng schema metadata ChromaDB và quy trình HITL Audit 2 giai đoạn. Thực hiện log và submit thành công 13 nhật ký tương tác lên server (HTTP 202), toàn bộ 38/38 unit tests đạt 100% green.
 
+---
+
+## 2026-08-22
+
+| Member | Task | Status | Output | Time |
+|--------|------|--------|--------|------|
+| Trần Đăng Nguyên | Tích hợp ChromaDB Vector Store vào `KnowledgeSearchService` thay thế mock `.md` | ✅ Done | [`src/backend/application/knowledge/search.py`](../src/backend/application/knowledge/search.py) | 1.5h |
+| Trần Đăng Nguyên | Xây dựng hạ tầng Chatbot Session Logger (JSONL telemetry) | ✅ Done | [`src/backend/infrastructure/logging/session_logger.py`](../src/backend/infrastructure/logging/session_logger.py), [`data/logs/chat_sessions/`](../data/logs/chat_sessions/) | 1.5h |
+| Trần Đăng Nguyên | Tích hợp Session Logger & Multi-turn Contextual Query Retrieval vào `ChatService` | ✅ Done | [`src/backend/application/chat/service.py`](../src/backend/application/chat/service.py) | 1h |
+| Trần Đăng Nguyên | Sửa lỗi Webpack/Fontsource và tối ưu hóa Next.js 15 frontend build | ✅ Done | [`frontend/next.config.ts`](../frontend/next.config.ts), [`frontend/package.json`](../frontend/package.json) | 1h |
+| Trần Đăng Nguyên | Cấu hình SQLite local dev, cơ chế in mã OTP ra console và script seed tài khoản demo | ✅ Done | [`scripts/seed_demo_accounts.py`](../scripts/seed_demo_accounts.py), [`src/backend/infrastructure/email/service.py`](../src/backend/infrastructure/email/service.py) | 1h |
+| Trần Đăng Nguyên | Viết bộ kiểm thử `test_session_logger.py` và chạy full test suite (114/114 passed) | ✅ Done | [`tests/test_backend/test_session_logger.py`](../tests/test_backend/test_session_logger.py) | 0.5h |
+
+**Tổng kết ngày:** Đã hoàn thành chuyển đổi toàn diện chatbot từ mock file `.md` sang truy vấn trực tiếp vector chunks trong ChromaDB (`so-tay-phu-dong-sky-garden.pdf`) kèm số trang chính xác. Xây dựng hệ thống ghi log phiên chat (`SessionLogger`) xuất dữ liệu JSONL hàng ngày tại `data/logs/chat_sessions/` phục vụ đo lường latency, retrieval score và intent tracking. Hoàn thiện script seed tài khoản demo (`resident@onbxrd.vn` / `admin@onbxrd.vn`) trên nền tảng SQLite local, khắc phục triệt để lỗi build frontend Next.js 15 và xác nhận toàn bộ 114/114 unit & integration tests đạt 100% green.
+
+---
+
+## 2026-08-23
+
+| Member | Task | Status | Output | Time |
+|--------|------|--------|--------|------|
+| Trần Đăng Nguyên | Sửa lỗi DashScope Thinking Mode & LLM Structured Output (`enable_thinking: False`) | ✅ Done | [`src/agents/graph.py`](../src/agents/graph.py) | 1h |
+| Trần Đăng Nguyên | Tích hợp Qdrant Cloud Vector Store & cơ chế Dual-Store Auto-Detection trong RAG | ✅ Done | [`src/services/rag.py`](../src/services/rag.py), [`src/backend/core/config.py`](../src/backend/core/config.py) | 1.5h |
+| Trần Đăng Nguyên | Nâng cấp Handbook Ingestion CLI hỗ trợ `--store` (Qdrant & Chroma) | ✅ Done | [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py) | 1h |
+| Trần Đăng Nguyên | Cấu hình Docker Compose environment pass-through và bổ sung Makefile lifecycle | ✅ Done | [`docker-compose.yml`](../docker-compose.yml), [`Makefile`](../Makefile), [`.env.example`](../.env.example) | 0.5h |
+| Trần Đăng Nguyên | Viết unit test `TestQdrantMode` và chạy full regression test (150/150 passed) | ✅ Done | [`tests/test_rag/test_rag_service.py`](../tests/test_rag/test_rag_service.py) | 0.5h |
+| Trần Đăng Nguyên | Chạy benchmark đánh giá guardrail Chatbot với DeepEval (83% pass rate) | ✅ Done | [`scripts/evaluate_deepeval_chatbot.py`](../scripts/evaluate_deepeval_chatbot.py), `eval/deepeval-results.json` | 0.5h |
+
+**Tổng kết ngày:** Khắc phục triệt để lỗi gọi mô hình Qwen DashScope khi sử dụng function calling bằng cách vô hiệu hóa thinking mode (`extra_body={"enable_thinking": False}`), giúp Chatbot trả lời câu hỏi tự nhiên bằng tiếng Việt thay vì dump raw text chunk. Tích hợp hoàn chỉnh vector database **Qdrant Cloud** với cơ chế tự động nhận diện (Dual-Store Auto-Detection), đảm bảo môi trường local tiếp tục hoạt động mượt mà với ChromaDB mà không gây breaking change. Nâng cấp script ingestion sổ tay cư dân `--store qdrant` tự động khởi tạo collection và đồng bộ embeddings lên cloud. Bổ sung các lệnh đóng gói Docker trong `Makefile`, viết unit test cho Qdrant mode và đạt kết quả kiểm thử **150/150 unit & integration tests passed (100% green)** cùng với 83% pass rate trên bộ 100 test cases DeepEval.
+
+
+
 
 
 

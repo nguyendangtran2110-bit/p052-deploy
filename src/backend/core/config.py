@@ -103,6 +103,11 @@ class Settings(BaseSettings):
     chroma_server_host: str = ""
     chroma_server_port: int = Field(default=8000, ge=1, le=65535)
     chroma_server_ssl: bool = False
+    # Vector store provider: 'auto' (detects qdrant if URL set, else chroma), 'qdrant', or 'chroma'
+    vector_store_type: Literal["chroma", "qdrant", "auto"] = "auto"
+    qdrant_url: str = ""
+    qdrant_api_key: str = ""
+    qdrant_collection_name: str = "resident_handbook"
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, gt=0)
     embedding_dimensions: int = Field(default=1536, gt=0)
 
