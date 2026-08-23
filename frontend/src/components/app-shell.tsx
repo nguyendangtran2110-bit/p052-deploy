@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, BookOpen, Bot, Building2, CheckSquare, ChevronDown, FileText, Gift, Home, LayoutDashboard, LifeBuoy, LogOut, Menu, MessageCircle, Megaphone, Settings, Shield, UserCog, UserRound, Users, X } from "lucide-react";
+import { Bell, BookOpen, Bot, Building2, CheckSquare, ChevronDown, FileText, Gift, Home, LayoutDashboard, LifeBuoy, LogOut, Menu, MessageCircle, Megaphone, Shield, UserCog, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Button, IconButton, WorkspaceLoading, cn } from "@/components/ui";
+import { IconButton, WorkspaceLoading, cn } from "@/components/ui";
 import { ConnectionPill, ToastViewport } from "@/components/feedback";
 import { USE_MOCKS } from "@/lib/api-client";
 import { clearSession, getAccount, getAccessToken, getRefreshToken, subscribeToAuthChanges } from "@/lib/auth-session";
@@ -16,6 +16,8 @@ import { aiChatKeys } from "@/features/ai-chat/queries";
 import { useUiStore } from "@/stores/ui-store";
 import type { Account } from "@/types";
 import { ThemeControl } from "@/components/theme-control";
+import { TicketNavPreview } from "@/components/ticket-nav-preview";
+import { SidebarNavLink } from "@/components/sidebar-nav-link";
 
 const residentNav = [
   { href: "/app", label: "Tổng quan", icon: Home },
@@ -24,7 +26,6 @@ const residentNav = [
   { href: "/app/chat", label: "Hỏi chatbot", icon: MessageCircle },
   { href: "/app/tickets", label: "Tickets", icon: FileText },
   { href: "/app/announcements", label: "Thông báo", icon: Bell },
-  { href: "/app/profile", label: "Tài khoản", icon: Settings },
 ];
 
 const managementNav = [
@@ -38,7 +39,6 @@ const managementNav = [
   { href: "/management/notifications", label: "Notifications", icon: Bell },
   { href: "/management/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/management/units", label: "Units", icon: Building2 },
-  { href: "/management/profile", label: "Profile", icon: UserRound },
 ];
 
 function eventId(event: RealtimeEvent, ...keys: string[]) {
@@ -167,14 +167,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     <aside className={cn("sidebar", sidebarOpen && "sidebar-open")}>
       <div className="brand"><div className="brand-mark">O</div><div><strong>OnBxrd</strong><span>{isManagement ? "Operations" : "Resident space"}</span></div><IconButton label="Đóng menu" className="mobile-only close-sidebar" onClick={() => setSidebarOpen(false)}><X size={18} /></IconButton></div>
       <div className="workspace-switcher"><div className="workspace-icon">{isManagement ? <Shield size={16} /> : <Home size={16} />}</div><div><span>Workspace</span><strong>{isManagement ? "Management" : "Resident workspace"}</strong></div><ChevronDown size={15} /></div>
-      <nav className="side-nav" aria-label="Điều hướng chính">{navItems.map((item) => { const Icon = item.icon; return <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)} className={cn("side-link", activeHref === item.href && "side-link-active")}><Icon size={18} /><span>{item.label}</span></Link>; })}</nav>
+      <nav className="side-nav" aria-label="Điều hướng chính">{navItems.map((item) => { const Icon = item.icon; const isTickets = item.href === "/app/tickets" || item.href === "/management/tickets"; return isTickets ? <TicketNavPreview key={item.href} href={item.href} label={item.label} icon={Icon} active={activeHref === item.href} onNavigate={() => setSidebarOpen(false)} /> : <SidebarNavLink key={item.href} href={item.href} label={item.label} icon={Icon} active={activeHref === item.href} onNavigate={() => setSidebarOpen(false)} />; })}</nav>
       <div className="sidebar-spacer" />
       <div className="sidebar-help"><LifeBuoy size={19} /><div><strong>Cần hỗ trợ?</strong><span>Trung tâm vận hành</span></div></div>
-      <div className="sidebar-user"><div className="avatar avatar-small">{initials(displayName)}</div><div className="user-copy"><strong>{displayName}</strong><span>{roleLabel}</span></div><IconButton label="Đăng xuất" onClick={handleLogout}><LogOut size={16} /></IconButton></div>
+      <div className="sidebar-user"><Link href={isManagement ? "/management/profile" : "/app/profile"} onClick={() => setSidebarOpen(false)} className="sidebar-account-card" aria-label="Mở tài khoản"><div className="avatar avatar-small">{initials(displayName)}</div><div className="user-copy"><strong>{displayName}</strong><span>{roleLabel}</span></div></Link><IconButton label="Đăng xuất" onClick={handleLogout}><LogOut size={16} /></IconButton></div>
     </aside>
     {sidebarOpen && <button className="sidebar-overlay mobile-only" aria-label="Đóng menu" onClick={() => setSidebarOpen(false)} />}
     <main id="main-content" className="app-main">
-      <header className="topbar"><div className="topbar-left"><IconButton label="Mở menu" className="mobile-only" onClick={() => setSidebarOpen(true)}><Menu size={20} /></IconButton><div className="mobile-brand"><div className="brand-mark">O</div><strong>OnBxrd</strong></div><ConnectionPill state={connection} /></div><div className="topbar-actions"><ThemeControl compact /><Link className="notification-button" href={notificationsHref} aria-label={isManagement ? "Mở notifications" : "Mở announcements"}><Bell size={19} /><span /></Link><div className="topbar-profile"><div className="avatar avatar-small">{initials(displayName)}</div><span>{displayName}</span><ChevronDown size={15} /></div></div></header>
+      <header className="topbar"><div className="topbar-left"><IconButton label="Mở menu" className="mobile-only" onClick={() => setSidebarOpen(true)}><Menu size={20} /></IconButton><div className="mobile-brand"><div className="brand-mark">O</div><strong>OnBxrd</strong></div><ConnectionPill state={connection} /></div><div className="topbar-actions"><ThemeControl compact /><Link className="notification-button" href={notificationsHref} aria-label={isManagement ? "Mở notifications" : "Mở announcements"}><Bell size={19} /><span /></Link></div></header>
       <div className="page-content">{children}</div>
     </main>
     <ToastViewport />

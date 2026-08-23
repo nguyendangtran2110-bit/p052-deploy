@@ -30,6 +30,18 @@ describe("approved frontend route surfaces", () => {
     }
   });
 
+  it("keeps each workspace shell in its persistent route layout", () => {
+    for (const relativePath of ["app/layout.tsx", "management/layout.tsx"]) {
+      const layout = readFileSync(path.join(appRoot, relativePath), "utf8");
+      expect(layout).toContain("<AppShell>{children}</AppShell>");
+    }
+
+    for (const relativePath of ["app/page.tsx", "app/tickets/page.tsx", "management/page.tsx", "management/tickets/page.tsx"]) {
+      const page = readFileSync(path.join(appRoot, relativePath), "utf8");
+      expect(page).not.toContain("<AppShell>");
+    }
+  });
+
   it("keeps resident information onboarding items actionable", () => {
     const onboarding = readFileSync(path.join(appRoot, "app/onboarding/page.tsx"), "utf8");
     expect(onboarding).toContain('item.status === "read" ? "unread" : "read"');
