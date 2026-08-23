@@ -1,4 +1,5 @@
 from typing import Any
+import time
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +27,7 @@ from src.backend.domain.tickets.enums import TicketPriority, TicketSource
 from src.backend.infrastructure.db.base import utc_now
 from src.backend.infrastructure.db.models import AIWorkflow, Conversation, Message, Unit
 from src.backend.infrastructure.db.repositories import ConversationRepository, ResidentRepository
+from src.backend.infrastructure.logging import SessionLogger
 
 HANDOFF_ACTION_TYPES = {"handoff_to_management", "escalate_to_management", "request_management"}
 
@@ -41,8 +43,10 @@ class ChatService:
         self.attachments = AttachmentService(session)
         self.workflows = AIWorkflowService(session)
         self.knowledge = KnowledgeSearchService(session)
+        self.session_logger = SessionLogger()
 
     async def send(self, command: ChatCommand, actor: ActorContext) -> ChatOutcome:
+        start_time = time.perf_counter()
         conversation = await self._get_or_create_conversation(command, actor)
         user_message = Message(
             conversation_id=conversation.id,
@@ -74,6 +78,18 @@ class ChatService:
             await self.session.commit()
             publish_message_payload(conversation, user_event, include_management=True)
             publish_message_payload(conversation, acknowledgement_event, include_management=True)
+
+            self.session_logger.log_turn(
+                conversation_id=conversation.id,
+                actor_role=actor.role.value,
+                actor_id=actor.resident_id or actor.actor_id,
+                unit_id=command.unit_id or conversation.unit_id,
+                query=command.message,
+                chat_history_length=0,
+                intent_detected="handoff_pending",
+                response_preview="Your message has been sent to management for follow-up.",
+                total_latency_ms=(time.perf_counter() - start_time) * 1000.0,
+            )
             return ChatOutcome(
                 conversation_id=conversation.id,
                 response="Your message has been sent to management for follow-up.",
@@ -113,7 +129,7 @@ class ChatService:
             }
 
         workflow = await self._get_workflow_for_conversation(command, conversation, actor)
-        handbook_results = await self._handbook_results(command.message, conversation)
+        handbook_results = await self._handbook_results(command.message, conversation, history=messages)
         result = await self.agent.ainvoke(
             {
                 "query": command.message,
@@ -155,6 +171,28 @@ class ChatService:
                 and command.confirmed_action_id is None
             ):
                 action = {"type": "ticket_created", **(action.get("payload") or {})}
+
+            self.session_logger.log_turn(
+                conversation_id=outcome.conversation.id,
+                actor_role=actor.role.value,
+                actor_id=actor.resident_id or actor.actor_id,
+                unit_id=command.unit_id or conversation.unit_id,
+                query=command.message,
+                chat_history_length=len(messages),
+                retrieval={
+                    "chunks_count": len(handbook_results),
+                    "top_score": handbook_results[0].get("citation", {}).get("score") if handbook_results else None,
+                },
+                intent_detected=str(result.get("intent") or outcome.workflow.workflow_type),
+                workflow_type=outcome.workflow.workflow_type,
+                workflow_state=outcome.workflow.state,
+                action=action,
+                ticket={"id": outcome.ticket.id, "ticket_code": outcome.ticket.ticket_code} if outcome.ticket else None,
+                response_preview=outcome.assistant_message.content,
+                citations_count=len(outcome.citations),
+                total_latency_ms=(time.perf_counter() - start_time) * 1000.0,
+            )
+
             return ChatOutcome(
                 conversation_id=outcome.conversation.id,
                 response=outcome.assistant_message.content,
@@ -222,6 +260,25 @@ class ChatService:
                 {"handoff_status": conversation.handoff_status, "assigned_manager_id": conversation.assigned_manager_id},
             )
 
+        self.session_logger.log_turn(
+            conversation_id=conversation.id,
+            actor_role=actor.role.value,
+            actor_id=actor.resident_id or actor.actor_id,
+            unit_id=command.unit_id or conversation.unit_id,
+            query=command.message,
+            chat_history_length=len(messages),
+            retrieval={
+                "chunks_count": len(handbook_results),
+                "top_score": handbook_results[0].get("citation", {}).get("score") if handbook_results else None,
+            },
+            intent_detected=str(result.get("intent") or ""),
+            action=action,
+            ticket={"id": ticket.id, "ticket_code": ticket.ticket_code} if ticket else None,
+            response_preview=response,
+            citations_count=len(citations),
+            total_latency_ms=(time.perf_counter() - start_time) * 1000.0,
+        )
+
         return ChatOutcome(
             conversation_id=conversation.id,
             response=response,
@@ -231,10 +288,22 @@ class ChatService:
             ticket=ticket,
         )
 
-    async def _handbook_results(self, message: str, conversation: Conversation) -> list[dict]:
+    async def _handbook_results(
+        self,
+        message: str,
+        conversation: Conversation,
+        history: list[Message] | None = None,
+    ) -> list[dict]:
         unit = await self.session.get(Unit, conversation.unit_id) if conversation.unit_id else None
+        search_query = message
+        # If this is a short follow-up query and previous user messages exist, enrich the search context
+        if history and len(message.split()) <= 6:
+            recent_user_msgs = [m.content for m in history if m.role == MessageRole.USER.value and m.content != message]
+            if recent_user_msgs:
+                search_query = f"{recent_user_msgs[-1]} {message}"
+
         return await self.knowledge.search(
-            message,
+            search_query,
             project_code=unit.project_code if unit else None,
             building=unit.building if unit else None,
         )

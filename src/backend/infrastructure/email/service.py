@@ -42,7 +42,8 @@ class EmailService:
 
     def _send(self, message: EmailMessage, purpose: str) -> None:
         if not self.settings.smtp_host or not self.settings.smtp_from_email:
-            logger.warning("SMTP is not configured; %s email was not sent", purpose)
+            logger.warning("SMTP is not configured; %s email was not sent. Content:\n%s", purpose, message.get_content())
+            print(f"\n================ [DEV EMAIL OTP] ================\n{message.get_content()}\n=================================================\n")
             return
 
         with smtplib.SMTP(self.settings.smtp_host, self.settings.smtp_port, timeout=15) as smtp:

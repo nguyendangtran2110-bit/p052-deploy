@@ -114,9 +114,19 @@ class KnowledgeSearchService:
         if not tokens:
             return []
 
+        # 1. Primary: Vector search from ChromaDB knowledge base
+        vector_results = self._search_vector(query, limit=limit, building=building or project_code)
+        if vector_results:
+            return vector_results
+
+        # 2. Secondary fallback: Local markdown file search (if configured)
         local_results = self._search_local(query, min(limit, self.context_top_k))
         if local_results:
             return local_results
+
+        # 3. Database SQL fallback: Indexed KnowledgeDocument/KnowledgeChunk tables
+        if self.session is None:
+            return []
 
         scope_filters = [KnowledgeDocument.status == "indexed"]
         if project_code:
@@ -139,6 +149,40 @@ class KnowledgeSearchService:
         rows = list((await self.session.execute(statement)).all())
         ranked = sorted(rows, key=lambda row: _score(row[0], row[1], tokens), reverse=True)[:limit]
         return [_result(chunk, document) for chunk, document in ranked]
+
+    def _search_vector(
+        self,
+        query: str,
+        limit: int = 5,
+        building: str | None = None,
+    ) -> list[dict]:
+        try:
+            from src.services.rag import retrieve_context
+
+            chunks = retrieve_context(query, top_k=limit, building_id=building)
+            if not chunks and building:
+                # If building-filtered search returned nothing, retry without building filter
+                chunks = retrieve_context(query, top_k=limit, building_id=None)
+
+            if not chunks:
+                return []
+
+            return [
+                {
+                    "content": chunk.text,
+                    "citation": {
+                        "title": chunk.source_file or "Resident Handbook",
+                        "section": chunk.section_title or "Resident Handbook",
+                        "page": chunk.page_number if chunk.page_number else None,
+                        "source_id": chunk.source_file or "handbook",
+                        "source_type": "vector_store",
+                        "score": round(chunk.score, 4),
+                    },
+                }
+                for chunk in chunks
+            ]
+        except Exception:
+            return []
 
     def _search_local(self, query: str, limit: int) -> list[dict]:
         if self.context_file is None or limit <= 0:

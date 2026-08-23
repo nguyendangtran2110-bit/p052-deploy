@@ -100,6 +100,10 @@ class Settings(BaseSettings):
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, gt=0)
     embedding_dimensions: int = Field(default=1536, gt=0)
 
+    # Chatbot Session Logging (Telemetry / Observability)
+    chat_log_enabled: bool = True
+    chat_log_dir: Path = Path("./data/logs/chat_sessions")
+
     @property
     def allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

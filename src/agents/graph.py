@@ -27,22 +27,42 @@ class ProductionAgent:
     runtime only extracts a draft and proposes an action.
     """
 
+    def _resolve_llm_config(self, settings) -> tuple[str, str | None, str] | None:
+        """Resolve (api_key, base_url, model_name) using OpenAI, Qwen, or Groq."""
+        openai_key = settings.openai_api_key.strip()
+        if openai_key and not openai_key.startswith("sk-your-key"):
+            return openai_key, settings.openai_api_base or None, settings.model_name
+
+        qwen_key = settings.qwen_api_key.strip()
+        if qwen_key and not qwen_key.startswith("your-qwen"):
+            base_url = settings.qwen_api_base or "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+            model = settings.qwen_model_name or settings.model_name or "qwen-plus"
+            return qwen_key, base_url, model
+
+        groq_key = settings.groq_api_key.strip()
+        if groq_key and not groq_key.startswith("gsk_"):
+            base_url = settings.groq_api_base or "https://api.groq.com/openai/v1"
+            model = settings.groq_model_name or "llama-3.3-70b-versatile"
+            return groq_key, base_url, model
+
+        return None
+
     async def ainvoke(self, state: AgentInput) -> AgentResult:
         safe_state = self.prepare_state(state)
         settings = get_settings()
-        if settings.openai_api_key.strip():
+        llm_config = self._resolve_llm_config(settings)
+        if llm_config is not None:
+            api_key, base_url, model_name = llm_config
             try:
-                result = await self._invoke_llm(safe_state, settings)
+                result = await self._invoke_llm(safe_state, settings, api_key=api_key, base_url=base_url, model_name=model_name)
                 return self._complete_result(result, safe_state)
             except Exception:
                 try:
-                    # A second strict-schema attempt handles transient parser
-                    # failures without ever allowing an unvalidated tool call.
-                    result = await self._invoke_llm(safe_state, settings, strict=True)
+                    result = await self._invoke_llm(
+                        safe_state, settings, api_key=api_key, base_url=base_url, model_name=model_name, strict=True
+                    )
                     return self._complete_result(result, safe_state)
                 except Exception:
-                    # Provider failures fall back to deterministic extraction;
-                    # the backend still validates and authorizes every action.
                     pass
         return self._complete_result(self._fallback(safe_state), safe_state)
 
@@ -65,19 +85,26 @@ class ProductionAgent:
         normalized["handbook_results"] = ProductionAgent._redact_value(list(state.get("handbook_results") or [])[:5])
         return normalized
 
-    async def _invoke_llm(self, state: dict[str, Any], settings, *, strict: bool = False) -> dict[str, Any]:
+    async def _invoke_llm(
+        self,
+        state: dict[str, Any],
+        settings,
+        *,
+        api_key: str,
+        base_url: str | None,
+        model_name: str,
+        strict: bool = False,
+    ) -> dict[str, Any]:
         from langchain_core.messages import HumanMessage, SystemMessage
         from langchain_openai import ChatOpenAI
 
         llm = ChatOpenAI(
-            model=settings.model_name,
-            api_key=settings.openai_api_key,
+            model=model_name,
+            api_key=api_key,
+            base_url=base_url,
             temperature=settings.llm_temperature,
         ).with_structured_output(
             AgentStructuredResult,
-            # The action payload is intentionally an open-ended object. Use
-            # tool/function calling instead of OpenAI strict JSON Schema, which
-            # rejects dynamic object fields without additionalProperties=false.
             method="function_calling",
         )
         context = {
