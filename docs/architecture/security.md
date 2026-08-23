@@ -73,6 +73,7 @@ Sensitive data includes password/session/OTP material, resident/manager IDs, pho
 | One account reads another account's draft | Ownership derived only from authenticated principal; no account ID selector; existence-safe response |
 | Resident injects malicious Zalo URL | Local parser/allowlist/normalization; no remote fetch |
 | Prompt injection asks assistant to submit or expose data | No privileged tools; constrained output; backend trust boundary |
+| User claims a newer policy and asks for an official announcement | Require an indexed, verified policy source; check claimed effective date and high-risk pet assertions before the LLM and again on its draft |
 | Broadcast audience changes after preview | Re-resolve scope at send time; require refreshed preview |
 | Partial-floor manager targets an entire building | Whole-building selector requires that building's `ALL_FLOORS` grant |
 | Browser XSS reads current draft buffer | CSP, output escaping, dependency review, no persistent browser draft storage |

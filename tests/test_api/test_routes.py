@@ -60,3 +60,34 @@ async def test_rag_chat_returns_retrieved_chunk_details(client, monkeypatch):
     assert payload["chunks"][0]["page_number"] == 17
     assert payload["chunks"][0]["text"] == "Thời gian hoạt động hồ bơi: 06h00 đến 12h00."
     assert payload["chunks"][1]["chunk_index"] == 2
+
+
+@pytest.mark.asyncio
+async def test_chat_messages_streams_rag_answer(client, monkeypatch):
+    class Chunk:
+        def to_dict(self):
+            return {
+                "text": "Các tiện ích gồm hồ bơi và phòng gym.",
+                "source_file": "phu-dong.md",
+                "page_number": 5,
+                "section_title": "Tiện ích",
+                "score": 0.9,
+            }
+
+    monkeypatch.setattr("src.backend.api.routes.chat.retrieve_context", lambda *_args, **_kwargs: [Chunk()])
+    monkeypatch.setattr(
+        "src.backend.api.routes.chat.stream_rag_answer",
+        lambda *_args, **_kwargs: iter(["Các tiện ích ", "gồm hồ bơi và phòng gym."]),
+    )
+
+    response = await client.post(
+        "/api/v1/chat/messages",
+        json={"message": "liệt kê các tiện ích"},
+        headers={"Accept": "text/event-stream"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert '"type": "token"' in response.text
+    assert '"type": "done"' in response.text
+    assert "Các tiện ích gồm hồ bơi và phòng gym." in response.text

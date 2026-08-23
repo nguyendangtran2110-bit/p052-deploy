@@ -375,6 +375,10 @@ def _result(chunk: KnowledgeChunk, document: KnowledgeDocument) -> dict:
             "section": chunk.section,
             "page": chunk.page_number,
             "source_id": document.id,
+            "document_type": document.document_type,
+            "version": document.version,
+            "effective_date": document.effective_date.isoformat() if document.effective_date else None,
+            "verified_policy_source": True,
         },
     }
 

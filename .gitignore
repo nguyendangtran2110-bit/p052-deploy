@@ -132,3 +132,13 @@ so-tay-phu-dong-sky-garden.pdf
 docs/frontend
 !docs/frontend/FRONTEND-SPEC.md
 !docs/frontend/ROUTE-MAP.md
+
+# Local guardrail evaluation outputs and virtualenvs
+.venv-eval/
+.venv-*/
+eval/jailbreakbench-results*.json
+eval/deepeval-results*.json
+eval/.deepeval-cache/
+
+# Local terminal transcript created by the `script` command.
+typescript

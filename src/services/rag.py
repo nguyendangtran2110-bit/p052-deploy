@@ -13,6 +13,8 @@ Usage:
 
 from functools import lru_cache
 from pathlib import Path
+import re
+import unicodedata
 
 import llama_index.llms.openai.utils as openai_utils
 import tiktoken.model as tiktoken_model
@@ -23,6 +25,7 @@ openai_utils.CHAT_MODELS["qwen3.5-plus"] = 1_000_000
 tiktoken_model.MODEL_TO_ENCODING["qwen3.5-plus"] = "cl100k_base"
 
 COLLECTION_NAME = "resident_handbook"
+PROCESSED_DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "processed"
 
 
 class RetrievedChunk:
@@ -95,6 +98,8 @@ def _get_vector_index_cached(persist_dir: str, api_key: str, base_url: str, chro
         api_key=api_key,
         api_base=base_url,
         embed_batch_size=10,
+        timeout=8.0,
+        max_retries=1,
     )
 
     db = get_chroma_client(settings, persist_dir)
@@ -111,6 +116,48 @@ def _get_vector_index(persist_dir: str):
     chroma_host = getattr(settings, "chroma_server_host", "")
     model_name = settings.embedding_model_name
     return _get_vector_index_cached(persist_dir, api_key, base_url, chroma_host, model_name)
+
+
+def _collection_count(settings, persist_dir: str) -> int:
+    """Return the indexed document count without invoking the embedding API."""
+    try:
+        db = get_chroma_client(settings, persist_dir)
+        return db.get_or_create_collection(COLLECTION_NAME).count()
+    except Exception:
+        return 0
+
+
+def _normalize_search_text(text: str) -> str:
+    text = unicodedata.normalize("NFD", text)
+    text = "".join(char for char in text if unicodedata.category(char) != "Mn")
+    return re.sub(r"[^a-z0-9]+", " ", text.casefold()).strip()
+
+
+def _retrieve_local_processed_context(
+    query: str, top_k: int, building_id: str | None = None
+) -> list[RetrievedChunk]:
+    """Small offline fallback for processed markdown when vector retrieval is unavailable."""
+    query_text = _normalize_search_text(query)
+    terms = {term for term in query_text.split() if len(term) > 1}
+    if not terms:
+        return []
+
+    candidates: list[RetrievedChunk] = []
+    for path in sorted(PROCESSED_DATA_DIR.glob("*.md")):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        paragraphs = [part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()]
+        for paragraph in paragraphs:
+            normalized = _normalize_search_text(paragraph)
+            matched = terms.intersection(normalized.split())
+            if not matched:
+                continue
+            score = len(matched) / max(len(terms), 1)
+            if "phu dong" in normalized or "sky garden" in normalized:
+                score += 0.25
+            candidates.append(RetrievedChunk(paragraph, path.name, score=score))
+
+    candidates.sort(key=lambda chunk: chunk.score, reverse=True)
+    return candidates[:top_k]
 
 
 def _build_retriever(persist_dir: str, building_id: str | None = None, top_k: int = 5):
@@ -147,7 +194,10 @@ def retrieve_context(query: str, top_k: int = 5, building_id: str | None = None)
     persist_dir = _get_persist_dir()
 
     if not getattr(settings, "chroma_server_host", "") and not Path(persist_dir).exists():
-        return []
+        return _retrieve_local_processed_context(query, top_k, building_id)
+
+    if _collection_count(settings, persist_dir) == 0:
+        return _retrieve_local_processed_context(query, top_k, building_id)
 
     try:
         retriever = _build_retriever(persist_dir, building_id=building_id, top_k=top_k)
@@ -168,7 +218,7 @@ def retrieve_context(query: str, top_k: int = 5, building_id: str | None = None)
         return chunks
     except Exception as exc:
         print(f"[rag] Retrieval error: {type(exc).__name__}: {exc}")
-        return []
+        return _retrieve_local_processed_context(query, top_k, building_id)
 
 
 def _build_query_engine(persist_dir: str, building_id: str | None = None):

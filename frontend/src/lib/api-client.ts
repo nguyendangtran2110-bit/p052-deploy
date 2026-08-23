@@ -85,6 +85,62 @@ function statusMessage(status: number) {
 
 export const get = <T>(path: string, options?: RequestOptions) => apiRequest<T>(path, { ...options, method: "GET" });
 export const post = <T>(path: string, body?: unknown, options?: RequestOptions) => apiRequest<T>(path, { ...options, method: "POST", body: body instanceof FormData ? body : JSON.stringify(body) });
+
+export async function streamPost<TEvent = unknown>(
+  path: string,
+  body: unknown,
+  onEvent: (event: TEvent) => void,
+  retried = false,
+): Promise<void> {
+  const headers = new Headers({ Accept: "text/event-stream", "Content-Type": "application/json" });
+  const token = getAccessToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError("Không thể kết nối đến máy chủ. Vui lòng thử lại.", 0, "network_error");
+  }
+
+  if (response.status === 401 && !retried) {
+    const refreshed = await refreshAccessToken((refreshToken) =>
+      apiRequest<TokenResponse>("/auth/refresh", {
+        method: "POST",
+        body: JSON.stringify({ refresh_token: refreshToken }),
+        skipRefresh: true,
+      }),
+    );
+    if (refreshed) return streamPost(path, body, onEvent, true);
+    clearSession();
+  }
+  if (!response.ok) throw await parseApiError(response);
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new ApiError("Máy chủ không trả về stream.", 500, "stream_unavailable");
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+    const events = buffer.split("\n\n");
+    buffer = events.pop() ?? "";
+    for (const event of events) {
+      const data = event.split("\n").find((line) => line.startsWith("data: "))?.slice(6);
+      if (data) onEvent(JSON.parse(data) as TEvent);
+    }
+    if (done) break;
+  }
+  if (buffer.trim()) {
+    const data = buffer.split("\n").find((line) => line.startsWith("data: "))?.slice(6);
+    if (data) onEvent(JSON.parse(data) as TEvent);
+  }
+}
+
 export const patch = <T>(path: string, body?: unknown, options?: RequestOptions) => apiRequest<T>(path, { ...options, method: "PATCH", body: JSON.stringify(body) });
 export const del = <T>(path: string, options?: RequestOptions) => apiRequest<T>(path, { ...options, method: "DELETE" });
 

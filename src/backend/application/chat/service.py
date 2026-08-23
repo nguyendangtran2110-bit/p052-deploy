@@ -12,6 +12,7 @@ from src.backend.application.knowledge.search import KnowledgeSearchService
 from src.backend.application.realtime import build_message_event, publish_conversation_event, publish_message_payload
 from src.backend.application.tickets.contracts import CreateTicketCommand
 from src.backend.application.tickets.service import TicketService
+from src.backend.core.config import get_settings
 from src.backend.domain.ai_workflows.enums import AIWorkflowType
 from src.backend.domain.common.auth import ActorContext
 from src.backend.domain.common.errors import (
@@ -28,6 +29,11 @@ from src.backend.infrastructure.db.base import utc_now
 from src.backend.infrastructure.db.models import AIWorkflow, Conversation, Message, Unit
 from src.backend.infrastructure.db.repositories import ConversationRepository, ResidentRepository
 from src.backend.infrastructure.logging import SessionLogger
+from src.backend.security.chat_guardrails import (
+    enforce_grounded_policy_announcement,
+    sanitize_model_output,
+    sanitize_user_text,
+)
 
 HANDOFF_ACTION_TYPES = {"handoff_to_management", "escalate_to_management", "request_management"}
 
@@ -47,6 +53,7 @@ class ChatService:
 
     async def send(self, command: ChatCommand, actor: ActorContext) -> ChatOutcome:
         start_time = time.perf_counter()
+        safe_user_message = sanitize_user_text(command.message).safe_text
         conversation = await self._get_or_create_conversation(command, actor)
         user_message = Message(
             conversation_id=conversation.id,
@@ -129,11 +136,12 @@ class ChatService:
             }
 
         workflow = await self._get_workflow_for_conversation(command, conversation, actor)
-        handbook_results = await self._handbook_results(command.message, conversation, history=messages)
+        handbook_results = await self._handbook_results(safe_user_message, conversation, history=messages)
+        enforce_grounded_policy_announcement(safe_user_message, handbook_results)
         result = await self.agent.ainvoke(
             {
-                "query": command.message,
-                "message": command.message,
+                "query": safe_user_message,
+                "message": safe_user_message,
                 "actor_role": actor.role.value,
                 "actor_id": actor.actor_id or actor.resident_id,
                 "resident_id": actor.resident_id,
@@ -209,7 +217,9 @@ class ChatService:
                 message=outcome.assistant_message,
             )
 
-        response = str(result.get("response") or "")
+        response = sanitize_model_output(
+            str(result.get("response") or ""), max_chars=get_settings().chat_output_max_chars
+        )
         citations = self._normalize_citations(result.get("citations"))
         action = self._normalize_action(result)
         ticket = None
@@ -286,6 +296,7 @@ class ChatService:
             citations=citations,
             action=action,
             ticket=ticket,
+            message=assistant_message,
         )
 
     async def _handbook_results(

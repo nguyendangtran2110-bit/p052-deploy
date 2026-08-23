@@ -18,6 +18,7 @@ from src.agents.contracts import (
 from src.agents.prompts import AGENT_SYSTEM_PROMPT
 from src.agents.state import AgentState
 from src.backend.core.config import get_settings
+from src.backend.security.chat_guardrails import sanitize_user_text
 
 
 class ProductionAgent:
@@ -270,10 +271,7 @@ class ProductionAgent:
 
     @staticmethod
     def _redact_text(value: str) -> str:
-        value = re.sub(r"(?i)bearer\s+[A-Za-z0-9._~+/=-]+", "[redacted-token]", value)
-        value = re.sub(r"(?i)(?:access|refresh)_token\s*[=:]\s*[^\s,;]+", "[redacted-token]", value)
-        value = re.sub(r"https?://[^\s]+", "[redacted-url]", value)
-        return value
+        return sanitize_user_text(value).safe_text
 
     def _fallback(self, state: dict[str, Any]) -> dict[str, Any]:
         message = str(state.get("message") or state.get("query") or "").strip()

@@ -18,10 +18,19 @@ from src.services.groq_llm import citations_from_chunks, confidence_from_chunks,
 from src.services.rag import retrieve_context  # noqa: E402
 
 FALLBACK_TEXT = (
-    "Xin lỗi, tôi không tìm thấy thông tin liên quan trong Sổ Tay Cư Dân. "
+    "Thông tin hiện có chưa đủ để xác định chính xác câu trả lời. "
     "Vui lòng liên hệ Ban Quản Lý tòa nhà để được hỗ trợ."
 )
 CHUNK_PREVIEW_LIMIT = 420
+GREETING_TEXT = "Xin chào! Tôi có thể hỗ trợ bạn tra cứu Sổ Tay Cư Dân Phú Đông Sky Garden."
+GREETINGS = {"xin chao", "chao", "hello", "hi", "hey"}
+
+
+def _is_greeting(query: str) -> bool:
+    import unicodedata
+    normalized = unicodedata.normalize("NFD", query.casefold())
+    normalized = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+    return normalized.strip().rstrip("!.,?") in GREETINGS
 
 
 def _chunk_preview(text: str) -> str:
@@ -86,6 +95,15 @@ def main() -> int:
         if query.casefold() == "/clear":
             chat_history.clear()
             print("Đã xoá lịch sử hội thoại.\n")
+            continue
+
+        if _is_greeting(query):
+            print(f"Bot: {GREETING_TEXT}\n")
+            chat_history.extend([
+                {"role": "user", "content": query},
+                {"role": "assistant", "content": GREETING_TEXT},
+            ])
+            chat_history = chat_history[-12:]
             continue
 
         print("Đang tìm trong Sổ Tay Cư Dân...")
