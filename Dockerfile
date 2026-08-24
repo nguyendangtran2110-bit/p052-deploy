@@ -7,18 +7,22 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /build
 
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+RUN uv venv /opt/venv
+ENV VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install -r requirements.txt
 
 
 FROM python:3.11.15-slim-bookworm AS runner
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
     PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
