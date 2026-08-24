@@ -98,6 +98,20 @@ def get_qdrant_client(settings):
     return QdrantClient(url=url, api_key=api_key)
 
 
+def ensure_qdrant_payload_index(client, collection_name: str, field_name: str = "building_id") -> None:
+    """Ensure keyword payload index exists in Qdrant for filtering."""
+    try:
+        from qdrant_client.http import models as qmodels
+
+        client.create_payload_index(
+            collection_name=collection_name,
+            field_name=field_name,
+            field_schema=qmodels.PayloadSchemaType.KEYWORD,
+        )
+    except Exception:
+        pass
+
+
 @lru_cache(maxsize=1)
 def _get_vector_index_cached(
     persist_dir: str,
@@ -135,6 +149,7 @@ def _get_vector_index_cached(
 
         client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key or None)
         collection = qdrant_collection or getattr(settings, "qdrant_collection_name", COLLECTION_NAME) or COLLECTION_NAME
+        ensure_qdrant_payload_index(client, collection, field_name="building_id")
         vector_store = QdrantVectorStore(client=client, collection_name=collection)
         return VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
 

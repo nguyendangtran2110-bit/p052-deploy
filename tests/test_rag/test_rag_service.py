@@ -274,3 +274,18 @@ class TestQdrantMode:
         assert count == 42
         mock_client.get_collection.assert_called_once_with(collection_name="resident_handbook")
 
+    def test_ensure_qdrant_payload_index(self):
+        from src.services.rag import ensure_qdrant_payload_index
+
+        mock_client = MagicMock()
+        ensure_qdrant_payload_index(mock_client, "test_collection", "building_id")
+        mock_client.create_payload_index.assert_called_once()
+
+    def test_ensure_qdrant_payload_index_handles_exception(self):
+        from src.services.rag import ensure_qdrant_payload_index
+
+        mock_client = MagicMock()
+        mock_client.create_payload_index.side_effect = RuntimeError("Index already exists")
+        # Should not raise
+        ensure_qdrant_payload_index(mock_client, "test_collection", "building_id")
+

@@ -132,6 +132,19 @@
 
 **Tổng kết ngày:** Khắc phục triệt để lỗi gọi mô hình Qwen DashScope khi sử dụng function calling bằng cách vô hiệu hóa thinking mode (`extra_body={"enable_thinking": False}`), giúp Chatbot trả lời câu hỏi tự nhiên bằng tiếng Việt thay vì dump raw text chunk. Tích hợp hoàn chỉnh vector database **Qdrant Cloud** với cơ chế tự động nhận diện (Dual-Store Auto-Detection), đảm bảo môi trường local tiếp tục hoạt động mượt mà với ChromaDB mà không gây breaking change. Nâng cấp script ingestion sổ tay cư dân `--store qdrant` tự động khởi tạo collection và đồng bộ embeddings lên cloud, chuẩn hóa kích thước vector 1024 chiều tương thích `qwen3.7-text-embedding`. Rà soát cơ chế pass-through của Docker Compose qua `env_file: .env` và làm rõ ranh giới kiến trúc phân quyền tạo ticket (Authoritative Backend & HITL theo ADR-0013/ADR-0004). Toàn bộ **150/150 unit & integration tests passed (100% green)** cùng 83% pass rate trên bộ 100 test cases DeepEval.
 
+---
+
+## 2026-08-24
+
+| Member | Task | Status | Output | Time |
+|--------|------|--------|--------|------|
+| Trần Đăng Nguyên | Tự động tạo Payload Index (`building_id`) cho Qdrant Cloud Vector Store | ✅ Done | [`src/services/rag.py`](../src/services/rag.py), [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py) | 0.5h |
+| Trần Đăng Nguyên | Mở rộng bộ kiểm thử `TestQdrantMode` với `test_ensure_qdrant_payload_index` | ✅ Done | [`tests/test_rag/test_rag_service.py`](../tests/test_rag/test_rag_service.py) | 0.5h |
+| Trần Đăng Nguyên | Kiểm tra xác minh live retrieval với `building_id` filter trên Qdrant Cloud | ✅ Done | 45/45 RAG tests passed (100% green) | 0.5h |
+
+**Tổng kết ngày:** Khắc phục triệt để lỗi `400 Bad Request: Index required but not found for "building_id"` trên Qdrant Cloud khi thực hiện truy vấn lọc multi-tenant. Bổ sung cơ chế auto-healing `ensure_qdrant_payload_index()` trong [`src/services/rag.py`](../src/services/rag.py) và tự động thiết lập schema payload index trong [`scripts/ingest_handbook.py`](../scripts/ingest_handbook.py). Toàn bộ 45/45 RAG unit tests và live retrieval xác minh thành công (100% green).
+
+
 
 
 

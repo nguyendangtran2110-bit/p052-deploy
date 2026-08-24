@@ -507,6 +507,16 @@ def run_ingestion(
                 vectors_config=qmodels.VectorParams(size=dimensions, distance=qmodels.Distance.COSINE),
             )
             print(f"[ingest] Created Qdrant collection '{collection_name}' (dim={dimensions}).")
+
+        try:
+            qdrant_client.create_payload_index(
+                collection_name=collection_name,
+                field_name="building_id",
+                field_schema=qmodels.PayloadSchemaType.KEYWORD,
+            )
+            print(f"[ingest] Ensured Qdrant payload index for 'building_id'.")
+        except Exception as e:
+            print(f"[ingest] Payload index notice for 'building_id': {e}")
     else:
         if not settings.chroma_server_host:
             Path(persist_dir).mkdir(parents=True, exist_ok=True)
