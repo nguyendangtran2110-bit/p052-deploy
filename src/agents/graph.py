@@ -644,20 +644,20 @@ class ProductionAgent:
         folded = ProductionAgent._fold(message)
         if not draft.get("category"):
             if any(word in lower for word in ("nước", "rò rỉ", "chảy", "leak", "ống")):
-                draft["category"] = "plumbing"
+                draft["category"] = "Plumbing"
             elif any(word in lower for word in ("điện", "đèn", "electric", "light")):
-                draft["category"] = "electrical"
+                draft["category"] = "Electrical"
             elif any(word in lower for word in ("thang máy", "elevator", "hồ bơi", "gym")):
-                draft["category"] = "facility"
+                draft["category"] = "Facility"
             else:
-                draft["category"] = "maintenance"
-        if draft.get("category") == "maintenance":
+                draft["category"] = "Maintenance"
+        if draft.get("category") == "Maintenance":
             if any(word in folded for word in ("nuoc", "ro ri", "chay", "ong")):
-                draft["category"] = "plumbing"
+                draft["category"] = "Plumbing"
             elif any(word in folded for word in ("dien", "den", "electric", "light")):
-                draft["category"] = "electrical"
+                draft["category"] = "Electrical"
             elif any(word in folded for word in ("thang may", "elevator", "ho boi", "gym")):
-                draft["category"] = "facility"
+                draft["category"] = "Facility"
         if not draft.get("description"):
             draft["description"] = message
         elif not AgentRuntimeHelpers.is_short_location_reply(message):
