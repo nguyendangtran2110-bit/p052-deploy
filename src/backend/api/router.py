@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 
 from src.backend.api.routes import (
     ai_workflows,
@@ -42,3 +42,7 @@ api_router.include_router(units.router)
 @api_router.get("/status", tags=["system"])
 async def status():
     return {"status": "ready", "agent": "LangGraph Agent v1.0", "api_version": "v1"}
+
+@api_router.head("/health", include_in_schema=False)
+async def health_head():
+    return Response(status_code=200)
