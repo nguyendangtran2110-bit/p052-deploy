@@ -43,7 +43,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 database_url = normalize_async_database_url(get_settings().database_url)
-config.set_main_option("sqlalchemy.url", database_url)
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 if database_url.startswith("sqlite") and ":memory:" not in database_url:
     sqlite_path = make_url(database_url).database
     if sqlite_path:
