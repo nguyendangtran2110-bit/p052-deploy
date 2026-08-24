@@ -176,6 +176,15 @@ class ProductionAgent:
         if isinstance(action, dict) and action.get("requires_confirmation") and not action.get("action_id"):
             action = {**action, "action_id": str(uuid4())}
             completed["action"] = action
+        elif not action and completed.get("workflow_type") == "resident_ticket" and completed.get("intent") == "create_ticket" and draft:
+            action = {
+                "type": "create_ticket",
+                "action_id": str(uuid4()),
+                "requires_confirmation": True,
+                "payload": draft,
+            }
+            completed["action"] = action
+            completed["state"] = "awaiting_confirmation"
         if completed["attachment_ids"]:
             draft["attachment_ids"] = completed["attachment_ids"]
         if completed.get("workflow_type") == "manager_announcement" and not draft.get("scopes"):

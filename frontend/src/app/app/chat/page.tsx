@@ -164,11 +164,8 @@ export default function ResidentChatPage() {
     if (confirm) appendUserMessage(content, []);
     else appendUserMessage(content, attachmentIds);
     try {
-      const isHandbookQuestion = !/ticket|sự cố|hỏng|rò rỉ|sửa chữa|bảo trì|maintenance|broken|leak|repair/i.test(content);
-      const response = isHandbookQuestion
-        ? await sendResidentAssistantMessageStream(payload, (token) => setStreamingAnswer((current) => current + token))
-        : await sendResidentAssistantMessage(payload);
-      if (!isHandbookQuestion) setWorkflow(response as AIWorkflowResponse);
+      const response = await sendResidentAssistantMessage(payload);
+      setWorkflow(response as AIWorkflowResponse);
       if (response.conversation_id && response.workflow_id) {
         setConversationId(response.conversation_id);
         setWorkflowId(response.workflow_id);
