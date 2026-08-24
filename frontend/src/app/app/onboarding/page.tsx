@@ -1,7 +1,6 @@
 "use client";
 
 import { Check, ClipboardCheck, Circle, Clock3, Eye, EyeOff, MinusCircle } from "lucide-react";
-import { AppShell } from "@/components/app-shell";
 import { Badge, Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { ErrorState } from "@/components/feedback";
 import { useResidentOnboarding, useUpdateOnboardingItem } from "@/features/onboarding/queries";
@@ -15,9 +14,9 @@ export default function ResidentOnboardingPage() {
   const totalItems = checklists.reduce((total, checklist) => total + checklist.required_item_count, 0);
   const completedItems = checklists.reduce((total, checklist) => total + checklist.completed_item_count, 0);
 
-  return <AppShell><PageHeader eyebrow="Resident space / Onboarding" title="Your building welcome" description="Work through the checklist attached to your verified home. Updates are saved to OnBxrd." actions={checklists.length ? <Badge tone="info">{completedItems} / {totalItems} complete</Badge> : undefined} />
+  return <PageHeader eyebrow="Resident space / Onboarding" title="Your building welcome" description="Work through the checklist attached to your verified home. Updates are saved to OnBxrd." actions={checklists.length ? <Badge tone="info">{completedItems} / {totalItems} complete</Badge> : undefined} />
     {onboarding.isLoading ? <Card><div className="loading-copy" role="status">Loading your onboarding checklist…</div></Card> : onboarding.isError ? <ErrorState message="We could not load onboarding for your current account scope." onRetry={() => void onboarding.refetch()} /> : !checklists.length ? <Card><EmptyState icon={<ClipboardCheck size={22} />} title="No onboarding checklist yet" description="Your building team has not published an onboarding checklist for this account." /></Card> : <div className="onboarding-list">{checklists.map((checklist) => <Card key={checklist.id}><div className="onboarding-card-heading"><div><div className="eyebrow">{checklist.unit.building} · {checklist.unit.unit_number}</div><h2>Welcome checklist</h2><p>{checklist.completed_item_count} of {checklist.required_item_count} required steps complete · updated {new Date(checklist.updated_at).toLocaleDateString("en-GB")}</p></div><div className="onboarding-progress" style={{ "--onboarding-progress": `${checklist.progress_percent}%` } as CSSProperties} aria-label={`${checklist.progress_percent}% complete`}><strong>{checklist.progress_percent}%</strong><span /></div></div><div className="onboarding-items">{checklist.items.slice().sort((a, b) => a.sort_order - b.sort_order).map((item) => <OnboardingItemRow key={item.id} item={item} pending={update.isPending && update.variables?.id === item.id} onStatus={(status) => update.mutate({ id: item.id, status })} />)}</div></Card>)}</div>}
-  </AppShell>;
+  ;
 }
 
 function OnboardingItemRow({ item, pending, onStatus }: { item: OnboardingItem; pending: boolean; onStatus: (status: OnboardingUpdateStatus) => void }) {

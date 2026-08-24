@@ -1,21 +1,32 @@
+import { readdir } from "node:fs/promises";
+import path from "node:path";
 import Link from "next/link";
-import { ArrowRight, BookOpen, CheckCircle2, MessageCircle, ShieldCheck } from "lucide-react";
+import { LandingFeatureRail } from "@/components/landing-feature-rail";
 import { ThemeControl } from "@/components/theme-control";
 
-export default function HomePage() {
-  return <div lang="en" className="public-shell landing-shell">
-    <a className="skip-link" href="#landing-content">Skip to content</a>
-    <header className="landing-header">
-      <Link className="landing-brand" href="/" aria-label="OnBxrd home"><span className="brand-mark" aria-hidden="true">O</span><span><strong>OnBxrd</strong><small>Resident operations</small></span></Link>
-      <nav className="landing-nav" aria-label="Public navigation"><a href="#how-it-works">How it works</a><a href="#roles">For your role</a><Link href="/login">Sign in</Link><ThemeControl compact /></nav>
-    </header>
-    <main id="landing-content">
-      <section className="landing-hero" aria-labelledby="landing-title"><div className="landing-hero-copy"><p className="landing-kicker">A calmer way to find your bearings</p><h1 id="landing-title">Building life, made easier to understand.</h1><p className="landing-lede">OnBxrd gives residents one clear place to find building guidance, ask grounded questions, and request support. Building teams get a focused workspace for the work they are trusted to do.</p><div className="landing-actions"><Link className="button button-primary button-lg" href="/login">Sign in to OnBxrd <ArrowRight size={17} /></Link><Link className="button button-outline button-lg" href="/register">Create an account</Link></div><p className="landing-note"><ShieldCheck size={15} /> Your access and building scope stay protected by your account.</p></div><div className="landing-hero-art" aria-label="An abstract OnBxrd building signal illustration" role="img"><div className="landing-orbit landing-orbit-one" /><div className="landing-orbit landing-orbit-two" /><div className="landing-signal-card"><span className="signal-card-label">Today in your building</span><strong>Clear next steps</strong><span className="signal-card-line" /><small>Guidance · Requests · Updates</small></div><div className="landing-window landing-window-back" /><div className="landing-window landing-window-front"><span /><span /><span /></div></div></section>
-      <section className="landing-proof" aria-label="OnBxrd principles"><div><strong>Grounded guidance</strong><span>Answers stay close to approved building information.</span></div><div><strong>Visible progress</strong><span>Requests show what is known and what happens next.</span></div><div><strong>Human control</strong><span>You review before anything is submitted.</span></div></section>
-      <section id="how-it-works" className="landing-section" aria-labelledby="how-title"><div className="landing-section-heading"><p className="landing-kicker">One useful path</p><h2 id="how-title">From a question to a clear next step.</h2><p>Everyday building moments should not require hunting through scattered messages. OnBxrd keeps the useful context together without making promises it cannot keep.</p></div><div className="landing-feature-grid"><article className="landing-feature-card"><span className="landing-icon"><BookOpen size={20} /></span><h3>Find what applies</h3><p>Look up approved guidance for your home and building context, with a direct route to the source.</p><span className="landing-step">01</span></article><article className="landing-feature-card"><span className="landing-icon landing-icon-blue"><MessageCircle size={20} /></span><h3>Ask for help</h3><p>Homie Agent can explain known guidance and help frame a request when something needs attention.</p><span className="landing-step">02</span></article><article className="landing-feature-card"><span className="landing-icon landing-icon-ember"><CheckCircle2 size={20} /></span><h3>Review before action</h3><p>Requests remain visible and editable until you decide they are ready to submit.</p><span className="landing-step">03</span></article></div></section>
-      <section id="roles" className="landing-role-band" aria-labelledby="roles-title"><div><p className="landing-kicker">Made for the work</p><h2 id="roles-title">The right view for the role you are in.</h2><p>Residents get a calm task space. Managers get precise operational context within their assigned scope.</p></div><div className="landing-role-list"><div><strong>Resident space</strong><span>Tickets, announcements, profile, and grounded help in one readable workspace.</span><Link href="/register">Create resident account <ArrowRight size={15} /></Link></div><div><strong>Management workspace</strong><span>Queue, handoff, people, and announcements without analytics theater.</span><Link href="/login">Sign in to continue <ArrowRight size={15} /></Link></div></div></section>
-      <section className="landing-closing" aria-labelledby="closing-title"><div><p className="landing-kicker">Start where you are</p><h2 id="closing-title">A more settled start to building life.</h2><p>Sign in to continue your workspace, or activate your resident account with the code provided by your building team.</p></div><Link className="button button-primary button-lg" href="/login">Open OnBxrd <ArrowRight size={17} /></Link></section>
-    </main>
-    <footer className="landing-footer"><span>© OnBxrd</span><span>Clear context. Visible next steps.</span><Link href="/login">Sign in</Link></footer>
-  </div>;
+const LANDING_ROOT = path.join(process.cwd(), "public", "landing");
+
+async function gallery(folder: string, limit: number) {
+  try {
+    const filenames = await readdir(path.join(LANDING_ROOT, folder));
+    return filenames.filter((filename) => filename.toLowerCase().endsWith(".jpg")).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).slice(0, limit).map((filename) => `/landing/${folder}/${encodeURIComponent(filename)}`);
+  } catch {
+    return [];
+  }
+}
+
+export default async function HomePage() {
+  const imageFolders = [
+    ["onboarding", 2], ["benefits", 4], ["assistant", 2], ["tickets", 3], ["announcements", 4], ["operations", 3],
+  ] as const;
+  const [onboarding, benefits, assistant, tickets, announcements, operations] = await Promise.all(imageFolders.map(([folder, limit]) => gallery(folder, limit)));
+  const features = [
+    { index: "01", icon: "onboarding", accent: "clay", kicker: "Chào mừng cư dân", title: "Khởi đầu nhẹ nhàng, mọi thứ rõ ràng.", description: "OnBxrd gom thông tin tòa nhà, căn hộ và việc cần làm tiếp theo vào một hành trình dễ theo dõi.", cta: "Bắt đầu hành trình cư dân", href: "/register", images: onboarding },
+    { index: "02", icon: "benefits", accent: "sage", kicker: "Giá trị mỗi ngày", title: "Khám phá những quyền lợi quanh bạn.", description: "Tìm tiện ích, ưu đãi và thông tin thiết thực phù hợp với chính tòa nhà bạn đang sống.", cta: "Khám phá quyền lợi", href: "/login", images: benefits },
+    { index: "03", icon: "assistant", accent: "gold", kicker: "Hỗ trợ có căn cứ", title: "Cứ hỏi Hommie, bạn vẫn luôn là người quyết định.", description: "Hommie Agent giải thích thông tin đã được phê duyệt và cùng bạn chuẩn bị yêu cầu hỗ trợ trước khi gửi đi.", cta: "Trò chuyện cùng Hommie", href: "/login", images: assistant },
+    { index: "04", icon: "tickets", accent: "blue", kicker: "Hỗ trợ cư dân", title: "Theo dõi yêu cầu từ lúc gửi đến khi có cập nhật.", description: "Tạo ticket rõ ràng, bổ sung ngữ cảnh hữu ích và biết chính xác bước tiếp theo mà không phải tìm giữa nhiều kênh.", cta: "Mở không gian của bạn", href: "/login", images: tickets },
+    { index: "05", icon: "announcements", accent: "rose", kicker: "Tin tức tòa nhà", title: "Điều quan trọng luôn ở đúng nơi bạn cần.", description: "Thông báo và cập nhật cư dân được giữ dễ đọc, dễ xem lại và gắn với nơi bạn đang sống.", cta: "Xem OnBxrd hoạt động", href: "/login", images: announcements },
+    { index: "06", icon: "operations", accent: "cocoa", kicker: "Không gian quản lý", title: "Một góc vận hành tập trung cho đội ngũ tòa nhà.", description: "Hàng đợi, phạm vi cư dân, bàn giao, thông báo, tri thức và căn hộ luôn chính xác mà không biến công việc hằng ngày thành bảng số liệu rườm rà.", cta: "Đăng nhập quản lý", href: "/login", images: operations },
+  ] as const;
+  return <div className="public-shell landing-shell"><a className="skip-link" href="#landing-content">Đến thư viện tính năng</a><header className="landing-header"><Link className="landing-brand" href="/" aria-label="Trang chủ OnBxrd"><span className="brand-mark" aria-hidden="true">O</span><span><strong>OnBxrd</strong><small>Không gian cư dân</small></span></Link><nav className="landing-nav" aria-label="Điều hướng công khai"><a href="#landing-content">Khám phá tính năng</a><Link href="/register">Tạo tài khoản</Link><Link className="landing-sign-in" href="/login">Đăng nhập</Link><ThemeControl compact /></nav></header><main id="landing-content"><LandingFeatureRail features={[...features]} /></main></div>;
 }

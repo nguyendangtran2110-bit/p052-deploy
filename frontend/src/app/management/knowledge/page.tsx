@@ -2,7 +2,6 @@
 
 import { BookOpen, FileUp, RefreshCw, TriangleAlert } from "lucide-react";
 import { useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { Badge, Button, Card, Input, PageHeader, Select } from "@/components/ui";
 import { useKnowledge, useManagementMutations } from "@/features/management/queries";
 import { formatDate, label } from "@/lib/format";

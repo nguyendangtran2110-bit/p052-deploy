@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Headphones, MessageCircle, RefreshCw, UserRound } from "lucide-react";
-import { AppShell } from "@/components/app-shell";
 import { Badge, Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { useHandoffs } from "@/features/management/queries";
 import { fromNow, label } from "@/lib/format";

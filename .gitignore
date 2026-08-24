@@ -145,3 +145,6 @@ typescript
 
 .codegraph/
 
+.codex/skills/
+
+*.tsbuildinfo

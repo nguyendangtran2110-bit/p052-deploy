@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { FilePlus2, FileText, Filter, Search, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { Badge, Button, Card, EmptyState, IconButton, Input, PageHeader, Select } from "@/components/ui";
 import { fromNow, label } from "@/lib/format";
 import { useTickets } from "@/features/tickets/queries";

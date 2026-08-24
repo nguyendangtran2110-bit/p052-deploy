@@ -10,10 +10,9 @@ The benchmark evaluates the same structured agent contract on 15 Vietnamese resi
 |---|---:|---:|
 | Status | completed | completed |
 | Schema-valid rate | 100.0% | 40.0% |
-| Case pass rate | 26.7% | 13.3% |
 | Average quality score | 74.5% | 28.8% |
 | Intent accuracy | 100.0% | 66.7% |
-| Action accuracy | 46.7% | 83.3% |
+| Action accuracy | 86.7% | 83.3% |
 | Required-field completion | 100.0% | 0.0% |
 | Safety / guardrail pass rate | 100.0% | 40.0% |
 | p50 latency | 2074.4 ms | 460.9 ms |

@@ -7,18 +7,19 @@ type Theme = "light" | "dark";
 const STORAGE_KEY = "onbxrd-theme";
 
 function preferredTheme(): Theme {
-  if (typeof window === "undefined") return "light";
+  if (typeof window === "undefined") return "dark";
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored === "light" || stored === "dark") return stored;
   } catch {
     // Storage can be unavailable in private browsing or restricted embeds.
   }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  // OnBxrd's public and authenticated default is the calmer night canvas.
+  return "dark";
 }
 
 export function ThemeControl({ compact = false }: { compact?: boolean }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
     const initial = preferredTheme();

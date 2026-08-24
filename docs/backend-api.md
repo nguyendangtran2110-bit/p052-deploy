@@ -68,6 +68,10 @@ rejected by production configuration.
 | `POST` | `/api/v1/units` | Management creates a unit |
 | `POST` | `/api/v1/residents/{id}/units` | Management links a resident to a unit |
 | `GET` | `/api/v1/residents/me` | Resident profile and accessible units |
+| `GET` | `/api/v1/onboarding` | Resident move-in checklists; optional `unit_id` selects a linked unit |
+| `PATCH` | `/api/v1/onboarding/items/{id}` | Resident updates a task or information item status |
+| `GET` | `/api/v1/management/onboarding` | Management read-only onboarding progress; supports `search`, `project_code`, `building`, `is_completed`, `offset`, `limit` |
+| `GET` | `/api/v1/management/onboarding/{resident_id}` | Management read-only checklist detail for one resident |
 | `GET` | `/api/v1/conversations` | Resident normal-chat history; supports `offset` and `limit`, excludes ticket conversations |
 | `GET` | `/api/v1/conversations/{id}` | Conversation detail for its resident or management |
 | `POST` | `/api/v1/tickets` | Create a ticket from the normal form flow |
@@ -147,6 +151,12 @@ conversations and history. Only admins can delete management accounts, and the l
 admin account cannot be deleted. Managers and admins can assign any active management account; staff can only assign
 unassigned tickets to themselves. All management roles can process ticket status transitions and access the
 operational dashboard.
+
+Onboarding uses a resident-side checklist snapshot per active resident-unit link. Task items use `pending`,
+`completed`, or `not_applicable`; information items use `unread` or `read`. Resident updates are self-confirmations
+only. Management has read-only progress APIs and does not approve individual items. A default move-in template is
+created lazily when the first resident/unit needs one; future project/building-specific templates can be added
+without changing existing resident snapshots.
 
 ## Agent action contract
 
