@@ -159,3 +159,57 @@ async def test_rag_agent_fallback_on_empty_chunks():
     result = await rag_agent.ainvoke({"query": "random query without vector db"})
     assert isinstance(result, dict)
     assert "rag_response" in result or "response" in result or "error" in result
+
+
+def test_agent_preserves_handbook_contact_phone_and_email():
+    handbook_content = (
+        "Địa chỉ văn phòng Ban Quản Lý: Tầng 01\n"
+        "Điện thoại: 0903 301 858 (Hotline)\n"
+        "Email: bql.pdskygarden@phudonggroup.com"
+    )
+    prepared = ProductionAgent.prepare_state(
+        {
+            "message": "Số điện thoại hotline ban quản lý là gì?",
+            "handbook_results": [
+                {
+                    "content": handbook_content,
+                    "citation": {"title": "Sổ tay cư dân", "page": 8},
+                }
+            ],
+            "messages": [
+                {"role": "user", "content": "Alo"},
+                {"role": "assistant", "content": "Hotline BQL: 0903 301 858"},
+            ],
+        }
+    )
+
+    assert "0903 301 858" in prepared["handbook_results"][0]["content"]
+    assert "bql.pdskygarden@phudonggroup.com" in prepared["handbook_results"][0]["content"]
+    assert "[redacted-phone]" not in prepared["handbook_results"][0]["content"]
+    # Assistant previous message preserves contact details
+    assert "0903 301 858" in prepared["messages"][1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_agent_answers_management_phone_number():
+    handbook_content = (
+        "Địa chỉ văn phòng Ban Quản Lý: Tầng 01\n"
+        "Điện thoại: 0903 301 858 (Hotline)\n"
+        "Email: bql.pdskygarden@phudonggroup.com"
+    )
+    result = await ProductionAgent().ainvoke(
+        {
+            "message": "Số điện thoại ban quản lý là gì?",
+            "actor_role": "resident",
+            "handbook_results": [
+                {
+                    "content": handbook_content,
+                    "citation": {"title": "Sổ tay cư dân", "page": 8},
+                }
+            ],
+        }
+    )
+
+    assert result["intent"] == "handbook_question"
+    assert "0903 301 858" in result["response"]
+

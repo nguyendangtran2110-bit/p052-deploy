@@ -53,8 +53,8 @@ pytest-cov>=5.0.0
 httpx>=0.28.0
 
 # Guardrail evaluation
-deepeval==4.1.10
-jailbreakbench==0.1.0
+# deepeval==4.1.10
+# jailbreakbench==0.1.0
 setuptools<81
 
 # AWS S3
