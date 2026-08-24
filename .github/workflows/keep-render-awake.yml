@@ -2,7 +2,7 @@ name: Keep Render awake
 
 on:
   schedule:
-    - cron: "3/10 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
