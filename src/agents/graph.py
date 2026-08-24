@@ -92,7 +92,7 @@ class ProductionAgent:
         )
         normalized["messages"] = ProductionAgent._safe_messages(state.get("messages") or [])
         normalized["metadata"] = ProductionAgent._redact_value(state.get("metadata") or {})
-        normalized["handbook_results"] = ProductionAgent._redact_value(list(state.get("handbook_results") or [])[:5])
+        normalized["handbook_results"] = ProductionAgent._safe_handbook_results(state.get("handbook_results"))
         return normalized
 
     async def _invoke_llm(
@@ -274,13 +274,32 @@ class ProductionAgent:
         for message in messages[-12:]:
             if not isinstance(message, dict):
                 continue
+            role = str(message.get("role") or "")[:30]
+            raw_content = str(message.get("content") or "")[:2000]
+            content = ProductionAgent._redact_text(raw_content) if role == "user" else raw_content
             result.append(
                 {
-                    "role": str(message.get("role") or "")[:30],
-                    "content": ProductionAgent._redact_text(str(message.get("content") or ""))[:2000],
+                    "role": role,
+                    "content": content,
                 }
             )
         return result
+
+    @staticmethod
+    def _safe_handbook_results(handbook_results: Any) -> list[dict[str, Any]]:
+        if not isinstance(handbook_results, list):
+            return []
+        results: list[dict[str, Any]] = []
+        for item in handbook_results[:5]:
+            if not isinstance(item, dict):
+                continue
+            clean_item = dict(item)
+            if "content" in clean_item:
+                clean_item["content"] = str(clean_item["content"])[:4000]
+            elif "text" in clean_item:
+                clean_item["text"] = str(clean_item["text"])[:4000]
+            results.append(clean_item)
+        return results
 
     @staticmethod
     def _redact_value(value: Any) -> Any:

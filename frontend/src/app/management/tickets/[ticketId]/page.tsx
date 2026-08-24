@@ -5,7 +5,6 @@ import { ArrowLeft, Bot, CalendarClock, CheckCircle2, Headphones, MessageCircle,
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { AppShell } from "@/components/app-shell";
 import { Badge, Button, Card, Divider, IconButton, Input, PageHeader, Select } from "@/components/ui";
 import { useConversation, useManagementConversationActions, useTicket } from "@/features/tickets/queries";
 import { useManagementAccounts } from "@/features/management/queries";
@@ -38,8 +37,8 @@ export default function ManagementTicketDetailPage() {
     }
   }, [auth.data?.id, current]);
 
-  if (ticket.isError || conversation.isError) return <AppShell><div className="error-state">Không thể tải ticket hoặc conversation. Vui lòng thử lại.</div></AppShell>;
-  if (!current || !conversation.data) return <AppShell><div className="empty-state"><Headphones size={24} /><h3>Đang tải conversation…</h3><p>Kiểm tra quyền và tải dữ liệu mới nhất.</p></div></AppShell>;
+  if (ticket.isError || conversation.isError) return <div className="error-state">Không thể tải ticket hoặc conversation. Vui lòng thử lại.</div>;
+  if (!current || !conversation.data) return <div className="empty-state"><Headphones size={24} /><h3>Đang tải conversation…</h3><p>Kiểm tra quyền và tải dữ liệu mới nhất.</p></div>;
   const active = current;
   const conv = conversation.data;
 

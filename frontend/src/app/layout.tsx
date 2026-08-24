@@ -12,5 +12,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="vi" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: `(() => { try { const stored = localStorage.getItem('onbxrd-theme'); const theme = stored === 'dark' || stored === 'light' ? stored : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); document.documentElement.dataset.theme = theme; } catch {} })();` }} /></head><body><Providers>{children}</Providers></body></html>;
+  return <html lang="vi" data-theme="dark" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: `(() => { try { const stored = localStorage.getItem('onbxrd-theme'); const theme = stored === 'dark' || stored === 'light' ? stored : 'dark'; document.documentElement.dataset.theme = theme; } catch { document.documentElement.dataset.theme = 'dark'; } })();` }} /></head><body><Providers>{children}</Providers></body></html>;
 }
