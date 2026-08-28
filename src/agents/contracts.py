@@ -1,10 +1,9 @@
-from __future__ import annotations
-
+import json
 from datetime import datetime
 from typing import Any, Literal, TypedDict
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 WorkflowType = Literal["resident_ticket", "manager_announcement"]
 ActorRole = Literal["resident", "management"]
@@ -43,6 +42,40 @@ class TicketDraft(BaseModel):
     description: str | None = Field(default=None, min_length=1, max_length=50000)
     location: str | None = Field(default=None, min_length=1, max_length=255)
     attachment_ids: list[UUID] = Field(default_factory=list, max_length=10)
+
+    @field_validator("location", mode="before")
+    @classmethod
+    def _validate_location(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            parts = [f"{k}: {v}" for k, v in value.items() if v]
+            return ", ".join(parts) if parts else "Căn hộ"
+        if value is not None and not isinstance(value, str):
+            return str(value)
+        return value
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def _validate_priority(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            val = value.strip().lower()
+            if val in {"emergency", "critical", "khẩn cấp", "urgent"}:
+                return "urgent"
+            if val in {"high", "cao", "nguy cấp"}:
+                return "high"
+            if val in {"medium", "normal", "trung bình", "vừa"}:
+                return "medium"
+            if val in {"low", "thấp", "nhẹ"}:
+                return "low"
+        return value
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def _validate_category(cls, value: Any) -> Any:
+        if isinstance(value, list):
+            return ", ".join(str(x) for x in value)
+        if isinstance(value, dict):
+            return ", ".join(f"{k}: {v}" for k, v in value.items())
+        return value
 
 
 class AnnouncementScopeDraft(BaseModel):
@@ -92,6 +125,18 @@ class AgentAction(BaseModel):
     requires_confirmation: bool | None = None
     payload: dict[str, Any] = Field(default_factory=dict)
 
+    @field_validator("payload", mode="before")
+    @classmethod
+    def _validate_payload(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            value = value.strip()
+            if value.startswith("{") and value.endswith("}"):
+                try:
+                    return json.loads(value)
+                except Exception:
+                    pass
+        return value
+
 
 class AgentStructuredResult(BaseModel):
     """Strict LLM boundary; backend enriches identity fields from trusted state."""
@@ -108,6 +153,30 @@ class AgentStructuredResult(BaseModel):
     attachment_ids: list[UUID] = Field(default_factory=list)
     citations: list[dict[str, Any]] = Field(default_factory=list)
     error: dict[str, Any] | None = None
+
+    @field_validator("action", mode="before")
+    @classmethod
+    def _validate_action(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            value = value.strip()
+            if value.startswith("{") and value.endswith("}"):
+                try:
+                    return json.loads(value)
+                except Exception:
+                    pass
+        return value
+
+    @field_validator("draft", mode="before")
+    @classmethod
+    def _validate_draft(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            value = value.strip()
+            if value.startswith("{") and value.endswith("}"):
+                try:
+                    return json.loads(value)
+                except Exception:
+                    pass
+        return value
 
 
 class AgentResult(TypedDict, total=False):

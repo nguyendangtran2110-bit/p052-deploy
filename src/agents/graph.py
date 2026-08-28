@@ -158,9 +158,12 @@ class ProductionAgent:
         completed.setdefault("missing_fields", [])
         completed.setdefault("action", None)
         completed.setdefault("citations", [])
-        completed.setdefault("error", None)
         if completed.get("intent") == "handbook_question":
-            completed["citations"] = ProductionAgent._trusted_citations(state.get("handbook_results"))
+            assistant_msg = str(completed.get("assistant_message") or completed.get("response") or "")
+            if ProductionAgent._is_refusal_or_out_of_scope(assistant_msg):
+                completed["citations"] = []
+            else:
+                completed["citations"] = ProductionAgent._trusted_citations(state.get("handbook_results"))
         completed["workflow_id"] = state.get("workflow_id")
         completed["workflow_type"] = state.get("workflow_type") or ProductionAgent._infer_workflow_type(completed)
         completed["workflow_version"] = state.get("workflow_version")
@@ -173,18 +176,29 @@ class ProductionAgent:
         action = completed.get("action")
         if isinstance(action, dict) and isinstance(action.get("payload"), dict):
             draft = {**draft, **action["payload"]}
+        if state.get("actor_role") == "resident" and not (state.get("metadata") or {}).get("ticket"):
+            user_msg = str(state.get("message") or state.get("query") or "")
+            if completed.get("intent") == "ticket_question" and not (state.get("metadata") or {}).get("ticket"):
+                if ProductionAgent._looks_like_ticket(user_msg, draft) or draft:
+                    completed["intent"] = "create_ticket"
+                    completed["workflow_type"] = "resident_ticket"
+
         if isinstance(action, dict) and action.get("requires_confirmation") and not action.get("action_id"):
             action = {**action, "action_id": str(uuid4())}
             completed["action"] = action
-        elif not action and completed.get("workflow_type") == "resident_ticket" and completed.get("intent") == "create_ticket" and draft:
-            action = {
-                "type": "create_ticket",
-                "action_id": str(uuid4()),
-                "requires_confirmation": True,
-                "payload": draft,
-            }
-            completed["action"] = action
-            completed["state"] = "awaiting_confirmation"
+        elif not action and (completed.get("workflow_type") == "resident_ticket" or state.get("actor_role") == "resident") and completed.get("intent") == "create_ticket":
+            if not draft:
+                draft = ProductionAgent._draft_from_text(str(state.get("message") or state.get("query") or ""))
+            if draft:
+                action = {
+                    "type": "create_ticket",
+                    "action_id": str(uuid4()),
+                    "requires_confirmation": True,
+                    "payload": draft,
+                }
+                completed["action"] = action
+                completed["workflow_type"] = "resident_ticket"
+                completed["state"] = "awaiting_confirmation"
         if completed["attachment_ids"]:
             draft["attachment_ids"] = completed["attachment_ids"]
         if completed.get("workflow_type") == "manager_announcement" and not draft.get("scopes"):
@@ -256,6 +270,26 @@ class ProductionAgent:
                 if value and value not in values:
                     values.append(value)
         return values
+
+    @staticmethod
+    def _is_refusal_or_out_of_scope(message: str) -> bool:
+        if not message:
+            return False
+        refusal_patterns = [
+            r"ngoài phạm vi",
+            r"nằm ngoài phạm vi",
+            r"không thuộc phạm vi",
+            r"chỉ hỗ trợ các vấn đề",
+            r"chỉ có thể hỗ trợ",
+            r"chỉ có thể giúp",
+            r"chỉ trả lời các câu hỏi liên quan đến",
+            r"không thể hỗ trợ câu hỏi này",
+            r"không có thông tin về.*trong (sổ tay|tài liệu|handbook)",
+            r"tôi không có thông tin",
+            r"out of scope",
+            r"cannot answer questions outside",
+        ]
+        return any(re.search(pat, message, re.IGNORECASE) for pat in refusal_patterns)
 
     @staticmethod
     def _trusted_citations(handbook_results: Any) -> list[dict[str, Any]]:

@@ -1,3 +1,4 @@
+import json
 import pytest
 
 
@@ -91,3 +92,48 @@ async def test_chat_messages_streams_rag_answer(client, monkeypatch):
     assert '"type": "token"' in response.text
     assert '"type": "done"' in response.text
     assert "Các tiện ích gồm hồ bơi và phòng gym." in response.text
+
+
+@pytest.mark.asyncio
+async def test_chat_messages_streams_rag_answer_with_history(client, monkeypatch):
+    class Chunk:
+        def to_dict(self):
+            return {
+                "text": "Hồ bơi mở cửa từ 06:00.",
+                "source_file": "phu-dong.md",
+                "page_number": 5,
+                "section_title": "Hồ bơi",
+                "score": 0.95,
+            }
+
+    history_passed = []
+
+    def mock_stream_rag_answer(query, chunks, chat_history=None):
+        if chat_history:
+            history_passed.extend(chat_history)
+        yield "Hồ bơi mở cửa lúc 06:00."
+
+    monkeypatch.setattr("src.backend.api.routes.chat.retrieve_context", lambda *_args, **_kwargs: [Chunk()])
+    monkeypatch.setattr("src.backend.api.routes.chat.stream_rag_answer", mock_stream_rag_answer)
+
+    # First turn
+    turn1 = await client.post(
+        "/api/v1/chat/messages",
+        json={"message": "Hồ bơi ở đâu?"},
+        headers={"Accept": "text/event-stream"},
+    )
+    assert turn1.status_code == 200
+    lines = [json.loads(line[6:]) for line in turn1.text.split("\n\n") if line.startswith("data: ")]
+    done_event = next(e for e in lines if e.get("type") == "done")
+    conv_id = done_event["conversation_id"]
+
+    # Second turn with conversation_id
+    turn2 = await client.post(
+        "/api/v1/chat/messages",
+        json={"message": "Mấy giờ mở cửa?", "conversation_id": conv_id},
+        headers={"Accept": "text/event-stream"},
+    )
+    assert turn2.status_code == 200
+    assert len(history_passed) >= 1
+    assert any("Hồ bơi ở đâu?" in str(h.get("content", "")) for h in history_passed)
+

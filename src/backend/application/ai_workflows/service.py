@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 import unicodedata
 from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,6 +63,40 @@ class TicketDraftModel(BaseModel):
     description: str | None = Field(default=None, min_length=1, max_length=50000)
     location: str | None = Field(default=None, min_length=1, max_length=255)
 
+    @field_validator("location", mode="before")
+    @classmethod
+    def _validate_location(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            parts = [f"{k}: {v}" for k, v in value.items() if v]
+            return ", ".join(parts) if parts else "Căn hộ"
+        if value is not None and not isinstance(value, str):
+            return str(value)
+        return value
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def _validate_priority(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            val = value.strip().lower()
+            if val in {"emergency", "critical", "khẩn cấp", "urgent"}:
+                return "urgent"
+            if val in {"high", "cao", "nguy cấp"}:
+                return "high"
+            if val in {"medium", "normal", "trung bình", "vừa"}:
+                return "medium"
+            if val in {"low", "thấp", "nhẹ"}:
+                return "low"
+        return value
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def _validate_category(cls, value: Any) -> Any:
+        if isinstance(value, list):
+            return ", ".join(str(x) for x in value)
+        if isinstance(value, dict):
+            return ", ".join(f"{k}: {v}" for k, v in value.items())
+        return value
+
 
 class AnnouncementScopeModel(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -98,6 +133,18 @@ class AgentActionModel(BaseModel):
     requires_confirmation: bool | None = None
     payload: dict[str, Any] = Field(default_factory=dict)
 
+    @field_validator("payload", mode="before")
+    @classmethod
+    def _validate_payload(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            value = value.strip()
+            if value.startswith("{") and value.endswith("}"):
+                try:
+                    return json.loads(value)
+                except Exception:
+                    pass
+        return value
+
 
 class AgentResultModel(BaseModel):
     """Validated boundary for untrusted Agent output."""
@@ -115,6 +162,30 @@ class AgentResultModel(BaseModel):
     citations: list[dict[str, Any]] = Field(default_factory=list)
     attachment_ids: list[UUID] = Field(default_factory=list, max_length=10)
     error: dict[str, Any] | None = None
+
+    @field_validator("action", mode="before")
+    @classmethod
+    def _validate_action(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            value = value.strip()
+            if value.startswith("{") and value.endswith("}"):
+                try:
+                    return json.loads(value)
+                except Exception:
+                    pass
+        return value
+
+    @field_validator("draft", mode="before")
+    @classmethod
+    def _validate_draft(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            value = value.strip()
+            if value.startswith("{") and value.endswith("}"):
+                try:
+                    return json.loads(value)
+                except Exception:
+                    pass
+        return value
 
 
 class AIWorkflowService:

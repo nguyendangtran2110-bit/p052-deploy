@@ -299,6 +299,41 @@ class ChatService:
             message=assistant_message,
         )
 
+    @staticmethod
+    def _build_contextual_query(message: str, history: list[Message] | None) -> str:
+        if not history or len(message.split()) > 10:
+            return message
+
+        folded = message.casefold()
+        referential_markers = (
+            "o dau", "ở đâu", "khi nao", "khi nào", "bao nhieu", "bao nhiêu",
+            "the nao", "thế nào", "may gio", "mấy giờ", "gio nao", "giờ nào",
+            "o do", "ở đó", "cho do", "chỗ đó", "cho nay", "chỗ này", "the con", "thế còn",
+            "con ", "còn ", "vay thi", "vậy thì", "co duoc", "có được",
+            "co mat phi", "có mất phí", "phi bao nhieu", "phí bao nhiêu",
+            "it", "there", "when", "where", "how much", "what about", "is it"
+        )
+        # Referential or ultra-short follow-up (excluding greetings/acknowledgements)
+        is_referential = any(marker in folded for marker in referential_markers) or (
+            len(message.split()) <= 4 and not any(
+                w in folded for w in ("chao", "chào", "hello", "hi", "cam on", "cảm ơn", "thanks", "tam biet", "tạm biệt", "bye", "ok", "được", "duoc")
+            )
+        )
+        if not is_referential:
+            return message
+
+        recent_user_msgs = [
+            m.content for m in history
+            if m.role == MessageRole.USER.value and m.content != message and len(m.content.strip()) > 0
+        ]
+        if not recent_user_msgs:
+            return message
+
+        prev_msg = recent_user_msgs[-1].strip()
+        prev_words = prev_msg.split()[:12]
+        clean_prev = " ".join(prev_words)
+        return f"{clean_prev} {message}"
+
     async def _handbook_results(
         self,
         message: str,
@@ -306,12 +341,7 @@ class ChatService:
         history: list[Message] | None = None,
     ) -> list[dict]:
         unit = await self.session.get(Unit, conversation.unit_id) if conversation.unit_id else None
-        search_query = message
-        # If this is a short follow-up query and previous user messages exist, enrich the search context
-        if history and len(message.split()) <= 6:
-            recent_user_msgs = [m.content for m in history if m.role == MessageRole.USER.value and m.content != message]
-            if recent_user_msgs:
-                search_query = f"{recent_user_msgs[-1]} {message}"
+        search_query = self._build_contextual_query(message, history)
 
         return await self.knowledge.search(
             search_query,

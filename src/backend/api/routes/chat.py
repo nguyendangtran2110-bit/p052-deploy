@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.backend.api.dependencies import get_actor_context, get_agent_runtime
@@ -14,6 +15,7 @@ from src.backend.core.config import get_settings
 from src.backend.domain.common.auth import ActorContext
 from src.backend.domain.common.errors import AuthenticationError
 from src.backend.domain.identity.enums import ActorRole
+from src.backend.infrastructure.db.models import Message
 from src.backend.infrastructure.db.session import SessionFactory, get_db_session
 from src.backend.schemas.chat import ChatMessageRequest, ChatMessageResponse
 from src.backend.schemas.tickets import TicketResponse
@@ -97,11 +99,27 @@ async def _stream_rag_message(
             for chunk in chunks
         ]
 
+        chat_history: list[dict] = []
+        if request.conversation_id:
+            try:
+                async with SessionFactory() as history_session:
+                    stmt = (
+                        select(Message)
+                        .where(Message.conversation_id == str(request.conversation_id))
+                        .order_by(Message.created_at.asc())
+                    )
+                    rows = (await history_session.execute(stmt)).scalars().all()
+                    for m in rows[-6:]:
+                        role_str = "user" if (m.role == "user" or getattr(m.role, "value", None) == "user") else "assistant"
+                        chat_history.append({"role": role_str, "content": m.content})
+            except Exception:
+                chat_history = []
+
         answer_parts: list[str] = []
         if chunks:
             # Buffer the provider stream so no unreviewed model text reaches the
             # client. SSE framing is retained for frontend compatibility.
-            for token in stream_rag_answer(safe_query, chunks, []):
+            for token in stream_rag_answer(safe_query, chunks, chat_history):
                 answer_parts.append(token)
         else:
             answer_parts.append(

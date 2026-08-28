@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -114,17 +115,21 @@ class KnowledgeSearchService:
         if not tokens:
             return []
 
-        # 1. Primary: Vector search from ChromaDB knowledge base
+        # 1. Primary: Vector search from ChromaDB/Qdrant
         vector_results = self._search_vector(query, limit=limit, building=building or project_code)
+
+        # 2. Secondary: Local markdown file search (BM25 keyword matching)
+        local_results = self._search_local(query, min(limit, self.context_top_k))
+
+        # 3. Hybrid Merge: Reciprocal Rank Fusion (RRF)
+        if vector_results and local_results:
+            return self._rrf_merge(vector_results, local_results, limit=limit)
         if vector_results:
             return vector_results
-
-        # 2. Secondary fallback: Local markdown file search (if configured)
-        local_results = self._search_local(query, min(limit, self.context_top_k))
         if local_results:
             return local_results
 
-        # 3. Database SQL fallback: Indexed KnowledgeDocument/KnowledgeChunk tables
+        # 4. Database SQL fallback: Indexed KnowledgeDocument/KnowledgeChunk tables
         if self.session is None:
             return []
 
@@ -183,6 +188,42 @@ class KnowledgeSearchService:
             ]
         except Exception:
             return []
+
+    def _rrf_merge(
+        self,
+        vector_results: list[dict],
+        local_results: list[dict],
+        limit: int = 5,
+    ) -> list[dict]:
+        """Combine and re-rank vector search and BM25 local results using Reciprocal Rank Fusion."""
+        k = 60
+        fused: dict[str, dict[str, Any]] = {}
+
+        for rank, res in enumerate(vector_results, start=1):
+            key = _normalize(res.get("content", ""))[:120]
+            if not key:
+                continue
+            rrf_score = 1.0 / (k + rank)
+            fused[key] = {
+                "score": rrf_score,
+                "result": res,
+            }
+
+        for rank, res in enumerate(local_results, start=1):
+            key = _normalize(res.get("content", ""))[:120]
+            if not key:
+                continue
+            rrf_score = 1.0 / (k + rank)
+            if key in fused:
+                fused[key]["score"] += rrf_score
+            else:
+                fused[key] = {
+                    "score": rrf_score,
+                    "result": res,
+                }
+
+        sorted_items = sorted(fused.values(), key=lambda x: x["score"], reverse=True)
+        return [item["result"] for item in sorted_items[:limit]]
 
     def _search_local(self, query: str, limit: int) -> list[dict]:
         if self.context_file is None or limit <= 0:

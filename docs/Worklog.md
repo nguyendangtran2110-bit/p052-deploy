@@ -151,6 +151,25 @@
 
 **Tổng kết ngày:** Khắc phục triệt để lỗi `400 Bad Request: Index required but not found for "building_id"` trên Qdrant Cloud khi thực hiện truy vấn lọc multi-tenant. Tối ưu hóa toàn diện quy trình Docker hóa: tích hợp `uv` vào stage builder giúp tăng tốc cài đặt dependencies gấp nhiều lần; cấu hình `docker-compose.yml` kết nối chính xác tới container PostgreSQL; bổ sung `sys.path` và `PYTHONPATH=/app` cho các script quản trị (`seed_demo_accounts.py`). Xử lý lỗi timeout kết nối Frontend trên Windows bằng cách chuẩn hóa endpoint API IPv4 (`127.0.0.1:8000`), bổ sung cấu hình CORS. Khắc phục triệt để luồng tạo ticket cho cư dân: loại bỏ bộ lọc từ khóa regex cứng ở frontend làm bypass AI agent, tự động sinh action xác nhận (`create_ticket`) và đưa workflow vào trạng thái `awaiting_confirmation` để hiển thị thẻ Ticket Draft tương tác cho mọi phản ánh sự cố. Xử lý lỗi Guardrail quá mức làm ẩn số điện thoại hotline và email của Ban Quản Lý trong dữ liệu Sổ tay cư dân bằng phương thức `_safe_handbook_results` và tinh chỉnh `AGENT_SYSTEM_PROMPT`. Xây dựng và kiểm thử thành công Jupyter Notebook phân tích chuyên sâu bộ dữ liệu kiểm thử an toàn (`evaluation_analysis.ipynb` - 200 cases, 100% defense rate, bóc tách 3 tầng bảo vệ Tier 1/2/3 và latency profiling). Toàn bộ unit tests và live stack hoạt động ổn định 100% green.
 
+---
+
+## 2026-08-28
+
+| Member | Task | Status | Output | Time |
+|--------|------|--------|--------|------|
+| Trần Đăng Nguyên | Phân tích hồi quy & so sánh commit (`b3f8ff2` vs `f129cf4` & HEAD) | ✅ Done | Báo cáo phân tích amnesia, query pollution & retrieval regression | 1h |
+| Trần Đăng Nguyên | Khôi phục lịch sử hội thoại cho SSE streaming endpoint (`_stream_rag_message`) | ✅ Done | [`src/backend/api/routes/chat.py`](../src/backend/api/routes/chat.py) | 1h |
+| Trần Đăng Nguyên | Xây dựng bộ làm sạch truy vấn thông minh (`_build_contextual_query`) ngăn ô nhiễm vector search | ✅ Done | [`src/backend/application/chat/service.py`](../src/backend/application/chat/service.py) | 0.5h |
+| Trần Đăng Nguyên | Triển khai Hybrid RAG Search kết hợp Vector (Chroma/Qdrant) + BM25 Markdown qua RRF ($k=60$) | ✅ Done | [`src/backend/application/knowledge/search.py`](../src/backend/application/knowledge/search.py) | 1h |
+| Trần Đăng Nguyên | Thêm Pydantic Field Validators xử lý dữ liệu stringified JSON, location dict & priority alias | ✅ Done | [`src/agents/contracts.py`](../src/agents/contracts.py), [`src/backend/application/ai_workflows/service.py`](../src/backend/application/ai_workflows/service.py) | 1h |
+| Trần Đăng Nguyên | Sửa lỗi cú pháp JSX return statement trong trang Chat cư dân (`chat/page.tsx`) | ✅ Done | [`frontend/src/app/app/chat/page.tsx`](../frontend/src/app/app/chat/page.tsx) | 0.5h |
+| Trần Đăng Nguyên | Tinh chỉnh `AGENT_SYSTEM_PROMPT` dứt khoát phân loại `create_ticket` & xử lý Out-of-Scope | ✅ Done | [`src/agents/prompts.py`](../src/agents/prompts.py) | 0.5h |
+| Trần Đăng Nguyên | Triển khai bộ lọc `_is_refusal_or_out_of_scope` xóa sạch citation rác từ Vector Store | ✅ Done | [`src/agents/graph.py`](../src/agents/graph.py) | 0.5h |
+| Trần Đăng Nguyên | Viết test cases mới & chạy full regression test suite (67/67 unit & integration tests passed) | ✅ Done | [`tests/test_api/test_routes.py`](../tests/test_api/test_routes.py), [`tests/test_backend/test_knowledge.py`](../tests/test_backend/test_knowledge.py) | 0.5h |
+
+**Tổng kết ngày:** Hoàn thành giải quyết toàn bộ các vấn đề suy giảm chất lượng chatbot sau khi hợp nhất branch. Khôi phục hoàn toàn trí nhớ đàm thoại nhiều lượt (multi-turn memory) cho luồng SSE Streaming bằng cách nạp tin nhắn từ database truyền vào `stream_rag_answer`. Loại bỏ hiện tượng nối chuỗi truy vấn mù quáng bằng `_build_contextual_query`, chỉ mở rộng ngữ cảnh khi người dùng dùng đại từ liên hệ. Nâng cấp bộ tìm kiếm Knowledge sang kiến trúc **Hybrid Search (Reciprocal Rank Fusion - RRF)** kết hợp sức mạnh ngữ nghĩa của Vector DB (ChromaDB / Qdrant Cloud) và độ chính xác của BM25 trên Markdown local, đảm bảo không bỏ sót hotline, nội quy hay bảng phí. Khắc phục triệt để lỗi tạo Ticket Draft do xung đột kiểu dữ liệu Pydantic (chuỗi JSON hóa từ LLM, dictionary location, priority alias) và lỗi JSX return ở frontend. Bổ sung cơ chế xử lý câu hỏi ngoài phạm vi (Out-of-scope) trong Prompt và bộ lọc `_is_refusal_or_out_of_scope` trong Agent Graph giúp câu trả lời từ chối lịch sự, tự nhiên và không còn bị gắn citations rác từ vector database. Toàn bộ 67/67 unit và integration tests đạt 100% green.
+
+
 
 
 

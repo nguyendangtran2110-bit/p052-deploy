@@ -81,6 +81,38 @@ async def test_search_falls_back_to_local_when_vector_empty(monkeypatch):
     finally:
         handbook.unlink(missing_ok=True)
 
+
+@pytest.mark.asyncio
+async def test_search_hybrid_rrf_combines_vector_and_local(monkeypatch):
+    from src.services.rag import RetrievedChunk
+
+    mock_chunk = RetrievedChunk(
+        text="Quy định hồ bơi: Mở cửa từ 06:00 đến 21:00 hàng ngày.",
+        source_file="so-tay-phu-dong.pdf",
+        page_number=15,
+        section_title="Hồ bơi",
+        score=0.88,
+    )
+    monkeypatch.setattr("src.services.rag.retrieve_context", lambda *args, **kwargs: [mock_chunk])
+
+    handbook = Path(".test-handbook-hybrid.md")
+    handbook.write_text(
+        "# Tiện ích\n\nPhòng gym mở cửa từ 05:30 đến 22:00.\n",
+        encoding="utf-8",
+    )
+    try:
+        service = KnowledgeSearchService(None)
+        service.context_file = handbook
+
+        results = await service.search("hồ bơi và phòng gym", limit=5)
+        assert len(results) >= 2
+        contents = " ".join(r["content"] for r in results)
+        assert "hồ bơi" in contents.lower() or "ho boi" in contents.lower()
+        assert "gym" in contents.lower()
+    finally:
+        handbook.unlink(missing_ok=True)
+
+
 @pytest.mark.asyncio
 async def test_management_can_upload_and_list_handbook(client, management_headers):
     uploaded = await client.post(

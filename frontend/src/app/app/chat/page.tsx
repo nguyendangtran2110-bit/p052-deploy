@@ -232,32 +232,34 @@ export default function ResidentChatPage() {
   const currentWorkflow = workflow;
   const currentUnit = selectedUnit;
   if (!authorized) return <div className="workspace-loading" style={{ minHeight: 280 }}><span>Checking resident access...</span></div>;
-  return
-    <><PageHeader eyebrow="Resident space / AI chat" title="Ask the resident assistant" description="Use handbook answers or describe a problem. Ticket creation always requires your confirmation." actions={<Link href="/app/tickets/new"><Button variant="outline"><Ticket size={16} /> Create ticket directly</Button></Link>} />
-    <div className="chat-layout">
-      <aside className="chat-sidebar">
-        <Card className="chat-sidebar-card"><div className="section-heading"><div><h3>OnBxrd Assistant</h3><p>Handbook and resident support</p></div><Bot size={19} color="var(--primary)" /></div><label className="field-label" htmlFor="chat-unit">Unit for this request</label><select id="chat-unit" className="select" value={selectedUnitId} onChange={(event) => setSelectedUnitId(event.target.value)} disabled={profile.isLoading || pending}><option value="">Select a unit</option>{profile.data?.units.map((unit) => <option value={unit.id} key={unit.id}>{unit.unit_number} · Building {unit.building}</option>)}</select>{currentUnit ? <p className="field-hint">{currentUnit!.project_code} · {currentUnit!.id}</p> : null}<div className="suggestion-list"><button className="suggestion" type="button" onClick={() => void submit("What are the gym opening hours?")}>Ask about gym opening hours</button><button className="suggestion" type="button" onClick={() => void submit("I want to report a maintenance problem")}>Report a maintenance problem</button><button className="suggestion" type="button" onClick={() => void submit("What are the quiet hours?")}>Ask about quiet hours</button></div></Card>
-        <Card className="chat-sidebar-card"><div className="section-heading"><div><h3>Workflow rules</h3></div><Info size={17} color="var(--primary)" /></div><p style={{ color: "var(--muted)", fontSize: 11, lineHeight: 1.55 }}>The assistant asks for missing required fields and shows a draft before any ticket is created.</p></Card>
-        <Card className="chat-sidebar-card"><div className="section-heading"><div><h3>Knowledge base</h3><p>Handbook sources are returned by API</p></div><BookOpen size={18} color="var(--secondary)" /></div><Badge tone="success"><Check size={12} /> Available</Badge></Card>
-      </aside>
-      <section className="chat-window">
-        <header className="chat-header"><div className="chat-header-title"><div className="bot-avatar"><Bot size={18} /></div><div><strong>Resident assistant</strong><span>{currentWorkflow?.workflow_id ? `Workflow ${currentWorkflow!.workflow_id.slice(0, 8)} · revision ${currentWorkflow!.workflow_version}` : "New conversation"}</span></div></div><IconButton label="Assistant information"><HelpCircle size={18} /></IconButton></header>
-        {handoffActive && <div className="notice-card" style={{ margin: 12 }}><AlertTriangle size={17} /><div><strong>Management is handling this conversation.</strong><p>Messages are not sent back to the AI agent while a manager is active.</p></div></div>}
-        <div className="chat-messages">
-          {conversation.isError && <div className="error-state">Could not load this conversation. Check the conversation ID and your access.</div>}
-          {workflowQuery.isError && <div className="error-state">Could not load the workflow. The server remains the source of truth.</div>}
-          {messages.length === 0 && !conversation.isError && <div className="chat-empty"><div className="bot-avatar"><WandSparkles size={19} /></div><h2>What do you need help with?</h2><p>Ask about handbook rules, amenities, or describe a problem in your unit.</p></div>}
-          {messages.map((message) => <ChatMessage key={message.id} message={message} onDownload={download} />)}
-          {streamingAnswer && <div className="message message-assistant"><div className="message-body"><div className="message-author"><div className="bot-avatar"><Bot size={14} /></div><span>OnBxrd Assistant</span></div><div className="message-content">{streamingAnswer}</div></div></div>}
-          {pending && <div className="message message-assistant"><div className="message-body"><div className="message-author"><div className="bot-avatar"><Bot size={14} /></div><span>OnBxrd Assistant</span></div><div className="typing"><span /><span /><span /></div></div></div>}
-          {errorMessage && <div className="error-state" role="alert">{errorMessage}</div>}
-          {currentWorkflow !== null ? <WorkflowCard workflow={currentWorkflow!} action={currentAction} pending={pending} onConfirm={() => void submit("Confirm ticket creation", true)} onCancel={() => void cancelWorkflow()} onStartNew={startNewWorkflow} onDownload={download} /> : null}
-        </div>
-        {!handoffActive && <ChatComposer id="resident-assistant-message" value={draft} onChange={setDraft} onSubmit={() => submit()} workflowId={workflow?.workflow_id || workflowId} disabled={pending || terminal || !selectedUnitId} pending={pending} attachmentsUploading={attachmentsUploading} clearAttachmentsSignal={clearAttachmentsSignal} onAttachmentChange={setAttachmentIds} onUploadingChange={setAttachmentsUploading} />}
-        {handoffActive && <div className="assistant-note" style={{ margin: 12 }}>The manager reply is shown in this conversation. The resident assistant is paused until management hands the conversation back.</div>}
-      </section>
-    </div>
-  </>;
+  return (
+    <>
+      <PageHeader eyebrow="Resident space / AI chat" title="Ask the resident assistant" description="Use handbook answers or describe a problem. Ticket creation always requires your confirmation." actions={<Link href="/app/tickets/new"><Button variant="outline"><Ticket size={16} /> Create ticket directly</Button></Link>} />
+      <div className="chat-layout">
+        <aside className="chat-sidebar">
+          <Card className="chat-sidebar-card"><div className="section-heading"><div><h3>OnBxrd Assistant</h3><p>Handbook and resident support</p></div><Bot size={19} color="var(--primary)" /></div><label className="field-label" htmlFor="chat-unit">Unit for this request</label><select id="chat-unit" className="select" value={selectedUnitId} onChange={(event) => setSelectedUnitId(event.target.value)} disabled={profile.isLoading || pending}><option value="">Select a unit</option>{profile.data?.units.map((unit) => <option value={unit.id} key={unit.id}>{unit.unit_number} · Building {unit.building}</option>)}</select>{currentUnit ? <p className="field-hint">{currentUnit!.project_code} · {currentUnit!.id}</p> : null}<div className="suggestion-list"><button className="suggestion" type="button" onClick={() => void submit("What are the gym opening hours?")}>Ask about gym opening hours</button><button className="suggestion" type="button" onClick={() => void submit("I want to report a maintenance problem")}>Report a maintenance problem</button><button className="suggestion" type="button" onClick={() => void submit("What are the quiet hours?")}>Ask about quiet hours</button></div></Card>
+          <Card className="chat-sidebar-card"><div className="section-heading"><div><h3>Workflow rules</h3></div><Info size={17} color="var(--primary)" /></div><p style={{ color: "var(--muted)", fontSize: 11, lineHeight: 1.55 }}>The assistant asks for missing required fields and shows a draft before any ticket is created.</p></Card>
+          <Card className="chat-sidebar-card"><div className="section-heading"><div><h3>Knowledge base</h3><p>Handbook sources are returned by API</p></div><BookOpen size={18} color="var(--secondary)" /></div><Badge tone="success"><Check size={12} /> Available</Badge></Card>
+        </aside>
+        <section className="chat-window">
+          <header className="chat-header"><div className="chat-header-title"><div className="bot-avatar"><Bot size={18} /></div><div><strong>Resident assistant</strong><span>{currentWorkflow?.workflow_id ? `Workflow ${currentWorkflow!.workflow_id.slice(0, 8)} · revision ${currentWorkflow!.workflow_version}` : "New conversation"}</span></div></div><IconButton label="Assistant information"><HelpCircle size={18} /></IconButton></header>
+          {handoffActive && <div className="notice-card" style={{ margin: 12 }}><AlertTriangle size={17} /><div><strong>Management is handling this conversation.</strong><p>Messages are not sent back to the AI agent while a manager is active.</p></div></div>}
+          <div className="chat-messages">
+            {conversation.isError && <div className="error-state">Could not load this conversation. Check the conversation ID and your access.</div>}
+            {workflowQuery.isError && <div className="error-state">Could not load the workflow. The server remains the source of truth.</div>}
+            {messages.length === 0 && !conversation.isError && <div className="chat-empty"><div className="bot-avatar"><WandSparkles size={19} /></div><h2>What do you need help with?</h2><p>Ask about handbook rules, amenities, or describe a problem in your unit.</p></div>}
+            {messages.map((message) => <ChatMessage key={message.id} message={message} onDownload={download} />)}
+            {streamingAnswer && <div className="message message-assistant"><div className="message-body"><div className="message-author"><div className="bot-avatar"><Bot size={14} /></div><span>OnBxrd Assistant</span></div><div className="message-content">{streamingAnswer}</div></div></div>}
+            {pending && <div className="message message-assistant"><div className="message-body"><div className="message-author"><div className="bot-avatar"><Bot size={14} /></div><span>OnBxrd Assistant</span></div><div className="typing"><span /><span /><span /></div></div></div>}
+            {errorMessage && <div className="error-state" role="alert">{errorMessage}</div>}
+            {currentWorkflow !== null ? <WorkflowCard workflow={currentWorkflow!} action={currentAction} pending={pending} onConfirm={() => void submit("Confirm ticket creation", true)} onCancel={() => void cancelWorkflow()} onStartNew={startNewWorkflow} onDownload={download} /> : null}
+          </div>
+          {!handoffActive && <ChatComposer id="resident-assistant-message" value={draft} onChange={setDraft} onSubmit={() => submit()} workflowId={workflow?.workflow_id || workflowId} disabled={pending || terminal || !selectedUnitId} pending={pending} attachmentsUploading={attachmentsUploading} clearAttachmentsSignal={clearAttachmentsSignal} onAttachmentChange={setAttachmentIds} onUploadingChange={setAttachmentsUploading} />}
+          {handoffActive && <div className="assistant-note" style={{ margin: 12 }}>The manager reply is shown in this conversation. The resident assistant is paused until management hands the conversation back.</div>}
+        </section>
+      </div>
+    </>
+  );
 }
 
 function ChatMessage({ message, onDownload }: { message: DisplayMessage; onDownload: (id: string) => Promise<void> }) {
