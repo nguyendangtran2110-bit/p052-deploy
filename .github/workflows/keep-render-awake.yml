@@ -10,4 +10,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping backend health endpoint
-        run: curl --fail --silent --show-error --max-time 90 https://onbxrd.onrender.com/health
+        run: curl --fail --silent --show-error --max-time 90 p052-deployon.onrender.com/health
